@@ -1,0 +1,79 @@
+/* ============================================================
+   NBNE Platform Rev 2 — Staff & Admin Shell Styles
+   ============================================================ */
+
+.shell { display: grid; grid-template-columns: 260px 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
+
+.topbar {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 1rem;
+  padding: 0.75rem 1.5rem; background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-title { font-weight: 700; font-size: 1rem; }
+
+.sidebar {
+  grid-row: 2; background: var(--color-primary-dark); color: #fff;
+  display: flex; flex-direction: column; overflow-y: auto;
+}
+.sidebar-header { padding: 1.5rem 1.25rem 1rem; }
+.sidebar-header h2 { color: #fff; font-size: 1.1rem; margin: 0; }
+.sidebar-nav { flex: 1; padding: 0.5rem 0; }
+.nav-item {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1.25rem;
+  color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.9rem;
+  transition: all var(--transition); cursor: pointer; border: none; background: none; width: 100%; text-align: left;
+}
+.nav-item:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+.nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 600; border-left: 3px solid var(--color-accent); }
+.nav-icon { font-size: 1.1rem; width: 1.5rem; text-align: center; }
+.sidebar-footer { padding: 1rem 0; border-top: 1px solid rgba(255,255,255,0.1); }
+.sidebar-overlay { display: none; }
+
+.main-content { grid-row: 2; padding: 1.5rem 2rem; overflow-y: auto; }
+
+/* --- Chat Layout --- */
+.chat-layout { display: grid; grid-template-columns: 240px 1fr; border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; height: calc(100vh - 200px); min-height: 500px; }
+.chat-channels { background: #f8fafc; border-right: 1px solid var(--color-border); overflow-y: auto; }
+.chat-channels h3 { padding: 1rem; font-size: 0.85rem; text-transform: uppercase; color: var(--color-text-muted); letter-spacing: 0.05em; }
+.channel-item { padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid var(--color-border); transition: background var(--transition); }
+.channel-item:hover { background: #e2e8f0; }
+.channel-item.active { background: var(--color-primary-light); border-left: 3px solid var(--color-primary); }
+.ch-name { font-weight: 600; font-size: 0.9rem; }
+.ch-meta { font-size: 0.75rem; color: var(--color-text-muted); }
+.ch-unread { background: var(--color-primary); color: #fff; font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-weight: 700; }
+.chat-messages { display: flex; flex-direction: column; background: var(--color-surface); }
+.messages-list { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.msg { max-width: 75%; }
+.msg-you { align-self: flex-end; }
+.msg-sender { font-size: 0.75rem; font-weight: 600; color: var(--color-primary-dark); margin-bottom: 0.15rem; }
+.msg-body { background: #f1f5f9; padding: 0.5rem 0.75rem; border-radius: var(--radius); font-size: 0.9rem; line-height: 1.5; }
+.msg-you .msg-body { background: var(--color-primary); color: #fff; }
+.msg-time { font-size: 0.7rem; color: var(--color-text-muted); margin-top: 0.15rem; }
+.msg-you .msg-time { text-align: right; }
+.msg-status { font-size: 0.65rem; color: var(--color-text-muted); text-align: right; }
+.typing-indicator { font-size: 0.8rem; color: var(--color-text-muted); font-style: italic; padding: 0 1rem 0.5rem; }
+.chat-input-bar { display: flex; gap: 0.5rem; padding: 0.75rem 1rem; border-top: 1px solid var(--color-border); background: #f8fafc; }
+.chat-input-bar input { flex: 1; }
+
+/* --- Document Grid --- */
+.doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.doc-card h3 { font-size: 1rem; margin-bottom: 0.5rem; }
+.doc-meta { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+/* --- HSE Compliance Score --- */
+.compliance-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+.compliance-bar-label { width: 140px; font-size: 0.85rem; font-weight: 500; }
+.compliance-bar-track { flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+.compliance-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+.score-circle { width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; border: 6px solid; }
+
+/* --- Mobile --- */
+@media (max-width: 768px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { position: fixed; left: -280px; top: 0; bottom: 0; width: 260px; z-index: 200; transition: left 0.3s ease; }
+  .sidebar.open { left: 0; }
+  .sidebar-overlay { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 199; }
+  .main-content { padding: 1rem; }
+  .chat-layout { grid-template-columns: 1fr; height: calc(100vh - 160px); }
+  .chat-channels { display: none; }
+}
