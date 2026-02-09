@@ -43,6 +43,11 @@ function LoginForm() {
           localStorage.setItem('nbne_access', data.access)
           localStorage.setItem('nbne_refresh', data.refresh)
         }
+        // Force password change on first login
+        if (data.must_change_password) {
+          router.push('/set-password')
+          return
+        }
         // Route based on role
         const role = data.user?.role
         if (role === 'owner' || role === 'manager') {
@@ -79,7 +84,7 @@ function LoginForm() {
 
           <div style={{ marginBottom: '1rem' }}>
             <label htmlFor="email">Email</label>
-            <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. owner@demo.local" required autoFocus />
+            <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your.email@company.com" required autoFocus />
           </div>
 
           <div style={{ marginBottom: '1.25rem' }}>
@@ -91,14 +96,16 @@ function LoginForm() {
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
 
-          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--color-primary-light)', borderRadius: 'var(--radius)', fontSize: '0.8rem' }}>
-            <strong>Demo Accounts:</strong>
-            <div style={{ marginTop: '0.5rem', display: 'grid', gap: '0.25rem' }}>
-              <div><code>owner@demo.local</code> / admin123 — <span className="badge badge-info">Owner</span></div>
-              <div><code>manager@demo.local</code> / admin123 — <span className="badge badge-success">Manager</span></div>
-              <div><code>staff1@demo.local</code> / admin123 — <span className="badge badge-neutral">Staff</span></div>
+          {tenant.slug && tenant.slug !== 'nbne' && (
+            <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--color-primary-light)', borderRadius: 'var(--radius)', fontSize: '0.8rem' }}>
+              <strong>Demo Accounts:</strong>
+              <div style={{ marginTop: '0.5rem', display: 'grid', gap: '0.25rem' }}>
+                <div><code>owner@demo.local</code> / admin123 — <span className="badge badge-info">Owner</span></div>
+                <div><code>manager@demo.local</code> / admin123 — <span className="badge badge-success">Manager</span></div>
+                <div><code>staff1@demo.local</code> / admin123 — <span className="badge badge-neutral">Staff</span></div>
+              </div>
             </div>
-          </div>
+          )}
 
           <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
             <a href="/">← Back to public site</a>

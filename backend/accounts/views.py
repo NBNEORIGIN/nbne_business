@@ -5,7 +5,7 @@ from rest_framework import status
 from .models import User
 from .serializers import (
     UserSerializer, UserCreateSerializer, UserUpdateSerializer,
-    PasswordChangeSerializer,
+    PasswordChangeSerializer, SetPasswordSerializer,
 )
 from .permissions import IsManagerOrAbove, IsOwner
 
@@ -43,6 +43,21 @@ def change_password(request):
     request.user.set_password(serializer.validated_data['new_password'])
     request.user.save()
     return Response({'message': 'Password changed successfully.'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def set_password(request):
+    """Set a new password on first login (must_change_password=True). No old password required."""
+    if not request.user.must_change_password:
+        return Response({'error': 'Password change not required.'}, status=status.HTTP_400_BAD_REQUEST)
+    serializer = SetPasswordSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    request.user.set_password(serializer.validated_data['new_password'])
+    request.user.must_change_password = False
+    request.user.save(update_fields=['password', 'must_change_password'])
+    return Response({'message': 'Password set successfully.'})
 
 
 @api_view(['GET'])

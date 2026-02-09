@@ -26,6 +26,7 @@ export default function AdminStaffPage() {
   const [form, setForm] = useState<StaffForm>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [createdCreds, setCreatedCreds] = useState<{ name: string; username: string; email: string; temp_password: string } | null>(null)
 
   const loadData = () => {
     setLoading(true)
@@ -80,6 +81,15 @@ export default function AdminStaffPage() {
     } else {
       const res = await createStaff(form)
       if (res.error) { if (handleAuthError(res)) return; setError(res.error); setSaving(false); return }
+      // Show temp credentials to admin
+      if (res.data) {
+        setCreatedCreds({
+          name: `${form.first_name} ${form.last_name}`,
+          username: res.data.username || form.email.split('@')[0],
+          email: form.email,
+          temp_password: res.data.temp_password || '',
+        })
+      }
     }
     setSaving(false)
     setShowAddModal(false)
@@ -211,6 +221,25 @@ export default function AdminStaffPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
               <button className="btn" onClick={() => setShowAddModal(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : editingStaff ? 'Save Changes' : 'Add Staff'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Credentials Modal — shown after successful staff creation */}
+      {createdCreds && (
+        <div className="modal-overlay" onClick={() => setCreatedCreds(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <h2 style={{ marginBottom: 4 }}>Staff Member Created</h2>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: 16, fontSize: '0.9rem' }}>Share these login details with <strong>{createdCreds.name}</strong>. They will be asked to set their own password on first login.</p>
+            <div style={{ background: 'var(--color-primary-light)', borderRadius: 'var(--radius-md)', padding: '1rem', display: 'grid', gap: 8, fontSize: '0.9rem' }}>
+              <div><strong>Login URL:</strong> <code>{window.location.origin}/login</code></div>
+              <div><strong>Email:</strong> <code>{createdCreds.email}</code></div>
+              <div><strong>Temporary Password:</strong> <code style={{ fontSize: '1.1rem', fontWeight: 700 }}>{createdCreds.temp_password}</code></div>
+            </div>
+            <p style={{ marginTop: 12, fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>This password is shown once. The staff member must change it on their first login.</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button className="btn btn-primary" onClick={() => setCreatedCreds(null)}>Done</button>
             </div>
           </div>
         </div>

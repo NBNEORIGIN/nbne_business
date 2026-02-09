@@ -13,6 +13,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['tier'] = user.tier
         token['name'] = user.get_full_name()
         token['email'] = user.email
+        token['must_change_password'] = user.must_change_password
         return token
 
     def validate(self, attrs):
@@ -31,7 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
             'role', 'tier', 'phone', 'bio', 'avatar_initials', 'is_active_staff',
-            'date_joined',
+            'must_change_password', 'date_joined',
         ]
         read_only_fields = ['id', 'username', 'date_joined', 'tier']
 
@@ -69,4 +70,9 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 class PasswordChangeSerializer(serializers.Serializer):
     """Serializer for password change."""
     old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=8)
+
+
+class SetPasswordSerializer(serializers.Serializer):
+    """Serializer for first-login password set (no old password needed)."""
     new_password = serializers.CharField(required=True, min_length=8)

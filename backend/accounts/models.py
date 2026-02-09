@@ -17,6 +17,7 @@ class User(AbstractUser):
     bio = models.TextField(blank=True, default='')
     avatar_initials = models.CharField(max_length=4, blank=True, default='')
     is_active_staff = models.BooleanField(default=True, help_text='Whether this staff member is currently active (not Django is_staff)')
+    must_change_password = models.BooleanField(default=False, help_text='Force password change on next login')
 
     class Meta:
         ordering = ['last_name', 'first_name']

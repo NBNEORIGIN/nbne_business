@@ -1,3 +1,5 @@
+import secrets
+import string
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
@@ -43,7 +45,9 @@ def staff_create(request):
     email = request.data.get('email', '').strip()
     phone = request.data.get('phone', '').strip()
     role = request.data.get('role', 'staff')
-    password = request.data.get('password', 'changeme123')
+    # Generate a random temporary password
+    alphabet = string.ascii_letters + string.digits
+    temp_password = ''.join(secrets.choice(alphabet) for _ in range(10))
 
     if not first_name or not last_name:
         return Response({'error': 'First name and last name are required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -63,10 +67,12 @@ def staff_create(request):
 
     with transaction.atomic():
         user = User.objects.create_user(
-            username=username, email=email, password=password,
+            username=username, email=email, password=temp_password,
             first_name=first_name, last_name=last_name,
             role=role, is_staff=(role in ('manager', 'owner')),
         )
+        user.must_change_password = True
+        user.save(update_fields=['must_change_password'])
         profile = StaffProfile.objects.create(
             user=user,
             display_name=f'{first_name} {last_name}',
@@ -81,7 +87,10 @@ def staff_create(request):
                 ch.members.add(user)
         except Exception:
             pass  # comms module may not be enabled
-    return Response(StaffProfileSerializer(profile).data, status=status.HTTP_201_CREATED)
+    data = StaffProfileSerializer(profile).data
+    data['temp_password'] = temp_password
+    data['username'] = username
+    return Response(data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['PUT', 'PATCH'])
