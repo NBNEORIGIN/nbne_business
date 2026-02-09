@@ -1,10 +1,11 @@
 """
-One-time (idempotent) command to sync team chat channel membership:
+Idempotent command to sync team chat channel membership:
 - Add all active staff to all non-DM, non-archived channels
 - Remove inactive / demo users from channels
+- Delete messages sent by demo users
 """
 from django.core.management.base import BaseCommand
-from comms.models import Channel
+from comms.models import Channel, Message
 from accounts.models import User
 from staff.models import StaffProfile
 
@@ -26,6 +27,12 @@ class Command(BaseCommand):
         demo_users = User.objects.filter(email__endswith='@demo.local')
         inactive_users = User.objects.filter(is_active=False)
         users_to_remove = set(demo_users) | set(inactive_users)
+
+        # Delete messages sent by demo users
+        demo_msg_count = Message.objects.filter(sender__email__endswith='@demo.local').count()
+        if demo_msg_count:
+            Message.objects.filter(sender__email__endswith='@demo.local').delete()
+            self.stdout.write(f'  Deleted {demo_msg_count} demo messages')
 
         for ch in channels:
             # Add active staff

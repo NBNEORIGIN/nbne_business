@@ -118,7 +118,7 @@ class Command(BaseCommand):
             if 'staff' in modules:
                 self._seed_staff(cfg, owner, manager, staff1, staff2)
             if 'comms' in modules and cfg.get('comms_channels'):
-                self._seed_comms(cfg, owner, manager, staff1, staff2)
+                self._seed_comms(slug, cfg, owner, manager, staff1, staff2)
             if 'compliance' in modules:
                 self._seed_compliance(owner, staff1)
             if 'documents' in modules:
@@ -249,16 +249,18 @@ class Command(BaseCommand):
         )
         self.stdout.write(f'  Staff profiles: {StaffProfile.objects.count()}, Shifts: {Shift.objects.count()}')
 
-    def _seed_comms(self, cfg, owner, manager, staff1, staff2):
+    def _seed_comms(self, slug, cfg, owner, manager, staff1, staff2):
         from comms.models import Channel, Message
 
         channels = []
         for ch_name, ch_type in cfg['comms_channels']:
             ch, _ = Channel.objects.get_or_create(name=ch_name, defaults={'channel_type': ch_type, 'created_by': owner})
-            ch.members.add(owner, manager, staff1, staff2)
+            # Only add demo users to channels for demo tenants, not NBNE (real site)
+            if slug != 'nbne':
+                ch.members.add(owner, manager, staff1, staff2)
             channels.append(ch)
 
-        if channels and not Message.objects.filter(channel=channels[0]).exists():
+        if slug != 'nbne' and channels and not Message.objects.filter(channel=channels[0]).exists():
             Message.objects.create(channel=channels[0], sender=owner, body='Welcome to the team chat!')
             Message.objects.create(channel=channels[0], sender=staff1, body='Thanks! Excited to be here.')
             Message.objects.create(channel=channels[0], sender=manager, body='Remember to check the rota for next week.')
