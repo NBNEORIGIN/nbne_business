@@ -66,6 +66,26 @@ TENANTS = {
         ],
         'comms_channels': [('General', 'GENERAL'), ('Trainers', 'TEAM'), ('Front Desk', 'TEAM')],
     },
+    'nbne': {
+        'business_name': 'NBNE',
+        'tagline': 'Business Technology & Consulting',
+        'colour_primary': '#0f172a',
+        'colour_secondary': '#1e293b',
+        'email': 'hello@nbne.co.uk',
+        'phone': '07700 900300',
+        'address': 'Newcastle upon Tyne, UK',
+        'deposit_percentage': 25,
+        'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'],
+        'services': [
+            ('Discovery Workshop', 'Consulting', 120, 50000, 15000),
+            ('Platform Setup', 'Onboarding', 240, 150000, 50000),
+            ('Monthly Support', 'Support', 60, 25000, 0),
+            ('Custom Integration', 'Development', 180, 100000, 30000),
+            ('Training Session', 'Training', 90, 15000, 5000),
+            ('Strategy Review', 'Consulting', 60, 30000, 10000),
+        ],
+        'comms_channels': [('General', 'GENERAL'), ('Dev Team', 'TEAM'), ('Client Projects', 'TEAM')],
+    },
 }
 
 
