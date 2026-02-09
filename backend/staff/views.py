@@ -73,6 +73,14 @@ def staff_create(request):
             phone=phone,
             hire_date=timezone.now().date(),
         )
+        # Auto-add to all active team chat channels (not DMs)
+        try:
+            from comms.models import Channel
+            channels = Channel.objects.filter(is_archived=False).exclude(channel_type='DIRECT')
+            for ch in channels:
+                ch.members.add(user)
+        except Exception:
+            pass  # comms module may not be enabled
     return Response(StaffProfileSerializer(profile).data, status=status.HTTP_201_CREATED)
 
 
