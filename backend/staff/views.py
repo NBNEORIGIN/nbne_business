@@ -17,8 +17,10 @@ from .serializers import (
 @api_view(['GET'])
 @permission_classes([IsStaffOrAbove])
 def staff_list(request):
-    """List all staff profiles (staff+)."""
+    """List all staff profiles (staff+). Only active by default, ?include_inactive=true for all."""
     profiles = StaffProfile.objects.select_related('user').all()
+    if request.query_params.get('include_inactive') != 'true':
+        profiles = profiles.filter(is_active=True)
     return Response(StaffProfileSerializer(profiles, many=True).data)
 
 
