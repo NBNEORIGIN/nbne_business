@@ -156,6 +156,15 @@ PAYMENTS_ENABLED = os.environ.get('PAYMENTS_ENABLED', 'True') == 'True'
 DEFAULT_CURRENCY = os.environ.get('DEFAULT_CURRENCY', 'GBP')
 PAYMENTS_WEBHOOK_CALLBACK_URL = os.environ.get('PAYMENTS_WEBHOOK_CALLBACK_URL', '')
 
+# --- Email ------------------------------------------------------------------
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.ionos.co.uk')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@nbnesigns.co.uk')
+
 # --- CORS / CSRF ------------------------------------------------------------
 CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:3002').split(',')
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3002').split(',')

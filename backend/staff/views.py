@@ -87,6 +87,17 @@ def staff_create(request):
                 ch.members.add(user)
         except Exception:
             pass  # comms module may not be enabled
+    # Send welcome email with temp credentials
+    try:
+        from .emails import send_welcome_email
+        origin = request.META.get('HTTP_ORIGIN', request.META.get('HTTP_REFERER', ''))
+        # Strip path from origin/referer to get base URL
+        if '/' in origin.split('//')[1] if '//' in origin else False:
+            origin = origin.split('//')[0] + '//' + origin.split('//')[1].split('/')[0]
+        login_url = f'{origin}/login' if origin else 'https://app.nbnesigns.co.uk/login'
+        send_welcome_email(user, temp_password, login_url)
+    except Exception:
+        pass  # email sending is best-effort
     data = StaffProfileSerializer(profile).data
     data['temp_password'] = temp_password
     data['username'] = username
