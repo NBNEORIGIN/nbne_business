@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { getChannels, getMessages, sendMessage as apiSendMessage, getCurrentUser } from '@/lib/api'
+import { getChannels, getMessages, sendMessage as apiSendMessage, getCurrentUser, getMediaUrl, isImageFile, isVideoFile } from '@/lib/api'
 
 export default function AdminChatPage() {
   const [channels, setChannels] = useState<any[]>([])
@@ -75,15 +75,16 @@ export default function AdminChatPage() {
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
         {attachments.map((att: any) => {
-          const isImage = att.content_type?.startsWith('image/')
-          const isVideo = att.content_type?.startsWith('video/')
+          const url = getMediaUrl(att.url)
+          const isImage = att.content_type?.startsWith('image/') || isImageFile(att.filename || '')
+          const isVideo = att.content_type?.startsWith('video/') || isVideoFile(att.filename || '')
           if (isImage) {
-            return <a key={att.id} href={att.url} target="_blank" rel="noopener"><img src={att.url} alt={att.filename} style={{ maxWidth: 240, maxHeight: 180, borderRadius: 'var(--radius)', objectFit: 'cover' }} /></a>
+            return <a key={att.id} href={url} target="_blank" rel="noopener"><img src={url} alt={att.filename} style={{ maxWidth: 240, maxHeight: 180, borderRadius: 'var(--radius)', objectFit: 'cover' }} /></a>
           }
           if (isVideo) {
-            return <video key={att.id} src={att.url} controls style={{ maxWidth: 300, maxHeight: 200, borderRadius: 'var(--radius)' }} />
+            return <video key={att.id} src={url} controls style={{ maxWidth: 300, maxHeight: 200, borderRadius: 'var(--radius)' }} />
           }
-          return <a key={att.id} href={att.url} target="_blank" rel="noopener" style={{ fontSize: '0.85rem', color: 'var(--color-primary)' }}>📎 {att.filename}</a>
+          return <a key={att.id} href={url} target="_blank" rel="noopener" style={{ fontSize: '0.85rem', color: 'var(--color-primary)' }}>📎 {att.filename}</a>
         })}
       </div>
     )

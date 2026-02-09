@@ -8,9 +8,9 @@ async function proxyRequest(req: NextRequest) {
   const path = url.pathname.replace(/^\/api\/django/, '')
   const target = `${API_BASE}/api${path}${url.search}`
 
-  const headers: Record<string, string> = {
-    'Content-Type': req.headers.get('content-type') || 'application/json',
-  }
+  const headers: Record<string, string> = {}
+  const contentType = req.headers.get('content-type')
+  if (contentType) headers['Content-Type'] = contentType
   const auth = req.headers.get('authorization')
   if (auth) headers['Authorization'] = auth
 
@@ -21,16 +21,18 @@ async function proxyRequest(req: NextRequest) {
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     try {
-      init.body = await req.text()
+      // Use arrayBuffer to preserve binary data (multipart/form-data uploads)
+      const buf = await req.arrayBuffer()
+      if (buf.byteLength > 0) init.body = Buffer.from(buf)
     } catch {
       // no body
     }
   }
 
   const res = await fetch(target, init)
-  const body = await res.text()
+  const body = await res.arrayBuffer()
 
-  return new NextResponse(body, {
+  return new NextResponse(Buffer.from(body), {
     status: res.status,
     headers: {
       'Content-Type': res.headers.get('content-type') || 'application/json',

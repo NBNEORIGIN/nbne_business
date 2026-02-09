@@ -324,6 +324,26 @@ export async function getTimesheetSummary(params?: { period?: string; date?: str
   return apiFetch<any>(`/staff/timesheets/summary/${q ? '?' + q : ''}`)
 }
 
+// --- Media URL helper ---
+const BACKEND_BASE = typeof window !== 'undefined'
+  ? (process.env.NEXT_PUBLIC_API_BASE_URL || '')
+  : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000')
+
+export function getMediaUrl(path: string | null | undefined): string {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  // Relative path from backend — prepend backend base
+  return `${BACKEND_BASE}${path.startsWith('/') ? '' : '/'}${path}`
+}
+
+export function isImageFile(filename: string): boolean {
+  return /\.(jpe?g|png|gif|webp|bmp|svg|heic|heif|tiff?)$/i.test(filename)
+}
+
+export function isVideoFile(filename: string): boolean {
+  return /\.(mp4|webm|mov|avi|mkv|m4v)$/i.test(filename)
+}
+
 // --- Comms ---
 export async function getChannels() {
   return apiFetch<any[]>('/comms/channels/')
