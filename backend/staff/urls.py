@@ -3,7 +3,10 @@ from . import views
 
 urlpatterns = [
     path('', views.staff_list, name='staff_list'),
+    path('create/', views.staff_create, name='staff_create'),
     path('<int:staff_id>/', views.staff_detail, name='staff_detail'),
+    path('<int:staff_id>/update/', views.staff_update, name='staff_update'),
+    path('<int:staff_id>/delete/', views.staff_delete, name='staff_delete'),
     path('my-shifts/', views.my_shifts, name='my_shifts'),
     path('shifts/', views.shift_list, name='shift_list'),
     path('shifts/create/', views.shift_create, name='shift_create'),

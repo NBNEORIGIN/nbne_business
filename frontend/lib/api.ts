@@ -220,6 +220,18 @@ export async function getStaffList() {
   return apiFetch<any[]>('/staff/')
 }
 
+export async function createStaff(data: { first_name: string; last_name: string; email: string; phone?: string; role?: string }) {
+  return apiFetch<any>('/staff/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateStaff(id: number, data: Record<string, any>) {
+  return apiFetch<any>(`/staff/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteStaff(id: number) {
+  return apiFetch<any>(`/staff/${id}/delete/`, { method: 'DELETE' })
+}
+
 export async function getShifts(params?: { staff_id?: number; date?: string }) {
   const qs = new URLSearchParams()
   if (params?.staff_id) qs.set('staff_id', String(params.staff_id))

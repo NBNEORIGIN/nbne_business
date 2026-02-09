@@ -1,7 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords } from '@/lib/api'
+import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff } from '@/lib/api'
+
+interface StaffForm {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  role: string
+}
+
+const emptyForm: StaffForm = { first_name: '', last_name: '', email: '', phone: '', role: 'staff' }
 
 export default function AdminStaffPage() {
   const [tab, setTab] = useState<'profiles' | 'shifts' | 'leave' | 'training'>('profiles')
@@ -11,7 +21,14 @@ export default function AdminStaffPage() {
   const [training, setTraining] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingStaff, setEditingStaff] = useState<any | null>(null)
+  const [form, setForm] = useState<StaffForm>(emptyForm)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const loadData = () => {
+    setLoading(true)
     Promise.all([getStaffList(), getShifts(), getLeaveRequests(), getTrainingRecords()]).then(([s, sh, lv, tr]) => {
       setStaff(s.data || [])
       setShifts(sh.data || [])
@@ -19,7 +36,54 @@ export default function AdminStaffPage() {
       setTraining(tr.data || [])
       setLoading(false)
     })
-  }, [])
+  }
+
+  useEffect(() => { loadData() }, [])
+
+  const openAdd = () => {
+    setForm(emptyForm)
+    setError('')
+    setEditingStaff(null)
+    setShowAddModal(true)
+  }
+
+  const openEdit = (s: any) => {
+    const nameParts = (s.display_name || '').split(' ')
+    setForm({
+      first_name: nameParts[0] || '',
+      last_name: nameParts.slice(1).join(' ') || '',
+      email: s.email || '',
+      phone: s.phone || '',
+      role: s.role || 'staff',
+    })
+    setError('')
+    setEditingStaff(s)
+    setShowAddModal(true)
+  }
+
+  const handleSave = async () => {
+    setError('')
+    if (!form.first_name.trim() || !form.last_name.trim()) { setError('First and last name are required.'); return }
+    if (!form.email.trim()) { setError('Email is required.'); return }
+    setSaving(true)
+    if (editingStaff) {
+      const res = await updateStaff(editingStaff.id, form)
+      if (res.error) { setError(res.error); setSaving(false); return }
+    } else {
+      const res = await createStaff(form)
+      if (res.error) { setError(res.error); setSaving(false); return }
+    }
+    setSaving(false)
+    setShowAddModal(false)
+    loadData()
+  }
+
+  const handleDelete = async (s: any) => {
+    if (!confirm(`Deactivate ${s.display_name}? They will no longer be able to log in.`)) return
+    const res = await deleteStaff(s.id)
+    if (res.error) { alert(res.error); return }
+    loadData()
+  }
 
   if (loading) return <div className="empty-state">Loading staff data…</div>
 
@@ -33,23 +97,32 @@ export default function AdminStaffPage() {
       </div>
 
       {tab === 'profiles' && (
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Status</th></tr></thead>
-            <tbody>
-              {staff.map((s: any) => (
-                <tr key={s.id}>
-                  <td style={{ fontWeight: 600 }}>{s.display_name}</td>
-                  <td>{s.role}</td>
-                  <td>{s.email}</td>
-                  <td>{s.phone}</td>
-                  <td><span className={`badge ${s.is_active ? 'badge-success' : 'badge-neutral'}`}>{s.is_active ? 'Active' : 'Inactive'}</span></td>
-                </tr>
-              ))}
-              {staff.length === 0 && <tr><td colSpan={5} className="empty-state">No staff profiles</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+            <button className="btn btn-primary" onClick={openAdd}>+ Add Staff Member</button>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                {staff.map((s: any) => (
+                  <tr key={s.id}>
+                    <td style={{ fontWeight: 600 }}>{s.display_name}</td>
+                    <td>{s.role}</td>
+                    <td>{s.email}</td>
+                    <td>{s.phone || '—'}</td>
+                    <td><span className={`badge ${s.is_active ? 'badge-success' : 'badge-neutral'}`}>{s.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td>
+                      <button className="btn btn-sm" onClick={() => openEdit(s)} style={{ marginRight: 8 }}>Edit</button>
+                      {s.is_active && <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s)}>Deactivate</button>}
+                    </td>
+                  </tr>
+                ))}
+                {staff.length === 0 && <tr><td colSpan={6} className="empty-state">No staff profiles</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {tab === 'shifts' && (
@@ -91,6 +164,47 @@ export default function AdminStaffPage() {
               {training.length === 0 && <tr><td colSpan={6} className="empty-state">No training records</td></tr>}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Add / Edit Staff Modal */}
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <h2 style={{ marginBottom: 16 }}>{editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}</h2>
+            {error && <div className="alert alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="form-label">First Name *</label>
+                  <input className="form-input" value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} placeholder="e.g. Sam" />
+                </div>
+                <div>
+                  <label className="form-label">Last Name *</label>
+                  <input className="form-input" value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} placeholder="e.g. Kim" />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">Email *</label>
+                <input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="e.g. sam.kim@company.com" />
+              </div>
+              <div>
+                <label className="form-label">Phone</label>
+                <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="e.g. 07700 900000" />
+              </div>
+              <div>
+                <label className="form-label">Role</label>
+                <select className="form-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                  <option value="staff">Staff</option>
+                  <option value="manager">Manager</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+              <button className="btn" onClick={() => setShowAddModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : editingStaff ? 'Save Changes' : 'Add Staff'}</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

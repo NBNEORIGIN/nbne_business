@@ -2,7 +2,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
-from accounts.permissions import IsStaffOrAbove, IsManagerOrAbove
+from django.db import transaction
+from accounts.models import User
+from accounts.permissions import IsStaffOrAbove, IsManagerOrAbove, IsOwner
 from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord
 from .serializers import (
     StaffProfileSerializer, ShiftSerializer, ShiftCreateSerializer,
@@ -28,6 +30,105 @@ def staff_detail(request, staff_id):
     except StaffProfile.DoesNotExist:
         return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
     return Response(StaffProfileSerializer(profile).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsManagerOrAbove])
+def staff_create(request):
+    """Create a new staff member (User + StaffProfile). Manager+ only."""
+    first_name = request.data.get('first_name', '').strip()
+    last_name = request.data.get('last_name', '').strip()
+    email = request.data.get('email', '').strip()
+    phone = request.data.get('phone', '').strip()
+    role = request.data.get('role', 'staff')
+    password = request.data.get('password', 'changeme123')
+
+    if not first_name or not last_name:
+        return Response({'error': 'First name and last name are required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not email:
+        return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if role not in ('staff', 'manager'):
+        return Response({'error': 'Role must be staff or manager.'}, status=status.HTTP_400_BAD_REQUEST)
+    if User.objects.filter(email=email).exists():
+        return Response({'error': 'A user with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    username = email.split('@')[0].lower().replace('.', '_')
+    base_username = username
+    counter = 1
+    while User.objects.filter(username=username).exists():
+        username = f'{base_username}_{counter}'
+        counter += 1
+
+    with transaction.atomic():
+        user = User.objects.create_user(
+            username=username, email=email, password=password,
+            first_name=first_name, last_name=last_name,
+            role=role, is_staff=(role in ('manager', 'owner')),
+        )
+        profile = StaffProfile.objects.create(
+            user=user,
+            display_name=f'{first_name} {last_name}',
+            phone=phone,
+            hire_date=timezone.now().date(),
+        )
+    return Response(StaffProfileSerializer(profile).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsManagerOrAbove])
+def staff_update(request, staff_id):
+    """Update a staff member's details. Manager+ only."""
+    try:
+        profile = StaffProfile.objects.select_related('user').get(id=staff_id)
+    except StaffProfile.DoesNotExist:
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    user = profile.user
+    data = request.data
+
+    if 'first_name' in data:
+        user.first_name = data['first_name'].strip()
+    if 'last_name' in data:
+        user.last_name = data['last_name'].strip()
+    if 'email' in data:
+        new_email = data['email'].strip()
+        if new_email != user.email and User.objects.filter(email=new_email).exclude(pk=user.pk).exists():
+            return Response({'error': 'A user with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.email = new_email
+    if 'role' in data and data['role'] in ('staff', 'manager'):
+        user.role = data['role']
+        user.is_staff = data['role'] in ('manager', 'owner')
+    if 'phone' in data:
+        profile.phone = data['phone'].strip()
+    if 'emergency_contact_name' in data:
+        profile.emergency_contact_name = data['emergency_contact_name'].strip()
+    if 'emergency_contact_phone' in data:
+        profile.emergency_contact_phone = data['emergency_contact_phone'].strip()
+    if 'notes' in data:
+        profile.notes = data['notes']
+
+    # Update display name if name fields changed
+    if 'first_name' in data or 'last_name' in data:
+        profile.display_name = f'{user.first_name} {user.last_name}'
+
+    user.save()
+    profile.save()
+    return Response(StaffProfileSerializer(profile).data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsManagerOrAbove])
+def staff_delete(request, staff_id):
+    """Deactivate a staff member. Manager+ only."""
+    try:
+        profile = StaffProfile.objects.select_related('user').get(id=staff_id)
+    except StaffProfile.DoesNotExist:
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+    profile.is_active = False
+    profile.save(update_fields=['is_active', 'updated_at'])
+    profile.user.is_active = False
+    profile.user.save(update_fields=['is_active'])
+    return Response({'detail': 'Staff member deactivated.'}, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
