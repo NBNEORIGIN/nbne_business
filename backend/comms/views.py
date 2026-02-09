@@ -52,33 +52,41 @@ def message_list(request, channel_id):
     limit = int(request.query_params.get('limit', 50))
     messages = Message.objects.filter(channel=channel).select_related('sender').prefetch_related('attachments').order_by('-created_at')[:limit]
     messages = list(reversed(messages))
-    return Response(MessageSerializer(messages, many=True).data)
+    return Response(MessageSerializer(messages, many=True, context={'request': request}).data)
 
 
 @api_view(['POST'])
 @permission_classes([IsStaffOrAbove])
 def message_create(request, channel_id):
-    """Send a message to a channel (staff+)."""
+    """Send a message to a channel (staff+). Supports file attachments via multipart."""
     try:
         channel = Channel.objects.get(id=channel_id)
     except Channel.DoesNotExist:
         return Response({'error': 'Channel not found'}, status=status.HTTP_404_NOT_FOUND)
-    serializer = MessageCreateSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    body = request.data.get('body', '').strip()
+    files = request.FILES.getlist('files')
+    if not body and not files:
+        return Response({'error': 'Message body or file is required.'}, status=status.HTTP_400_BAD_REQUEST)
     parent = None
-    parent_id = serializer.validated_data.get('parent')
+    parent_id = request.data.get('parent')
     if parent_id:
         try:
-            parent = Message.objects.get(id=parent_id, channel=channel)
-        except Message.DoesNotExist:
+            parent = Message.objects.get(id=int(parent_id), channel=channel)
+        except (Message.DoesNotExist, ValueError):
             return Response({'error': 'Parent message not found'}, status=status.HTTP_404_NOT_FOUND)
     msg = Message.objects.create(
         channel=channel, sender=request.user,
-        body=serializer.validated_data['body'], parent=parent,
+        body=body or '', parent=parent,
     )
+    # Handle file attachments
+    from .models import Attachment
+    for f in files:
+        Attachment.objects.create(
+            message=msg, file=f, filename=f.name,
+            content_type=f.content_type or '', size_bytes=f.size,
+        )
     channel.save()  # bump updated_at
-    return Response(MessageSerializer(msg).data, status=status.HTTP_201_CREATED)
+    return Response(MessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])

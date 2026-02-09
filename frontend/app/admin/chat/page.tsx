@@ -1,50 +1,95 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { DEMO_CHANNELS, DEMO_MESSAGES } from '@/lib/demo-data'
-import type { Channel, ChatMessage } from '@/lib/types'
-
-const CURRENT_USER_ID = 'u1'
-const CURRENT_USER_NAME = 'Jordan Riley'
+import { getChannels, getMessages, sendMessage as apiSendMessage, getCurrentUser } from '@/lib/api'
 
 export default function AdminChatPage() {
-  const [activeChannel, setActiveChannel] = useState<Channel>(DEMO_CHANNELS[0])
-  const [allMessages, setAllMessages] = useState<Record<number, ChatMessage[]>>({ ...DEMO_MESSAGES })
+  const [channels, setChannels] = useState<any[]>([])
+  const [activeChannel, setActiveChannel] = useState<any | null>(null)
+  const [messages, setMessages] = useState<any[]>([])
   const [input, setInput] = useState('')
-  const [typingUser, setTypingUser] = useState<string | null>(null)
+  const [files, setFiles] = useState<File[]>([])
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const currentUser = getCurrentUser()
+  const currentUserId = currentUser?.id
 
-  const messages = allMessages[activeChannel.id] || []
+  useEffect(() => {
+    getChannels().then(r => {
+      const chs = r.data || []
+      setChannels(chs)
+      if (chs.length > 0) setActiveChannel(chs[0])
+      setLoading(false)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!activeChannel) return
+    getMessages(activeChannel.id).then(r => setMessages(r.data || []))
+  }, [activeChannel?.id])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length, activeChannel.id])
+  }, [messages.length])
 
-  function sendMessage(e: React.FormEvent) {
+  // Poll for new messages every 5 seconds
+  useEffect(() => {
+    if (!activeChannel) return
+    const interval = setInterval(() => {
+      getMessages(activeChannel.id).then(r => { if (r.data) setMessages(r.data) })
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [activeChannel?.id])
+
+  async function handleSend(e: React.FormEvent) {
     e.preventDefault()
-    if (!input.trim()) return
-    const newMsg: ChatMessage = {
-      id: Date.now(), channel_id: activeChannel.id, sender_name: CURRENT_USER_NAME,
-      sender_id: CURRENT_USER_ID, body: input.trim(), message_type: 'text',
-      created_at: new Date().toISOString(), read_by: [CURRENT_USER_ID], delivered: true,
+    if ((!input.trim() && files.length === 0) || !activeChannel) return
+    setSending(true)
+    const res = await apiSendMessage(activeChannel.id, input.trim(), files.length > 0 ? files : undefined)
+    if (res.data) {
+      setMessages(prev => [...prev, res.data])
     }
-    setAllMessages(prev => ({ ...prev, [activeChannel.id]: [...(prev[activeChannel.id] || []), newMsg] }))
     setInput('')
-    setTypingUser('Sam Kim')
-    setTimeout(() => {
-      setTypingUser(null)
-      const reply: ChatMessage = {
-        id: Date.now() + 1, channel_id: activeChannel.id, sender_name: 'Sam Kim',
-        sender_id: 'u2', body: 'Got it, thanks! 👍', message_type: 'text',
-        created_at: new Date().toISOString(), read_by: ['u2'], delivered: true,
-      }
-      setAllMessages(prev => ({ ...prev, [activeChannel.id]: [...(prev[activeChannel.id] || []), reply] }))
-    }, 1500)
+    setFiles([])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    setSending(false)
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) setFiles(Array.from(e.target.files))
+  }
+
+  function removeFile(idx: number) {
+    setFiles(prev => prev.filter((_, i) => i !== idx))
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function formatTime(iso: string) {
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
   }
+
+  function renderAttachments(attachments: any[]) {
+    if (!attachments || attachments.length === 0) return null
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+        {attachments.map((att: any) => {
+          const isImage = att.content_type?.startsWith('image/')
+          const isVideo = att.content_type?.startsWith('video/')
+          if (isImage) {
+            return <a key={att.id} href={att.url} target="_blank" rel="noopener"><img src={att.url} alt={att.filename} style={{ maxWidth: 240, maxHeight: 180, borderRadius: 'var(--radius)', objectFit: 'cover' }} /></a>
+          }
+          if (isVideo) {
+            return <video key={att.id} src={att.url} controls style={{ maxWidth: 300, maxHeight: 200, borderRadius: 'var(--radius)' }} />
+          }
+          return <a key={att.id} href={att.url} target="_blank" rel="noopener" style={{ fontSize: '0.85rem', color: 'var(--color-primary)' }}>📎 {att.filename}</a>
+        })}
+      </div>
+    )
+  }
+
+  if (loading) return <div className="empty-state">Loading chat…</div>
 
   return (
     <div>
@@ -52,11 +97,10 @@ export default function AdminChatPage() {
       <div className="chat-layout">
         <div className="chat-channels">
           <h3>Channels</h3>
-          {DEMO_CHANNELS.map(ch => (
-            <div key={ch.id} className={`channel-item ${activeChannel.id === ch.id ? 'active' : ''}`} onClick={() => { setActiveChannel(ch); setTypingUser(null) }}>
+          {channels.map((ch: any) => (
+            <div key={ch.id} className={`channel-item ${activeChannel?.id === ch.id ? 'active' : ''}`} onClick={() => setActiveChannel(ch)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="ch-name">{ch.channel_type === 'DIRECT' ? '👤' : '#'} {ch.name}</span>
-                {ch.unread_count > 0 && <span className="ch-unread">{ch.unread_count}</span>}
+                <span className="ch-name">{ch.channel_type === 'DIRECT' ? '👤' : ch.channel_type === 'TEAM' ? '👥' : '#'} {ch.name}</span>
               </div>
               <div className="ch-meta">{ch.member_count} members</div>
             </div>
@@ -64,25 +108,42 @@ export default function AdminChatPage() {
         </div>
         <div className="chat-messages">
           <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
-            {activeChannel.channel_type === 'DIRECT' ? '👤' : '#'} {activeChannel.name}
+            {activeChannel ? (
+              <>{activeChannel.channel_type === 'DIRECT' ? '👤' : '#'} {activeChannel.name}<span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>{activeChannel.member_count} members</span></>
+            ) : 'Select a channel'}
           </div>
           <div className="messages-list">
-            {messages.map(msg => {
-              const isYou = msg.sender_id === CURRENT_USER_ID
+            {messages.map((msg: any) => {
+              const isYou = msg.sender_id === currentUserId
               return (
                 <div key={msg.id} className={`msg ${isYou ? 'msg-you' : ''}`}>
                   {!isYou && <div className="msg-sender">{msg.sender_name}</div>}
-                  <div className="msg-body">{msg.body}</div>
+                  {msg.body && <div className="msg-body">{msg.body}</div>}
+                  {renderAttachments(msg.attachments)}
                   <div className="msg-time">{formatTime(msg.created_at)}</div>
                 </div>
               )
             })}
-            {typingUser && <div className="typing-indicator">{typingUser} is typing...</div>}
             <div ref={messagesEndRef} />
           </div>
-          <form className="chat-input-bar" onSubmit={sendMessage}>
-            <input value={input} onChange={e => setInput(e.target.value)} placeholder={`Message #${activeChannel.name}...`} autoFocus />
-            <button type="submit" className="btn btn-primary btn-sm">Send</button>
+
+          {/* File preview bar */}
+          {files.length > 0 && (
+            <div style={{ padding: '0.5rem 1rem', borderTop: '1px solid var(--color-border)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', background: 'var(--color-bg)' }}>
+              {files.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '4px 8px', fontSize: '0.8rem' }}>
+                  {f.type.startsWith('image/') ? '🖼️' : f.type.startsWith('video/') ? '🎬' : '📎'} {f.name.length > 20 ? f.name.slice(0, 17) + '...' : f.name}
+                  <button type="button" onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)', fontWeight: 700, fontSize: '1rem', lineHeight: 1 }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <form className="chat-input-bar" onSubmit={handleSend}>
+            <input type="file" ref={fileInputRef} onChange={handleFileSelect} multiple accept="image/*,video/*,.pdf,.doc,.docx" style={{ display: 'none' }} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem', padding: '0 0.5rem' }} title="Attach files">📎</button>
+            <input value={input} onChange={e => setInput(e.target.value)} placeholder={activeChannel ? `Message #${activeChannel.name}...` : 'Select a channel'} autoFocus disabled={!activeChannel} style={{ flex: 1 }} />
+            <button type="submit" className="btn btn-primary btn-sm" disabled={!activeChannel || sending}>{sending ? '...' : 'Send'}</button>
           </form>
         </div>
       </div>

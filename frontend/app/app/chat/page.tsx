@@ -8,9 +8,11 @@ export default function ChatPage() {
   const [activeChannel, setActiveChannel] = useState<any | null>(null)
   const [messages, setMessages] = useState<any[]>([])
   const [input, setInput] = useState('')
-  const [typingUser, setTypingUser] = useState<string | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const currentUser = getCurrentUser()
   const currentUserId = currentUser?.id
 
@@ -32,26 +34,59 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
 
+  // Poll for new messages every 5 seconds
+  useEffect(() => {
+    if (!activeChannel) return
+    const interval = setInterval(() => {
+      getMessages(activeChannel.id).then(r => { if (r.data) setMessages(r.data) })
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [activeChannel?.id])
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
-    if (!input.trim() || !activeChannel) return
-    const body = input.trim()
-    setInput('')
-
-    const res = await apiSendMessage(activeChannel.id, body)
+    if ((!input.trim() && files.length === 0) || !activeChannel) return
+    setSending(true)
+    const res = await apiSendMessage(activeChannel.id, input.trim(), files.length > 0 ? files : undefined)
     if (res.data) {
       setMessages(prev => [...prev, res.data])
     }
+    setInput('')
+    setFiles([])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    setSending(false)
+  }
 
-    // Simulate typing response for demo
-    setTypingUser('Sam Kim')
-    setTimeout(() => {
-      setTypingUser(null)
-    }, 1500 + Math.random() * 1000)
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) setFiles(Array.from(e.target.files))
+  }
+
+  function removeFile(idx: number) {
+    setFiles(prev => prev.filter((_, i) => i !== idx))
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function formatTime(iso: string) {
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  function renderAttachments(attachments: any[]) {
+    if (!attachments || attachments.length === 0) return null
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+        {attachments.map((att: any) => {
+          const isImage = att.content_type?.startsWith('image/')
+          const isVideo = att.content_type?.startsWith('video/')
+          if (isImage) {
+            return <a key={att.id} href={att.url} target="_blank" rel="noopener"><img src={att.url} alt={att.filename} style={{ maxWidth: 240, maxHeight: 180, borderRadius: 'var(--radius)', objectFit: 'cover' }} /></a>
+          }
+          if (isVideo) {
+            return <video key={att.id} src={att.url} controls style={{ maxWidth: 300, maxHeight: 200, borderRadius: 'var(--radius)' }} />
+          }
+          return <a key={att.id} href={att.url} target="_blank" rel="noopener" style={{ fontSize: '0.85rem', color: 'var(--color-primary)' }}>📎 {att.filename}</a>
+        })}
+      </div>
+    )
   }
 
   if (loading) return <div className="empty-state">Loading chat…</div>
@@ -67,15 +102,9 @@ export default function ChatPage() {
         <div className="chat-channels">
           <h3>Channels</h3>
           {channels.map((ch: any) => (
-            <div
-              key={ch.id}
-              className={`channel-item ${activeChannel?.id === ch.id ? 'active' : ''}`}
-              onClick={() => { setActiveChannel(ch); setTypingUser(null) }}
-            >
+            <div key={ch.id} className={`channel-item ${activeChannel?.id === ch.id ? 'active' : ''}`} onClick={() => setActiveChannel(ch)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="ch-name">
-                  {ch.channel_type === 'DIRECT' ? '👤' : ch.channel_type === 'TEAM' ? '👥' : '#'} {ch.name}
-                </span>
+                <span className="ch-name">{ch.channel_type === 'DIRECT' ? '👤' : ch.channel_type === 'TEAM' ? '👥' : '#'} {ch.name}</span>
               </div>
               <div className="ch-meta">{ch.member_count} members</div>
             </div>
@@ -85,12 +114,7 @@ export default function ChatPage() {
         <div className="chat-messages">
           <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
             {activeChannel ? (
-              <>
-                {activeChannel.channel_type === 'DIRECT' ? '👤' : '#'} {activeChannel.name}
-                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>
-                  {activeChannel.member_count} members
-                </span>
-              </>
+              <>{activeChannel.channel_type === 'DIRECT' ? '👤' : '#'} {activeChannel.name}<span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>{activeChannel.member_count} members</span></>
             ) : 'Select a channel'}
           </div>
 
@@ -100,26 +124,32 @@ export default function ChatPage() {
               return (
                 <div key={msg.id} className={`msg ${isYou ? 'msg-you' : ''}`}>
                   {!isYou && <div className="msg-sender">{msg.sender_name}</div>}
-                  <div className="msg-body">{msg.body}</div>
+                  {msg.body && <div className="msg-body">{msg.body}</div>}
+                  {renderAttachments(msg.attachments)}
                   <div className="msg-time">{formatTime(msg.created_at)}</div>
                 </div>
               )
             })}
-            {typingUser && (
-              <div className="typing-indicator">{typingUser} is typing...</div>
-            )}
             <div ref={messagesEndRef} />
           </div>
 
+          {/* File preview bar */}
+          {files.length > 0 && (
+            <div style={{ padding: '0.5rem 1rem', borderTop: '1px solid var(--color-border)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', background: 'var(--color-bg)' }}>
+              {files.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '4px 8px', fontSize: '0.8rem' }}>
+                  {f.type.startsWith('image/') ? '🖼️' : f.type.startsWith('video/') ? '🎬' : '📎'} {f.name.length > 20 ? f.name.slice(0, 17) + '...' : f.name}
+                  <button type="button" onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)', fontWeight: 700, fontSize: '1rem', lineHeight: 1 }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <form className="chat-input-bar" onSubmit={handleSend}>
-            <input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder={activeChannel ? `Message #${activeChannel.name}...` : 'Select a channel'}
-              autoFocus
-              disabled={!activeChannel}
-            />
-            <button type="submit" className="btn btn-primary btn-sm" disabled={!activeChannel}>Send</button>
+            <input type="file" ref={fileInputRef} onChange={handleFileSelect} multiple accept="image/*,video/*,.pdf,.doc,.docx" style={{ display: 'none' }} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem', padding: '0 0.5rem' }} title="Attach files">📎</button>
+            <input value={input} onChange={e => setInput(e.target.value)} placeholder={activeChannel ? `Message #${activeChannel.name}...` : 'Select a channel'} autoFocus disabled={!activeChannel} style={{ flex: 1 }} />
+            <button type="submit" className="btn btn-primary btn-sm" disabled={!activeChannel || sending}>{sending ? '...' : 'Send'}</button>
           </form>
         </div>
       </div>

@@ -276,7 +276,29 @@ export async function getMessages(channelId: number, limit = 50) {
   return apiFetch<any[]>(`/comms/channels/${channelId}/messages/?limit=${limit}`)
 }
 
-export async function sendMessage(channelId: number, body: string) {
+export async function sendMessage(channelId: number, body: string, files?: File[]) {
+  if (files && files.length > 0) {
+    // Use FormData for file uploads — bypass apiFetch to avoid JSON content-type
+    const token = getAccessToken()
+    const formData = new FormData()
+    formData.append('body', body)
+    for (const f of files) formData.append('files', f)
+    try {
+      const res = await fetch(`${API_BASE}/comms/channels/${channelId}/messages/create/`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        body: formData,
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        return { data: null, error: err.detail || err.error || `Error ${res.status}`, status: res.status }
+      }
+      const data = await res.json()
+      return { data, error: null, status: res.status }
+    } catch (err: any) {
+      return { data: null, error: err.message || 'Network error', status: 0 }
+    }
+  }
   return apiFetch<any>(`/comms/channels/${channelId}/messages/create/`, {
     method: 'POST', body: JSON.stringify({ body }),
   })

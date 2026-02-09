@@ -28,9 +28,19 @@ class ChannelCreateSerializer(serializers.ModelSerializer):
 
 
 class AttachmentSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
     class Meta:
         model = Attachment
-        fields = ['id', 'filename', 'content_type', 'size_bytes', 'uploaded_at']
+        fields = ['id', 'filename', 'content_type', 'size_bytes', 'url', 'uploaded_at']
+
+    def get_url(self, obj):
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
 
 
 class MessageSerializer(serializers.ModelSerializer):
