@@ -279,6 +279,51 @@ export async function getTrainingRecords() {
   return apiFetch<any[]>('/staff/training/')
 }
 
+// --- Working Hours ---
+export async function getWorkingHours(params?: { staff_id?: number }) {
+  const qs = new URLSearchParams()
+  if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  const q = qs.toString()
+  return apiFetch<any[]>(`/staff/working-hours/${q ? '?' + q : ''}`)
+}
+
+export async function bulkSetWorkingHours(staffId: number, hours: any[]) {
+  return apiFetch<any>('/staff/working-hours/bulk-set/', {
+    method: 'POST', body: JSON.stringify({ staff: staffId, hours }),
+  })
+}
+
+export async function deleteWorkingHours(id: number) {
+  return apiFetch<any>(`/staff/working-hours/${id}/delete/`, { method: 'DELETE' })
+}
+
+// --- Timesheets ---
+export async function getTimesheets(params?: { staff_id?: number; date_from?: string; date_to?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  if (params?.date_from) qs.set('date_from', params.date_from)
+  if (params?.date_to) qs.set('date_to', params.date_to)
+  const q = qs.toString()
+  return apiFetch<any[]>(`/staff/timesheets/${q ? '?' + q : ''}`)
+}
+
+export async function updateTimesheet(id: number, data: Record<string, any>) {
+  return apiFetch<any>(`/staff/timesheets/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function generateTimesheets(data: { date_from: string; date_to: string; staff_id?: number }) {
+  return apiFetch<any>('/staff/timesheets/generate/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function getTimesheetSummary(params?: { period?: string; date?: string; staff_id?: number }) {
+  const qs = new URLSearchParams()
+  if (params?.period) qs.set('period', params.period)
+  if (params?.date) qs.set('date', params.date)
+  if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  const q = qs.toString()
+  return apiFetch<any>(`/staff/timesheets/summary/${q ? '?' + q : ''}`)
+}
+
 // --- Comms ---
 export async function getChannels() {
   return apiFetch<any[]>('/comms/channels/')

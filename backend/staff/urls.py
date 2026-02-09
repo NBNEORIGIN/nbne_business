@@ -19,4 +19,15 @@ urlpatterns = [
     path('training/create/', views.training_create, name='training_create'),
     path('absence/', views.absence_list, name='absence_list'),
     path('absence/create/', views.absence_create, name='absence_create'),
+    # Working Hours
+    path('working-hours/', views.working_hours_list, name='working_hours_list'),
+    path('working-hours/create/', views.working_hours_create, name='working_hours_create'),
+    path('working-hours/<int:wh_id>/update/', views.working_hours_update, name='working_hours_update'),
+    path('working-hours/<int:wh_id>/delete/', views.working_hours_delete, name='working_hours_delete'),
+    path('working-hours/bulk-set/', views.working_hours_bulk_set, name='working_hours_bulk_set'),
+    # Timesheets
+    path('timesheets/', views.timesheet_list, name='timesheet_list'),
+    path('timesheets/<int:ts_id>/update/', views.timesheet_update, name='timesheet_update'),
+    path('timesheets/generate/', views.timesheet_generate, name='timesheet_generate'),
+    path('timesheets/summary/', views.timesheet_summary, name='timesheet_summary'),
 ]

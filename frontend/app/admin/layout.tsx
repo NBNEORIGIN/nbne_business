@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { href: '/admin/bookings', label: 'Bookings', icon: '📅', module: 'bookings' },
   { href: '/admin/services', label: 'Services', icon: '💇', module: 'bookings' },
   { href: '/admin/staff', label: 'Staff', icon: '👥', module: 'staff' },
-  { href: '/admin/schedule', label: 'Schedule', icon: '🕐', module: 'bookings' },
+  { href: '/admin/schedule', label: 'Timesheets', icon: '🕐', module: 'staff' },
   { href: '/admin/clients', label: 'CRM', icon: '📋', module: 'crm' },
   { href: '/admin/chat', label: 'Team Chat', icon: '💬', module: 'comms' },
   { href: '/admin/hse', label: 'Health & Safety', icon: '🛡️', module: 'compliance' },

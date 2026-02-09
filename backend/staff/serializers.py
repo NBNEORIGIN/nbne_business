@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord
+from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry
 
 
 class StaffProfileSerializer(serializers.ModelSerializer):
@@ -95,3 +95,48 @@ class AbsenceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = AbsenceRecord
         fields = ['staff', 'record_type', 'date', 'duration_minutes', 'reason', 'is_authorised']
+
+
+class WorkingHoursSerializer(serializers.ModelSerializer):
+    staff_name = serializers.CharField(source='staff.display_name', read_only=True)
+    day_name = serializers.CharField(source='get_day_of_week_display', read_only=True)
+    scheduled_hours = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = WorkingHours
+        fields = [
+            'id', 'staff', 'staff_name', 'day_of_week', 'day_name',
+            'start_time', 'end_time', 'break_minutes', 'scheduled_hours', 'is_active',
+        ]
+        read_only_fields = ['id']
+
+
+class WorkingHoursCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkingHours
+        fields = ['staff', 'day_of_week', 'start_time', 'end_time', 'break_minutes', 'is_active']
+
+
+class TimesheetEntrySerializer(serializers.ModelSerializer):
+    staff_name = serializers.CharField(source='staff.display_name', read_only=True)
+    scheduled_hours = serializers.FloatField(read_only=True)
+    actual_hours = serializers.FloatField(read_only=True)
+    variance_hours = serializers.FloatField(read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = TimesheetEntry
+        fields = [
+            'id', 'staff', 'staff_name', 'date',
+            'scheduled_start', 'scheduled_end', 'scheduled_break_minutes', 'scheduled_hours',
+            'actual_start', 'actual_end', 'actual_break_minutes', 'actual_hours',
+            'variance_hours', 'status', 'status_display', 'notes',
+            'approved_by', 'approved_at', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'scheduled_hours', 'actual_hours', 'variance_hours']
+
+
+class TimesheetUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TimesheetEntry
+        fields = ['actual_start', 'actual_end', 'actual_break_minutes', 'status', 'notes']

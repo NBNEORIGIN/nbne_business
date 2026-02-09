@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift } from '@/lib/api'
+import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets } from '@/lib/api'
 
 interface StaffForm {
   first_name: string
@@ -14,7 +14,7 @@ interface StaffForm {
 const emptyForm: StaffForm = { first_name: '', last_name: '', email: '', phone: '', role: 'staff' }
 
 export default function AdminStaffPage() {
-  const [tab, setTab] = useState<'profiles' | 'shifts' | 'leave' | 'training'>('profiles')
+  const [tab, setTab] = useState<'profiles' | 'hours' | 'timesheets' | 'shifts' | 'leave' | 'training'>('profiles')
   const [staff, setStaff] = useState<any[]>([])
   const [shifts, setShifts] = useState<any[]>([])
   const [leave, setLeave] = useState<any[]>([])
@@ -35,6 +35,22 @@ export default function AdminStaffPage() {
   const [shiftForm, setShiftForm] = useState({ staff: '', date: '', location: '', notes: '', is_published: true })
   const [shiftSaving, setShiftSaving] = useState(false)
   const [shiftError, setShiftError] = useState('')
+
+  // Working Hours state
+  const [workingHours, setWorkingHours] = useState<any[]>([])
+  const [whStaffId, setWhStaffId] = useState<number | null>(null)
+  const [whGrid, setWhGrid] = useState<Record<number, { enabled: boolean; start_time: string; end_time: string; break_minutes: number }>>({})
+  const [whSaving, setWhSaving] = useState(false)
+
+  // Timesheet state
+  const [timesheets, setTimesheets] = useState<any[]>([])
+  const [tsDateFrom, setTsDateFrom] = useState('')
+  const [tsDateTo, setTsDateTo] = useState('')
+  const [tsStaffFilter, setTsStaffFilter] = useState('')
+  const [tsGenerating, setTsGenerating] = useState(false)
+  const [editingTs, setEditingTs] = useState<any | null>(null)
+  const [tsForm, setTsForm] = useState({ actual_start: '', actual_end: '', actual_break_minutes: 0, status: '', notes: '' })
+  const [tsSaving, setTsSaving] = useState(false)
 
   const loadData = () => {
     setLoading(true)
@@ -169,14 +185,108 @@ export default function AdminStaffPage() {
     loadData()
   }
 
+  // --- Working Hours handlers ---
+  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  const defaultDay = { enabled: false, start_time: '09:00', end_time: '17:00', break_minutes: 0 }
+
+  const loadWorkingHours = async (staffId: number) => {
+    setWhStaffId(staffId)
+    const res = await getWorkingHours({ staff_id: staffId })
+    const entries = res.data || []
+    const grid: Record<number, { enabled: boolean; start_time: string; end_time: string; break_minutes: number }> = {}
+    for (let d = 0; d < 7; d++) grid[d] = { ...defaultDay }
+    for (const e of entries) {
+      grid[e.day_of_week] = { enabled: true, start_time: e.start_time?.slice(0, 5) || '09:00', end_time: e.end_time?.slice(0, 5) || '17:00', break_minutes: e.break_minutes || 0 }
+    }
+    setWhGrid(grid)
+    setWorkingHours(entries)
+  }
+
+  const saveWorkingHours = async () => {
+    if (!whStaffId) return
+    setWhSaving(true)
+    const hours: any[] = []
+    for (let d = 0; d < 7; d++) {
+      const day = whGrid[d]
+      if (day?.enabled) {
+        hours.push({ day_of_week: d, start_time: day.start_time, end_time: day.end_time, break_minutes: day.break_minutes })
+      }
+    }
+    const res = await bulkSetWorkingHours(whStaffId, hours)
+    if (res.error) alert(res.error)
+    else alert('Working hours saved.')
+    setWhSaving(false)
+  }
+
+  const updateWhDay = (day: number, field: string, val: any) => {
+    setWhGrid(prev => ({ ...prev, [day]: { ...prev[day], [field]: val } }))
+  }
+
+  // --- Timesheet handlers ---
+  const initTsDates = () => {
+    const now = new Date()
+    const mon = new Date(now)
+    mon.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1))
+    const sun = new Date(mon)
+    sun.setDate(mon.getDate() + 6)
+    return { from: mon.toISOString().split('T')[0], to: sun.toISOString().split('T')[0] }
+  }
+
+  const loadTimesheets = async (from?: string, to?: string, staffId?: string) => {
+    const dates = initTsDates()
+    const df = from || tsDateFrom || dates.from
+    const dt = to || tsDateTo || dates.to
+    if (!tsDateFrom) setTsDateFrom(df)
+    if (!tsDateTo) setTsDateTo(dt)
+    const params: any = { date_from: df, date_to: dt }
+    if (staffId || tsStaffFilter) params.staff_id = Number(staffId || tsStaffFilter)
+    const res = await getTimesheets(params)
+    setTimesheets(res.data || [])
+  }
+
+  const handleGenerateTimesheets = async () => {
+    if (!tsDateFrom || !tsDateTo) { alert('Set date range first.'); return }
+    setTsGenerating(true)
+    const data: any = { date_from: tsDateFrom, date_to: tsDateTo }
+    if (tsStaffFilter) data.staff_id = Number(tsStaffFilter)
+    const res = await generateTimesheets(data)
+    if (res.error) alert(res.error)
+    else alert(res.data?.detail || 'Timesheets generated.')
+    setTsGenerating(false)
+    loadTimesheets()
+  }
+
+  const openEditTs = (ts: any) => {
+    setEditingTs(ts)
+    setTsForm({
+      actual_start: ts.actual_start?.slice(0, 5) || ts.scheduled_start?.slice(0, 5) || '',
+      actual_end: ts.actual_end?.slice(0, 5) || ts.scheduled_end?.slice(0, 5) || '',
+      actual_break_minutes: ts.actual_break_minutes ?? ts.scheduled_break_minutes ?? 0,
+      status: ts.status || 'SCHEDULED',
+      notes: ts.notes || '',
+    })
+  }
+
+  const saveTs = async () => {
+    if (!editingTs) return
+    setTsSaving(true)
+    const res = await updateTimesheet(editingTs.id, tsForm)
+    if (res.error) alert(res.error)
+    setTsSaving(false)
+    setEditingTs(null)
+    loadTimesheets()
+  }
+
   if (loading) return <div className="empty-state">Loading staff data…</div>
+
+  const tabLabels: Record<string, string> = { profiles: 'Profiles', hours: 'Working Hours', timesheets: 'Timesheets', shifts: 'Shifts', leave: 'Leave', training: 'Training' }
 
   return (
     <div>
       <div className="page-header"><h1>Staff Management</h1><span className="badge badge-danger">Tier 3</span></div>
       <div className="tabs">
-        {(['profiles', 'shifts', 'leave', 'training'] as const).map(t => (
-          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
+        {(['profiles', 'hours', 'timesheets', 'shifts', 'leave', 'training'] as const).map(t => (
+          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); if (t === 'timesheets' && timesheets.length === 0) loadTimesheets() }}>{tabLabels[t]}</button>
         ))}
       </div>
 
@@ -203,6 +313,151 @@ export default function AdminStaffPage() {
                   </tr>
                 ))}
                 {staff.length === 0 && <tr><td colSpan={6} className="empty-state">No staff profiles</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {tab === 'hours' && (
+        <div style={{ maxWidth: 700 }}>
+          <div style={{ marginBottom: 16 }}>
+            <label className="form-label">Select Staff Member</label>
+            <select className="form-input" value={whStaffId || ''} onChange={e => { const id = Number(e.target.value); if (id) loadWorkingHours(id) }} style={{ maxWidth: 300 }}>
+              <option value="">Choose staff…</option>
+              {staff.map((s: any) => <option key={s.id} value={s.id}>{s.display_name}</option>)}
+            </select>
+          </div>
+          {whStaffId && (
+            <>
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Day</th><th>Working</th><th>Start</th><th>End</th><th>Break (min)</th><th>Hours</th></tr></thead>
+                  <tbody>
+                    {DAYS.map((dayName, d) => {
+                      const day = whGrid[d] || defaultDay
+                      const hrs = day.enabled ? (() => {
+                        const [sh, sm] = day.start_time.split(':').map(Number)
+                        const [eh, em] = day.end_time.split(':').map(Number)
+                        return Math.max(0, (eh * 60 + em - sh * 60 - sm - day.break_minutes) / 60).toFixed(1)
+                      })() : '0.0'
+                      return (
+                        <tr key={d} style={{ opacity: day.enabled ? 1 : 0.5 }}>
+                          <td style={{ fontWeight: 600 }}>{dayName}</td>
+                          <td><input type="checkbox" checked={day.enabled} onChange={e => updateWhDay(d, 'enabled', e.target.checked)} /></td>
+                          <td><input className="form-input" type="time" value={day.start_time} onChange={e => updateWhDay(d, 'start_time', e.target.value)} disabled={!day.enabled} style={{ width: 120 }} /></td>
+                          <td><input className="form-input" type="time" value={day.end_time} onChange={e => updateWhDay(d, 'end_time', e.target.value)} disabled={!day.enabled} style={{ width: 120 }} /></td>
+                          <td><input className="form-input" type="number" value={day.break_minutes} onChange={e => updateWhDay(d, 'break_minutes', Number(e.target.value))} disabled={!day.enabled} style={{ width: 80 }} min={0} /></td>
+                          <td>{day.enabled ? `${hrs}h` : '—'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                  Weekly total: {DAYS.reduce((sum, _, d) => {
+                    const day = whGrid[d] || defaultDay
+                    if (!day.enabled) return sum
+                    const [sh, sm] = day.start_time.split(':').map(Number)
+                    const [eh, em] = day.end_time.split(':').map(Number)
+                    return sum + Math.max(0, (eh * 60 + em - sh * 60 - sm - day.break_minutes) / 60)
+                  }, 0).toFixed(1)}h
+                </span>
+                <button className="btn btn-primary" onClick={saveWorkingHours} disabled={whSaving}>{whSaving ? 'Saving…' : 'Save Working Hours'}</button>
+              </div>
+            </>
+          )}
+          {!whStaffId && <div className="empty-state">Select a staff member to set their working hours</div>}
+        </div>
+      )}
+
+      {tab === 'timesheets' && (
+        <>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+            <div>
+              <label className="form-label">From</label>
+              <input className="form-input" type="date" value={tsDateFrom} onChange={e => setTsDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label">To</label>
+              <input className="form-input" type="date" value={tsDateTo} onChange={e => setTsDateTo(e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label">Staff</label>
+              <select className="form-input" value={tsStaffFilter} onChange={e => setTsStaffFilter(e.target.value)}>
+                <option value="">All Staff</option>
+                {staff.map((s: any) => <option key={s.id} value={s.id}>{s.display_name}</option>)}
+              </select>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={() => loadTimesheets()}>Load</button>
+            <button className="btn btn-sm" onClick={handleGenerateTimesheets} disabled={tsGenerating} title="Auto-populate from working hours">{tsGenerating ? 'Generating…' : 'Generate from Hours'}</button>
+          </div>
+
+          {editingTs && (
+            <div style={{ background: 'var(--color-primary-light)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 8 }}>Edit: {editingTs.staff_name} — {editingTs.date}</h3>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div>
+                  <label className="form-label">Actual Start</label>
+                  <input className="form-input" type="time" value={tsForm.actual_start} onChange={e => setTsForm({ ...tsForm, actual_start: e.target.value })} />
+                </div>
+                <div>
+                  <label className="form-label">Actual End</label>
+                  <input className="form-input" type="time" value={tsForm.actual_end} onChange={e => setTsForm({ ...tsForm, actual_end: e.target.value })} />
+                </div>
+                <div>
+                  <label className="form-label">Break (min)</label>
+                  <input className="form-input" type="number" value={tsForm.actual_break_minutes} onChange={e => setTsForm({ ...tsForm, actual_break_minutes: Number(e.target.value) })} min={0} style={{ width: 80 }} />
+                </div>
+                <div>
+                  <label className="form-label">Status</label>
+                  <select className="form-input" value={tsForm.status} onChange={e => setTsForm({ ...tsForm, status: e.target.value })}>
+                    <option value="SCHEDULED">Scheduled</option>
+                    <option value="WORKED">Worked</option>
+                    <option value="LATE">Late Arrival</option>
+                    <option value="LEFT_EARLY">Left Early</option>
+                    <option value="ABSENT">Absent</option>
+                    <option value="SICK">Sick</option>
+                    <option value="HOLIDAY">Holiday</option>
+                    <option value="AMENDED">Amended</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <label className="form-label">Notes</label>
+                  <input className="form-input" value={tsForm.notes} onChange={e => setTsForm({ ...tsForm, notes: e.target.value })} placeholder="e.g. Left 30min early" />
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={saveTs} disabled={tsSaving}>{tsSaving ? '…' : 'Save'}</button>
+                <button className="btn btn-sm" onClick={() => setEditingTs(null)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Staff</th><th>Sched. Start</th><th>Sched. End</th><th>Sched. Hrs</th><th>Actual Start</th><th>Actual End</th><th>Actual Hrs</th><th>Variance</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                {timesheets.map((ts: any) => {
+                  const variance = ts.variance_hours || 0
+                  const statusColors: Record<string, string> = { WORKED: 'badge-success', SCHEDULED: 'badge-neutral', LATE: 'badge-warning', LEFT_EARLY: 'badge-warning', ABSENT: 'badge-danger', SICK: 'badge-danger', HOLIDAY: 'badge-info', AMENDED: 'badge-info' }
+                  return (
+                    <tr key={ts.id}>
+                      <td style={{ fontWeight: 600 }}>{ts.date}</td>
+                      <td>{ts.staff_name}</td>
+                      <td>{ts.scheduled_start?.slice(0, 5) || '—'}</td>
+                      <td>{ts.scheduled_end?.slice(0, 5) || '—'}</td>
+                      <td>{ts.scheduled_hours ? `${Number(ts.scheduled_hours).toFixed(1)}h` : '—'}</td>
+                      <td>{ts.actual_start?.slice(0, 5) || '—'}</td>
+                      <td>{ts.actual_end?.slice(0, 5) || '—'}</td>
+                      <td>{ts.actual_hours ? `${Number(ts.actual_hours).toFixed(1)}h` : '—'}</td>
+                      <td style={{ color: variance < 0 ? 'var(--color-danger)' : variance > 0 ? 'var(--color-success)' : 'inherit', fontWeight: variance !== 0 ? 600 : 400 }}>{variance !== 0 ? `${variance > 0 ? '+' : ''}${variance.toFixed(1)}h` : '—'}</td>
+                      <td><span className={`badge ${statusColors[ts.status] || 'badge-neutral'}`}>{ts.status_display || ts.status}</span></td>
+                      <td><button className="btn btn-sm" onClick={() => openEditTs(ts)}>Edit</button></td>
+                    </tr>
+                  )
+                })}
+                {timesheets.length === 0 && <tr><td colSpan={11} className="empty-state">No timesheet entries. Set working hours first, then click "Generate from Hours".</td></tr>}
               </tbody>
             </table>
           </div>

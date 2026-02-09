@@ -7,12 +7,14 @@ from django.utils import timezone
 from django.db import transaction
 from accounts.models import User
 from accounts.permissions import IsStaffOrAbove, IsManagerOrAbove, IsOwner
-from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord
+from .models import StaffProfile, Shift, LeaveRequest, TrainingRecord, AbsenceRecord, WorkingHours, TimesheetEntry
 from .serializers import (
     StaffProfileSerializer, ShiftSerializer, ShiftCreateSerializer,
     LeaveRequestSerializer, LeaveCreateSerializer, LeaveReviewSerializer,
     TrainingRecordSerializer, TrainingCreateSerializer,
     AbsenceRecordSerializer, AbsenceCreateSerializer,
+    WorkingHoursSerializer, WorkingHoursCreateSerializer,
+    TimesheetEntrySerializer, TimesheetUpdateSerializer,
 )
 
 
@@ -323,3 +325,275 @@ def absence_create(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     record = serializer.save()
     return Response(AbsenceRecordSerializer(record).data, status=status.HTTP_201_CREATED)
+
+
+# ── Working Hours ────────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsManagerOrAbove])
+def working_hours_list(request):
+    """List working hours. ?staff_id= to filter by staff."""
+    qs = WorkingHours.objects.select_related('staff').filter(is_active=True)
+    staff_id = request.query_params.get('staff_id')
+    if staff_id:
+        qs = qs.filter(staff_id=staff_id)
+    return Response(WorkingHoursSerializer(qs, many=True).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsManagerOrAbove])
+def working_hours_create(request):
+    """Create a working hours entry (manager+)."""
+    serializer = WorkingHoursCreateSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    wh = serializer.save()
+    return Response(WorkingHoursSerializer(wh).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsManagerOrAbove])
+def working_hours_update(request, wh_id):
+    """Update a working hours entry (manager+)."""
+    try:
+        wh = WorkingHours.objects.get(id=wh_id)
+    except WorkingHours.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    serializer = WorkingHoursCreateSerializer(wh, data=request.data, partial=True)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer.save()
+    return Response(WorkingHoursSerializer(wh).data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsManagerOrAbove])
+def working_hours_delete(request, wh_id):
+    """Delete a working hours entry (manager+)."""
+    try:
+        wh = WorkingHours.objects.get(id=wh_id)
+    except WorkingHours.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    wh.delete()
+    return Response({'detail': 'Deleted.'})
+
+
+@api_view(['POST'])
+@permission_classes([IsManagerOrAbove])
+def working_hours_bulk_set(request):
+    """Bulk set working hours for a staff member. Replaces all existing entries.
+    Expects: { staff: <id>, hours: [ { day_of_week, start_time, end_time, break_minutes }, ... ] }
+    """
+    staff_id = request.data.get('staff')
+    hours = request.data.get('hours', [])
+    if not staff_id:
+        return Response({'error': 'staff is required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        profile = StaffProfile.objects.get(id=staff_id)
+    except StaffProfile.DoesNotExist:
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+    with transaction.atomic():
+        WorkingHours.objects.filter(staff=profile).delete()
+        created = []
+        for h in hours:
+            wh = WorkingHours.objects.create(
+                staff=profile,
+                day_of_week=h['day_of_week'],
+                start_time=h['start_time'],
+                end_time=h['end_time'],
+                break_minutes=h.get('break_minutes', 0),
+            )
+            created.append(wh)
+    return Response(WorkingHoursSerializer(created, many=True).data, status=status.HTTP_201_CREATED)
+
+
+# ── Timesheets ───────────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsStaffOrAbove])
+def timesheet_list(request):
+    """List timesheet entries. ?staff_id=, ?date_from=, ?date_to= filters.
+    Staff see own only; managers see all."""
+    qs = TimesheetEntry.objects.select_related('staff').all()
+    if not request.user.is_manager_or_above:
+        try:
+            profile = request.user.staff_profile
+            qs = qs.filter(staff=profile)
+        except StaffProfile.DoesNotExist:
+            return Response([])
+    staff_id = request.query_params.get('staff_id')
+    if staff_id:
+        qs = qs.filter(staff_id=staff_id)
+    date_from = request.query_params.get('date_from')
+    date_to = request.query_params.get('date_to')
+    if date_from:
+        qs = qs.filter(date__gte=date_from)
+    if date_to:
+        qs = qs.filter(date__lte=date_to)
+    return Response(TimesheetEntrySerializer(qs, many=True).data)
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsManagerOrAbove])
+def timesheet_update(request, ts_id):
+    """Update a timesheet entry (actual times, status, notes). Manager+."""
+    try:
+        entry = TimesheetEntry.objects.get(id=ts_id)
+    except TimesheetEntry.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    serializer = TimesheetUpdateSerializer(entry, data=request.data, partial=True)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer.save()
+    return Response(TimesheetEntrySerializer(entry).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsManagerOrAbove])
+def timesheet_generate(request):
+    """Auto-populate timesheets from working hours for a date range.
+    Expects: { date_from: 'YYYY-MM-DD', date_to: 'YYYY-MM-DD', staff_id?: <id> }
+    Skips dates that already have entries. Creates SCHEDULED entries from WorkingHours.
+    """
+    from datetime import datetime, timedelta
+    date_from_str = request.data.get('date_from')
+    date_to_str = request.data.get('date_to')
+    if not date_from_str or not date_to_str:
+        return Response({'error': 'date_from and date_to are required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+        date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
+    except ValueError:
+        return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+    if date_to < date_from:
+        return Response({'error': 'date_to must be >= date_from'}, status=status.HTTP_400_BAD_REQUEST)
+    if (date_to - date_from).days > 90:
+        return Response({'error': 'Max 90 days at a time'}, status=status.HTTP_400_BAD_REQUEST)
+
+    staff_filter = {}
+    staff_id = request.data.get('staff_id')
+    if staff_id:
+        staff_filter['staff_id'] = staff_id
+
+    all_wh = WorkingHours.objects.filter(is_active=True, **staff_filter).select_related('staff')
+    # Group by staff
+    wh_by_staff = {}
+    for wh in all_wh:
+        wh_by_staff.setdefault(wh.staff_id, []).append(wh)
+
+    created_count = 0
+    current = date_from
+    while current <= date_to:
+        dow = current.weekday()  # 0=Monday
+        for staff_id_key, wh_list in wh_by_staff.items():
+            day_entries = [w for w in wh_list if w.day_of_week == dow]
+            if not day_entries:
+                continue
+            # Use the first entry for this day (primary shift)
+            wh = day_entries[0]
+            # Combine all segments: earliest start, latest end, sum breaks
+            earliest_start = min(w.start_time for w in day_entries)
+            latest_end = max(w.end_time for w in day_entries)
+            total_break = sum(w.break_minutes for w in day_entries)
+            # Calculate gap between segments as additional break
+            if len(day_entries) > 1:
+                sorted_entries = sorted(day_entries, key=lambda w: w.start_time)
+                for i in range(len(sorted_entries) - 1):
+                    gap_start = datetime.combine(current, sorted_entries[i].end_time)
+                    gap_end = datetime.combine(current, sorted_entries[i + 1].start_time)
+                    if gap_end > gap_start:
+                        total_break += int((gap_end - gap_start).total_seconds() / 60)
+
+            _, created = TimesheetEntry.objects.get_or_create(
+                staff_id=staff_id_key, date=current,
+                defaults={
+                    'scheduled_start': earliest_start,
+                    'scheduled_end': latest_end,
+                    'scheduled_break_minutes': total_break,
+                    'status': 'SCHEDULED',
+                }
+            )
+            if created:
+                created_count += 1
+        current += timedelta(days=1)
+
+    return Response({'detail': f'{created_count} timesheet entries created.', 'created': created_count})
+
+
+@api_view(['GET'])
+@permission_classes([IsManagerOrAbove])
+def timesheet_summary(request):
+    """Aggregated timesheet summary for payroll dashboard.
+    ?period=daily|weekly|monthly  ?date=YYYY-MM-DD  ?staff_id=
+    Returns per-staff totals: scheduled_hours, actual_hours, variance, days_worked, absences.
+    """
+    from datetime import datetime, timedelta
+    from django.db.models import Sum, Count, Q, F
+
+    period = request.query_params.get('period', 'weekly')
+    date_str = request.query_params.get('date')
+    if date_str:
+        try:
+            ref_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Invalid date'}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        ref_date = timezone.now().date()
+
+    if period == 'daily':
+        date_from = ref_date
+        date_to = ref_date
+    elif period == 'monthly':
+        date_from = ref_date.replace(day=1)
+        next_month = (date_from.replace(day=28) + timedelta(days=4))
+        date_to = next_month.replace(day=1) - timedelta(days=1)
+    else:  # weekly
+        date_from = ref_date - timedelta(days=ref_date.weekday())  # Monday
+        date_to = date_from + timedelta(days=6)  # Sunday
+
+    qs = TimesheetEntry.objects.filter(date__gte=date_from, date__lte=date_to)
+    staff_id = request.query_params.get('staff_id')
+    if staff_id:
+        qs = qs.filter(staff_id=staff_id)
+
+    entries = qs.select_related('staff')
+    # Aggregate per staff
+    summary = {}
+    for e in entries:
+        sid = e.staff_id
+        if sid not in summary:
+            summary[sid] = {
+                'staff_id': sid,
+                'staff_name': e.staff.display_name,
+                'scheduled_hours': 0,
+                'actual_hours': 0,
+                'days_worked': 0,
+                'days_absent': 0,
+                'days_sick': 0,
+                'days_holiday': 0,
+                'entries': [],
+            }
+        s = summary[sid]
+        s['scheduled_hours'] += e.scheduled_hours
+        s['actual_hours'] += e.actual_hours
+        if e.status == 'WORKED' or e.status == 'LATE' or e.status == 'LEFT_EARLY' or e.status == 'AMENDED':
+            s['days_worked'] += 1
+        elif e.status == 'ABSENT':
+            s['days_absent'] += 1
+        elif e.status == 'SICK':
+            s['days_sick'] += 1
+        elif e.status == 'HOLIDAY':
+            s['days_holiday'] += 1
+        s['entries'].append(TimesheetEntrySerializer(e).data)
+
+    for s in summary.values():
+        s['scheduled_hours'] = round(s['scheduled_hours'], 2)
+        s['actual_hours'] = round(s['actual_hours'], 2)
+        s['variance_hours'] = round(s['actual_hours'] - s['scheduled_hours'], 2)
+
+    return Response({
+        'period': period,
+        'date_from': str(date_from),
+        'date_to': str(date_to),
+        'staff_summaries': list(summary.values()),
+    })
