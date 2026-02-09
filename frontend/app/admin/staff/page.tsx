@@ -61,6 +61,14 @@ export default function AdminStaffPage() {
     setShowAddModal(true)
   }
 
+  const handleAuthError = (res: { error: string | null; status: number }) => {
+    if (res.status === 401 || res.error?.toLowerCase().includes('inactive') || res.error?.toLowerCase().includes('expired')) {
+      window.location.href = '/login'
+      return true
+    }
+    return false
+  }
+
   const handleSave = async () => {
     setError('')
     if (!form.first_name.trim() || !form.last_name.trim()) { setError('First and last name are required.'); return }
@@ -68,10 +76,10 @@ export default function AdminStaffPage() {
     setSaving(true)
     if (editingStaff) {
       const res = await updateStaff(editingStaff.id, form)
-      if (res.error) { setError(res.error); setSaving(false); return }
+      if (res.error) { if (handleAuthError(res)) return; setError(res.error); setSaving(false); return }
     } else {
       const res = await createStaff(form)
-      if (res.error) { setError(res.error); setSaving(false); return }
+      if (res.error) { if (handleAuthError(res)) return; setError(res.error); setSaving(false); return }
     }
     setSaving(false)
     setShowAddModal(false)

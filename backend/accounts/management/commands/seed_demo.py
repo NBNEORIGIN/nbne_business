@@ -139,6 +139,18 @@ class Command(BaseCommand):
         if created:
             user.set_password('admin123')
             user.save()
+        else:
+            # Ensure demo users are always active on re-seed
+            changed = False
+            if not user.is_active:
+                user.is_active = True
+                changed = True
+            if user.role != role:
+                user.role = role
+                user.is_staff = role in ('owner', 'manager')
+                changed = True
+            if changed:
+                user.save()
         return user
 
     def _seed_tenant(self, slug, cfg):
