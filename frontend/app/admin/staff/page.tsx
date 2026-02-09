@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff } from '@/lib/api'
+import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift } from '@/lib/api'
 
 interface StaffForm {
   first_name: string
@@ -27,6 +27,14 @@ export default function AdminStaffPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [createdCreds, setCreatedCreds] = useState<{ name: string; username: string; email: string; temp_password: string } | null>(null)
+
+  // Shift modal state
+  const [showShiftModal, setShowShiftModal] = useState(false)
+  const [editingShift, setEditingShift] = useState<any | null>(null)
+  const [shiftSegments, setShiftSegments] = useState<{ start_time: string; end_time: string }[]>([{ start_time: '09:00', end_time: '17:00' }])
+  const [shiftForm, setShiftForm] = useState({ staff: '', date: '', location: '', notes: '', is_published: true })
+  const [shiftSaving, setShiftSaving] = useState(false)
+  const [shiftError, setShiftError] = useState('')
 
   const loadData = () => {
     setLoading(true)
@@ -103,6 +111,64 @@ export default function AdminStaffPage() {
     loadData()
   }
 
+  // --- Shift handlers ---
+  const today = new Date().toISOString().split('T')[0]
+
+  const openAddShift = () => {
+    setShiftForm({ staff: staff.length > 0 ? String(staff[0].id) : '', date: today, location: '', notes: '', is_published: true })
+    setShiftSegments([{ start_time: '09:00', end_time: '17:00' }])
+    setShiftError('')
+    setEditingShift(null)
+    setShowShiftModal(true)
+  }
+
+  const openEditShift = (s: any) => {
+    setShiftForm({ staff: String(s.staff), date: s.date, location: s.location || '', notes: s.notes || '', is_published: s.is_published })
+    setShiftSegments([{ start_time: s.start_time?.slice(0, 5) || '09:00', end_time: s.end_time?.slice(0, 5) || '17:00' }])
+    setShiftError('')
+    setEditingShift(s)
+    setShowShiftModal(true)
+  }
+
+  const addSegment = () => setShiftSegments(prev => [...prev, { start_time: '13:00', end_time: '17:00' }])
+  const removeSegment = (i: number) => setShiftSegments(prev => prev.filter((_, idx) => idx !== i))
+  const updateSegment = (i: number, field: string, val: string) => {
+    setShiftSegments(prev => prev.map((seg, idx) => idx === i ? { ...seg, [field]: val } : seg))
+  }
+
+  const handleSaveShift = async () => {
+    setShiftError('')
+    if (!shiftForm.staff) { setShiftError('Select a staff member.'); return }
+    if (!shiftForm.date) { setShiftError('Date is required.'); return }
+    for (const seg of shiftSegments) {
+      if (!seg.start_time || !seg.end_time) { setShiftError('All segments need start and end times.'); return }
+      if (seg.start_time >= seg.end_time) { setShiftError('End time must be after start time for each segment.'); return }
+    }
+    setShiftSaving(true)
+    if (editingShift) {
+      // Update single shift
+      const seg = shiftSegments[0]
+      const res = await updateShift(editingShift.id, { ...shiftForm, staff: Number(shiftForm.staff), start_time: seg.start_time, end_time: seg.end_time })
+      if (res.error) { setShiftError(res.error); setShiftSaving(false); return }
+    } else {
+      // Create one shift per segment (split shift support)
+      for (const seg of shiftSegments) {
+        const res = await createShift({ ...shiftForm, staff: Number(shiftForm.staff), start_time: seg.start_time, end_time: seg.end_time })
+        if (res.error) { setShiftError(res.error); setShiftSaving(false); return }
+      }
+    }
+    setShiftSaving(false)
+    setShowShiftModal(false)
+    loadData()
+  }
+
+  const handleDeleteShift = async (s: any) => {
+    if (!confirm(`Delete shift for ${s.staff_name} on ${s.date}?`)) return
+    const res = await deleteShift(s.id)
+    if (res.error) { alert(res.error); return }
+    loadData()
+  }
+
   if (loading) return <div className="empty-state">Loading staff data…</div>
 
   return (
@@ -144,17 +210,34 @@ export default function AdminStaffPage() {
       )}
 
       {tab === 'shifts' && (
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Date</th><th>Staff</th><th>Start</th><th>End</th><th>Hours</th><th>Location</th><th>Notes</th></tr></thead>
-            <tbody>
-              {shifts.map((s: any) => (
-                <tr key={s.id}><td style={{ fontWeight: 600 }}>{s.date}</td><td>{s.staff_name}</td><td>{s.start_time}</td><td>{s.end_time}</td><td>{s.duration_hours ? `${s.duration_hours}h` : '—'}</td><td>{s.location}</td><td style={{ color: 'var(--color-text-muted)' }}>{s.notes || '—'}</td></tr>
-              ))}
-              {shifts.length === 0 && <tr><td colSpan={7} className="empty-state">No shifts</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+            <button className="btn btn-primary" onClick={openAddShift}>+ Add Shift</button>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Staff</th><th>Start</th><th>End</th><th>Hours</th><th>Location</th><th>Published</th><th>Actions</th></tr></thead>
+              <tbody>
+                {shifts.map((s: any) => (
+                  <tr key={s.id}>
+                    <td style={{ fontWeight: 600 }}>{s.date}</td>
+                    <td>{s.staff_name}</td>
+                    <td>{s.start_time?.slice(0, 5)}</td>
+                    <td>{s.end_time?.slice(0, 5)}</td>
+                    <td>{s.duration_hours ? `${Number(s.duration_hours).toFixed(1)}h` : '—'}</td>
+                    <td>{s.location || '—'}</td>
+                    <td><span className={`badge ${s.is_published ? 'badge-success' : 'badge-neutral'}`}>{s.is_published ? 'Yes' : 'Draft'}</span></td>
+                    <td>
+                      <button className="btn btn-sm" onClick={() => openEditShift(s)} style={{ marginRight: 8 }}>Edit</button>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleDeleteShift(s)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+                {shifts.length === 0 && <tr><td colSpan={8} className="empty-state">No shifts assigned yet</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {tab === 'leave' && (
@@ -240,6 +323,73 @@ export default function AdminStaffPage() {
             <p style={{ marginTop: 12, fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>This password is shown once. The staff member must change it on their first login.</p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
               <button className="btn btn-primary" onClick={() => setCreatedCreds(null)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shift Modal */}
+      {showShiftModal && (
+        <div className="modal-overlay" onClick={() => setShowShiftModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <h2>{editingShift ? 'Edit Shift' : 'Add Shift'}</h2>
+            {shiftError && <div className="alert alert-danger">{shiftError}</div>}
+            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+              <div>
+                <label className="form-label">Staff Member *</label>
+                <select className="form-input" value={shiftForm.staff} onChange={e => setShiftForm({ ...shiftForm, staff: e.target.value })}>
+                  <option value="">Select staff…</option>
+                  {staff.map((s: any) => <option key={s.id} value={s.id}>{s.display_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">Date *</label>
+                <input className="form-input" type="date" value={shiftForm.date} onChange={e => setShiftForm({ ...shiftForm, date: e.target.value })} />
+              </div>
+
+              {/* Time segments — split shift support */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <label className="form-label" style={{ margin: 0 }}>Working Hours *</label>
+                  {!editingShift && <button type="button" className="btn btn-sm" onClick={addSegment}>+ Split Shift</button>}
+                </div>
+                {shiftSegments.map((seg, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      {i === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Start</span>}
+                      <input className="form-input" type="time" value={seg.start_time} onChange={e => updateSegment(i, 'start_time', e.target.value)} />
+                    </div>
+                    <span style={{ paddingTop: i === 0 ? 16 : 0 }}>→</span>
+                    <div style={{ flex: 1 }}>
+                      {i === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>End</span>}
+                      <input className="form-input" type="time" value={seg.end_time} onChange={e => updateSegment(i, 'end_time', e.target.value)} />
+                    </div>
+                    {shiftSegments.length > 1 && (
+                      <button type="button" onClick={() => removeSegment(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)', fontWeight: 700, fontSize: '1.2rem', paddingTop: i === 0 ? 16 : 0 }}>×</button>
+                    )}
+                  </div>
+                ))}
+                {shiftSegments.length > 1 && (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>Split shift: {shiftSegments.length} segments will be created for this day.</p>
+                )}
+              </div>
+
+              <div>
+                <label className="form-label">Location</label>
+                <input className="form-input" value={shiftForm.location} onChange={e => setShiftForm({ ...shiftForm, location: e.target.value })} placeholder="e.g. Main Office" />
+              </div>
+              <div>
+                <label className="form-label">Notes</label>
+                <input className="form-input" value={shiftForm.notes} onChange={e => setShiftForm({ ...shiftForm, notes: e.target.value })} placeholder="Optional notes" />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" id="shift-published" checked={shiftForm.is_published} onChange={e => setShiftForm({ ...shiftForm, is_published: e.target.checked })} />
+                <label htmlFor="shift-published" style={{ fontSize: '0.9rem' }}>Published (visible to staff)</label>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+              <button className="btn" onClick={() => setShowShiftModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSaveShift} disabled={shiftSaving}>{shiftSaving ? 'Saving…' : editingShift ? 'Save Changes' : 'Add Shift'}</button>
             </div>
           </div>
         </div>

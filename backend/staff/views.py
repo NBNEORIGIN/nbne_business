@@ -200,6 +200,33 @@ def shift_create(request):
     return Response(ShiftSerializer(shift).data, status=status.HTTP_201_CREATED)
 
 
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsManagerOrAbove])
+def shift_update(request, shift_id):
+    """Update a shift (manager+)."""
+    try:
+        shift = Shift.objects.get(id=shift_id)
+    except Shift.DoesNotExist:
+        return Response({'error': 'Shift not found'}, status=status.HTTP_404_NOT_FOUND)
+    serializer = ShiftCreateSerializer(shift, data=request.data, partial=True)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer.save()
+    return Response(ShiftSerializer(shift).data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsManagerOrAbove])
+def shift_delete(request, shift_id):
+    """Delete a shift (manager+)."""
+    try:
+        shift = Shift.objects.get(id=shift_id)
+    except Shift.DoesNotExist:
+        return Response({'error': 'Shift not found'}, status=status.HTTP_404_NOT_FOUND)
+    shift.delete()
+    return Response({'detail': 'Shift deleted.'}, status=status.HTTP_200_OK)
+
+
 @api_view(['GET'])
 @permission_classes([IsStaffOrAbove])
 def leave_list(request):

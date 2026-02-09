@@ -244,6 +244,18 @@ export async function getShifts(params?: { staff_id?: number; date?: string }) {
   return apiFetch<any[]>(`/staff/shifts/${q ? '?' + q : ''}`)
 }
 
+export async function createShift(data: Record<string, any>) {
+  return apiFetch<any>('/staff/shifts/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateShift(id: number, data: Record<string, any>) {
+  return apiFetch<any>(`/staff/shifts/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteShift(id: number) {
+  return apiFetch<any>(`/staff/shifts/${id}/delete/`, { method: 'DELETE' })
+}
+
 export async function getMyShifts() {
   return apiFetch<any[]>('/staff/my-shifts/')
 }
