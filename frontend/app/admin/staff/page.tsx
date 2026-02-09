@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets } from '@/lib/api'
 
 interface StaffForm {
@@ -39,7 +39,7 @@ export default function AdminStaffPage() {
   // Working Hours state
   const [workingHours, setWorkingHours] = useState<any[]>([])
   const [whStaffId, setWhStaffId] = useState<number | null>(null)
-  const [whGrid, setWhGrid] = useState<Record<number, { enabled: boolean; start_time: string; end_time: string; break_minutes: number }>>({})
+  const [whGrid, setWhGrid] = useState<Record<number, { start_time: string; end_time: string; break_minutes: number }[]>>({})
   const [whSaving, setWhSaving] = useState(false)
 
   // Timesheet state
@@ -187,16 +187,16 @@ export default function AdminStaffPage() {
 
   // --- Working Hours handlers ---
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-  const defaultDay = { enabled: false, start_time: '09:00', end_time: '17:00', break_minutes: 0 }
+  const defaultSeg = { start_time: '09:00', end_time: '17:00', break_minutes: 0 }
 
   const loadWorkingHours = async (staffId: number) => {
     setWhStaffId(staffId)
     const res = await getWorkingHours({ staff_id: staffId })
     const entries = res.data || []
-    const grid: Record<number, { enabled: boolean; start_time: string; end_time: string; break_minutes: number }> = {}
-    for (let d = 0; d < 7; d++) grid[d] = { ...defaultDay }
+    const grid: Record<number, { start_time: string; end_time: string; break_minutes: number }[]> = {}
+    for (let d = 0; d < 7; d++) grid[d] = []
     for (const e of entries) {
-      grid[e.day_of_week] = { enabled: true, start_time: e.start_time?.slice(0, 5) || '09:00', end_time: e.end_time?.slice(0, 5) || '17:00', break_minutes: e.break_minutes || 0 }
+      grid[e.day_of_week].push({ start_time: e.start_time?.slice(0, 5) || '09:00', end_time: e.end_time?.slice(0, 5) || '17:00', break_minutes: e.break_minutes || 0 })
     }
     setWhGrid(grid)
     setWorkingHours(entries)
@@ -207,9 +207,8 @@ export default function AdminStaffPage() {
     setWhSaving(true)
     const hours: any[] = []
     for (let d = 0; d < 7; d++) {
-      const day = whGrid[d]
-      if (day?.enabled) {
-        hours.push({ day_of_week: d, start_time: day.start_time, end_time: day.end_time, break_minutes: day.break_minutes })
+      for (const seg of (whGrid[d] || [])) {
+        hours.push({ day_of_week: d, start_time: seg.start_time, end_time: seg.end_time, break_minutes: seg.break_minutes })
       }
     }
     const res = await bulkSetWorkingHours(whStaffId, hours)
@@ -218,9 +217,25 @@ export default function AdminStaffPage() {
     setWhSaving(false)
   }
 
-  const updateWhDay = (day: number, field: string, val: any) => {
-    setWhGrid(prev => ({ ...prev, [day]: { ...prev[day], [field]: val } }))
+  const addWhSegment = (day: number) => {
+    setWhGrid(prev => ({ ...prev, [day]: [...(prev[day] || []), { ...defaultSeg }] }))
   }
+  const removeWhSegment = (day: number, idx: number) => {
+    setWhGrid(prev => ({ ...prev, [day]: (prev[day] || []).filter((_, i) => i !== idx) }))
+  }
+  const updateWhSegment = (day: number, idx: number, field: string, val: any) => {
+    setWhGrid(prev => ({ ...prev, [day]: (prev[day] || []).map((seg, i) => i === idx ? { ...seg, [field]: val } : seg) }))
+  }
+
+  const calcSegHours = (seg: { start_time: string; end_time: string; break_minutes: number }) => {
+    const [sh, sm] = seg.start_time.split(':').map(Number)
+    const [eh, em] = seg.end_time.split(':').map(Number)
+    return Math.max(0, (eh * 60 + em - sh * 60 - sm - seg.break_minutes) / 60)
+  }
+  const calcDayHours = (segs: { start_time: string; end_time: string; break_minutes: number }[]) =>
+    segs.reduce((sum, seg) => sum + calcSegHours(seg), 0)
+  const calcWeeklyHours = () =>
+    DAYS.reduce((sum, _, d) => sum + calcDayHours(whGrid[d] || []), 0)
 
   // --- Timesheet handlers ---
   const initTsDates = () => {
@@ -320,7 +335,7 @@ export default function AdminStaffPage() {
       )}
 
       {tab === 'hours' && (
-        <div style={{ maxWidth: 700 }}>
+        <div style={{ maxWidth: 780 }}>
           <div style={{ marginBottom: 16 }}>
             <label className="form-label">Select Staff Member</label>
             <select className="form-input" value={whStaffId || ''} onChange={e => { const id = Number(e.target.value); if (id) loadWorkingHours(id) }} style={{ maxWidth: 300 }}>
@@ -332,24 +347,36 @@ export default function AdminStaffPage() {
             <>
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>Day</th><th>Working</th><th>Start</th><th>End</th><th>Break (min)</th><th>Hours</th></tr></thead>
+                  <thead><tr><th>Day</th><th>Start</th><th>End</th><th>Break (min)</th><th>Hours</th><th></th></tr></thead>
                   <tbody>
                     {DAYS.map((dayName, d) => {
-                      const day = whGrid[d] || defaultDay
-                      const hrs = day.enabled ? (() => {
-                        const [sh, sm] = day.start_time.split(':').map(Number)
-                        const [eh, em] = day.end_time.split(':').map(Number)
-                        return Math.max(0, (eh * 60 + em - sh * 60 - sm - day.break_minutes) / 60).toFixed(1)
-                      })() : '0.0'
+                      const segs = whGrid[d] || []
+                      const dayHrs = calcDayHours(segs)
                       return (
-                        <tr key={d} style={{ opacity: day.enabled ? 1 : 0.5 }}>
-                          <td style={{ fontWeight: 600 }}>{dayName}</td>
-                          <td><input type="checkbox" checked={day.enabled} onChange={e => updateWhDay(d, 'enabled', e.target.checked)} /></td>
-                          <td><input className="form-input" type="time" value={day.start_time} onChange={e => updateWhDay(d, 'start_time', e.target.value)} disabled={!day.enabled} style={{ width: 120 }} /></td>
-                          <td><input className="form-input" type="time" value={day.end_time} onChange={e => updateWhDay(d, 'end_time', e.target.value)} disabled={!day.enabled} style={{ width: 120 }} /></td>
-                          <td><input className="form-input" type="number" value={day.break_minutes} onChange={e => updateWhDay(d, 'break_minutes', Number(e.target.value))} disabled={!day.enabled} style={{ width: 80 }} min={0} /></td>
-                          <td>{day.enabled ? `${hrs}h` : '—'}</td>
-                        </tr>
+                        <React.Fragment key={d}>
+                          {segs.length === 0 ? (
+                            <tr style={{ opacity: 0.45 }}>
+                              <td style={{ fontWeight: 600 }}>{dayName}</td>
+                              <td colSpan={3} style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Day off</td>
+                              <td>—</td>
+                              <td><button className="btn btn-sm" onClick={() => addWhSegment(d)}>+ Add</button></td>
+                            </tr>
+                          ) : (
+                            segs.map((seg, i) => (
+                              <tr key={`${d}-${i}`}>
+                                <td style={{ fontWeight: 600 }}>{i === 0 ? dayName : ''}{segs.length > 1 && <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginLeft: 4 }}>{i === 0 ? '' : `#${i + 1}`}</span>}</td>
+                                <td><input className="form-input" type="time" value={seg.start_time} onChange={e => updateWhSegment(d, i, 'start_time', e.target.value)} style={{ width: 120 }} /></td>
+                                <td><input className="form-input" type="time" value={seg.end_time} onChange={e => updateWhSegment(d, i, 'end_time', e.target.value)} style={{ width: 120 }} /></td>
+                                <td><input className="form-input" type="number" value={seg.break_minutes} onChange={e => updateWhSegment(d, i, 'break_minutes', Number(e.target.value))} style={{ width: 80 }} min={0} /></td>
+                                <td>{i === 0 ? `${dayHrs.toFixed(1)}h` : ''}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  {i === 0 && <button className="btn btn-sm" onClick={() => addWhSegment(d)} title="Add split shift" style={{ marginRight: 4 }}>+ Split</button>}
+                                  <button className="btn btn-sm btn-danger" onClick={() => removeWhSegment(d, i)} title="Remove this segment">×</button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </React.Fragment>
                       )
                     })}
                   </tbody>
@@ -357,13 +384,7 @@ export default function AdminStaffPage() {
               </div>
               <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                  Weekly total: {DAYS.reduce((sum, _, d) => {
-                    const day = whGrid[d] || defaultDay
-                    if (!day.enabled) return sum
-                    const [sh, sm] = day.start_time.split(':').map(Number)
-                    const [eh, em] = day.end_time.split(':').map(Number)
-                    return sum + Math.max(0, (eh * 60 + em - sh * 60 - sm - day.break_minutes) / 60)
-                  }, 0).toFixed(1)}h
+                  Weekly total: {calcWeeklyHours().toFixed(1)}h
                 </span>
                 <button className="btn btn-primary" onClick={saveWorkingHours} disabled={whSaving}>{whSaving ? 'Saving…' : 'Save Working Hours'}</button>
               </div>
