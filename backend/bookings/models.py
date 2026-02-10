@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
 
@@ -10,6 +11,7 @@ class Service(models.Model):
     duration_minutes = models.PositiveIntegerField(default=60)
     price_pence = models.PositiveIntegerField(default=0)
     deposit_pence = models.PositiveIntegerField(default=0)
+    deposit_percentage = models.PositiveIntegerField(default=0, help_text='Default deposit as % of price (0=use deposit_pence instead)')
     colour = models.CharField(max_length=50, blank=True, default='')
     is_active = models.BooleanField(default=True, db_index=True)
     sort_order = models.IntegerField(default=0)
@@ -63,6 +65,7 @@ class Booking(models.Model):
         ('PENDING_PAYMENT', 'Pending Payment'),
         ('CONFIRMED', 'Confirmed'),
         ('COMPLETED', 'Completed'),
+        ('NO_SHOW', 'No Show'),
         ('CANCELLED', 'Cancelled'),
     ]
 
@@ -71,6 +74,11 @@ class Booking(models.Model):
     customer_phone = models.CharField(max_length=50, blank=True, default='')
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name='bookings')
     time_slot = models.ForeignKey(TimeSlot, on_delete=models.PROTECT, related_name='bookings')
+    assigned_staff = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='assigned_bookings',
+        help_text='Staff member assigned to this booking',
+    )
     price_pence = models.PositiveIntegerField(default=0)
     deposit_pence = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING', db_index=True)
@@ -116,3 +124,13 @@ class Booking(models.Model):
     def complete(self):
         self.status = 'COMPLETED'
         self.save(update_fields=['status', 'updated_at'])
+
+    def no_show(self):
+        self.status = 'NO_SHOW'
+        self.save(update_fields=['status', 'updated_at'])
+
+    @property
+    def deposit_percentage_actual(self):
+        if self.price_pence and self.price_pence > 0:
+            return round((self.deposit_pence / self.price_pence) * 100, 1)
+        return 0

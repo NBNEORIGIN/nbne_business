@@ -8,7 +8,7 @@ class ServiceSerializer(serializers.ModelSerializer):
         model = Service
         fields = [
             'id', 'name', 'description', 'category', 'duration_minutes',
-            'price_pence', 'deposit_pence', 'colour', 'is_active', 'sort_order',
+            'price_pence', 'deposit_pence', 'deposit_percentage', 'colour', 'is_active', 'sort_order',
         ]
         read_only_fields = fields
 
@@ -19,7 +19,7 @@ class ServiceWriteSerializer(serializers.ModelSerializer):
         model = Service
         fields = [
             'name', 'description', 'category', 'duration_minutes',
-            'price_pence', 'deposit_pence', 'colour', 'is_active', 'sort_order',
+            'price_pence', 'deposit_pence', 'deposit_percentage', 'colour', 'is_active', 'sort_order',
         ]
 
 
@@ -82,6 +82,8 @@ class BookingSerializer(serializers.ModelSerializer):
     slot_date = serializers.DateField(source='time_slot.date', read_only=True, default=None)
     slot_start = serializers.TimeField(source='time_slot.start_time', read_only=True, default=None)
     slot_end = serializers.TimeField(source='time_slot.end_time', read_only=True, default=None)
+    assigned_staff_name = serializers.SerializerMethodField()
+    deposit_percentage_actual = serializers.FloatField(read_only=True)
 
     class Meta:
         model = Booking
@@ -89,12 +91,16 @@ class BookingSerializer(serializers.ModelSerializer):
             'id', 'customer_name', 'customer_email', 'customer_phone',
             'service', 'service_name', 'service_duration',
             'time_slot', 'slot_date', 'slot_start', 'slot_end',
-            'price_pence', 'deposit_pence',
+            'assigned_staff', 'assigned_staff_name',
+            'price_pence', 'deposit_pence', 'deposit_percentage_actual',
             'status', 'notes', 'cancellation_reason',
             'payment_session_id',
             'created_at', 'updated_at',
         ]
         read_only_fields = fields
+
+    def get_assigned_staff_name(self, obj):
+        return obj.assigned_staff.get_full_name() if obj.assigned_staff else None
 
 
 class BookingCancelSerializer(serializers.Serializer):

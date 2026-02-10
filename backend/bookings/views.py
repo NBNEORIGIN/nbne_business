@@ -136,7 +136,11 @@ def create_booking(request):
                 status=status.HTTP_409_CONFLICT
             )
 
-        deposit_pence = service.deposit_pence
+        # Calculate deposit: percentage takes priority over fixed amount
+        if service.deposit_percentage and service.deposit_percentage > 0:
+            deposit_pence = int(service.price_pence * service.deposit_percentage / 100)
+        else:
+            deposit_pence = service.deposit_pence
         needs_payment = deposit_pence > 0 and _payments_available()
 
         booking = Booking(
@@ -198,7 +202,7 @@ def create_booking(request):
 @permission_classes([IsStaffOrAbove])
 def booking_list(request):
     """List all bookings (staff+). Supports ?status= and ?email= filters."""
-    bookings = Booking.objects.select_related('service', 'time_slot').all()
+    bookings = Booking.objects.select_related('service', 'time_slot', 'assigned_staff').all()
     status_filter = request.query_params.get('status')
     if status_filter:
         bookings = bookings.filter(status=status_filter)
@@ -217,6 +221,20 @@ def booking_detail(request, booking_id):
         booking = Booking.objects.select_related('service', 'time_slot').get(id=booking_id)
     except Booking.DoesNotExist:
         return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    return Response(BookingSerializer(booking).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsStaffOrAbove])
+def mark_no_show(request, booking_id):
+    """Mark a booking as no-show (staff+)."""
+    try:
+        booking = Booking.objects.get(id=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    if booking.status not in ('CONFIRMED', 'PENDING'):
+        return Response({'error': f'Cannot mark as no-show with status {booking.status}.'}, status=status.HTTP_400_BAD_REQUEST)
+    booking.no_show()
     return Response(BookingSerializer(booking).data)
 
 
@@ -285,3 +303,164 @@ def payment_webhook_callback(request):
         booking.cancel(reason=f'Payment {payment_status}')
 
     return Response({'booking_id': booking.id, 'status': booking.status})
+
+
+@api_view(['GET'])
+@permission_classes([IsManagerOrAbove])
+def booking_reports(request):
+    """Reporting endpoint: daily takings, monthly takings, per-staff revenue.
+    
+    Query params:
+      - report: 'daily' | 'monthly' | 'staff' | 'overview' (default: overview)
+      - date_from: YYYY-MM-DD (default: 30 days ago)
+      - date_to: YYYY-MM-DD (default: today)
+      - staff_id: filter by assigned staff user ID
+    """
+    from django.db.models import Sum, Count, Avg, F, Case, When, Value, IntegerField
+    from django.db.models.functions import TruncDate, TruncMonth
+    from datetime import date as dt_date
+
+    report_type = request.query_params.get('report', 'overview')
+    today = timezone.now().date()
+
+    date_from = request.query_params.get('date_from')
+    date_to = request.query_params.get('date_to')
+    try:
+        date_from = dt_date.fromisoformat(date_from) if date_from else today - timedelta(days=30)
+        date_to = dt_date.fromisoformat(date_to) if date_to else today
+    except ValueError:
+        return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    base_qs = Booking.objects.filter(
+        time_slot__date__gte=date_from,
+        time_slot__date__lte=date_to,
+    ).select_related('service', 'time_slot', 'assigned_staff')
+
+    staff_id = request.query_params.get('staff_id')
+    if staff_id:
+        base_qs = base_qs.filter(assigned_staff_id=int(staff_id))
+
+    # Completed bookings = revenue
+    completed_qs = base_qs.filter(status__in=['COMPLETED', 'CONFIRMED'])
+    no_show_qs = base_qs.filter(status='NO_SHOW')
+    cancelled_qs = base_qs.filter(status='CANCELLED')
+
+    if report_type == 'daily':
+        rows = (
+            completed_qs
+            .values(day=F('time_slot__date'))
+            .annotate(
+                total_revenue=Sum('price_pence'),
+                total_deposits=Sum('deposit_pence'),
+                booking_count=Count('id'),
+            )
+            .order_by('day')
+        )
+        no_shows_by_day = dict(
+            no_show_qs
+            .values_list('time_slot__date')
+            .annotate(cnt=Count('id'))
+            .values_list('time_slot__date', 'cnt')
+        )
+        data = []
+        for r in rows:
+            data.append({
+                'date': r['day'],
+                'revenue_pence': r['total_revenue'] or 0,
+                'deposits_pence': r['total_deposits'] or 0,
+                'bookings': r['booking_count'],
+                'no_shows': no_shows_by_day.get(r['day'], 0),
+            })
+        return Response({'report': 'daily', 'date_from': date_from, 'date_to': date_to, 'rows': data})
+
+    elif report_type == 'monthly':
+        rows = (
+            completed_qs
+            .annotate(month=TruncMonth('time_slot__date'))
+            .values('month')
+            .annotate(
+                total_revenue=Sum('price_pence'),
+                total_deposits=Sum('deposit_pence'),
+                booking_count=Count('id'),
+            )
+            .order_by('month')
+        )
+        no_shows_monthly = dict(
+            no_show_qs
+            .annotate(month=TruncMonth('time_slot__date'))
+            .values('month')
+            .annotate(cnt=Count('id'))
+            .values_list('month', 'cnt')
+        )
+        data = []
+        for r in rows:
+            data.append({
+                'month': r['month'].strftime('%Y-%m') if r['month'] else None,
+                'revenue_pence': r['total_revenue'] or 0,
+                'deposits_pence': r['total_deposits'] or 0,
+                'bookings': r['booking_count'],
+                'no_shows': no_shows_monthly.get(r['month'], 0),
+            })
+        return Response({'report': 'monthly', 'date_from': date_from, 'date_to': date_to, 'rows': data})
+
+    elif report_type == 'staff':
+        rows = (
+            completed_qs
+            .filter(assigned_staff__isnull=False)
+            .values('assigned_staff__id', 'assigned_staff__first_name', 'assigned_staff__last_name')
+            .annotate(
+                total_revenue=Sum('price_pence'),
+                total_deposits=Sum('deposit_pence'),
+                booking_count=Count('id'),
+            )
+            .order_by('-total_revenue')
+        )
+        no_shows_staff = dict(
+            no_show_qs
+            .filter(assigned_staff__isnull=False)
+            .values('assigned_staff__id')
+            .annotate(cnt=Count('id'))
+            .values_list('assigned_staff__id', 'cnt')
+        )
+        data = []
+        for r in rows:
+            sid = r['assigned_staff__id']
+            data.append({
+                'staff_id': sid,
+                'staff_name': f"{r['assigned_staff__first_name']} {r['assigned_staff__last_name']}".strip(),
+                'revenue_pence': r['total_revenue'] or 0,
+                'deposits_pence': r['total_deposits'] or 0,
+                'bookings': r['booking_count'],
+                'no_shows': no_shows_staff.get(sid, 0),
+            })
+        return Response({'report': 'staff', 'date_from': date_from, 'date_to': date_to, 'rows': data})
+
+    else:  # overview
+        total_bookings = base_qs.count()
+        completed_count = completed_qs.count()
+        no_show_count = no_show_qs.count()
+        cancelled_count = cancelled_qs.count()
+        agg = completed_qs.aggregate(
+            total_revenue=Sum('price_pence'),
+            total_deposits=Sum('deposit_pence'),
+            avg_deposit_pct=Avg(
+                Case(
+                    When(price_pence__gt=0, then=F('deposit_pence') * 100.0 / F('price_pence')),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            ),
+        )
+        return Response({
+            'report': 'overview',
+            'date_from': date_from,
+            'date_to': date_to,
+            'total_bookings': total_bookings,
+            'completed': completed_count,
+            'no_shows': no_show_count,
+            'cancelled': cancelled_count,
+            'no_show_rate': round(no_show_count / max(total_bookings, 1) * 100, 1),
+            'revenue_pence': agg['total_revenue'] or 0,
+            'deposits_pence': agg['total_deposits'] or 0,
+            'avg_deposit_percentage': round(agg['avg_deposit_pct'] or 0, 1),
+        })
