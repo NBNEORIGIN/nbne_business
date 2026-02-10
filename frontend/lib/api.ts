@@ -248,6 +248,10 @@ export async function completeBooking(id: number) {
   return apiFetch<any>(`/bookings/${id}/complete/`, { method: 'POST' })
 }
 
+export async function deleteBooking(id: number) {
+  return apiFetch<any>(`/bookings/${id}/delete/`, { method: 'DELETE' })
+}
+
 export async function markNoShow(id: number) {
   return apiFetch<any>(`/bookings/${id}/no-show/`, { method: 'POST' })
 }

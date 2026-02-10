@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getBookings, getStaffList, assignStaffToBooking, confirmBooking, completeBooking, markNoShow } from '@/lib/api'
+import { getBookings, getStaffList, assignStaffToBooking, confirmBooking, completeBooking, markNoShow, deleteBooking } from '@/lib/api'
 
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
 
@@ -55,6 +55,14 @@ export default function AdminBookingsPage() {
     if (res.data) updateBooking(res.data)
   }
 
+  async function handleDelete(bookingId: number) {
+    if (!confirm(`Permanently delete booking #${bookingId}? This cannot be undone.`)) return
+    const res = await deleteBooking(bookingId)
+    if (res.data?.deleted) {
+      setAllBookings(prev => prev.filter(b => b.id !== bookingId))
+    }
+  }
+
   const filtered = allBookings
     .filter(b => filter === 'ALL' || b.status === filter)
     .filter(b => !search || (b.customer_name || '').toLowerCase().includes(search.toLowerCase()) || (b.service_name || '').toLowerCase().includes(search.toLowerCase()))
@@ -103,6 +111,7 @@ export default function AdminBookingsPage() {
                   {b.status === 'PENDING' && <button className="btn btn-outline btn-sm" onClick={() => handleConfirm(b.id)}>Confirm</button>}
                   {b.status === 'CONFIRMED' && <button className="btn btn-outline btn-sm" onClick={() => handleComplete(b.id)}>Complete</button>}
                   {(b.status === 'CONFIRMED' || b.status === 'PENDING') && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)' }} onClick={() => handleNoShow(b.id)}>No Show</button>}
+                  <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-danger)', opacity: 0.7 }} onClick={() => handleDelete(b.id)} title="Delete booking permanently">Delete</button>
                 </td>
               </tr>
             ))}

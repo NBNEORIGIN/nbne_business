@@ -268,6 +268,18 @@ def confirm_booking(request, booking_id):
     return Response(BookingSerializer(booking).data)
 
 
+@api_view(['DELETE'])
+@permission_classes([IsManagerOrAbove])
+def delete_booking(request, booking_id):
+    """Permanently delete a booking (manager/owner only)."""
+    try:
+        booking = Booking.objects.get(id=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    booking.delete()
+    return Response({'deleted': True, 'id': booking_id})
+
+
 @api_view(['POST'])
 @permission_classes([IsStaffOrAbove])
 def complete_booking(request, booking_id):
