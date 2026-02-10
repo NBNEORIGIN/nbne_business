@@ -1,3 +1,4 @@
+from datetime import timedelta as _timedelta
 from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
@@ -134,3 +135,58 @@ class Booking(models.Model):
         if self.price_pence and self.price_pence > 0:
             return round((self.deposit_pence / self.price_pence) * 100, 1)
         return 0
+
+
+class DisclaimerTemplate(models.Model):
+    """A disclaimer/waiver form that clients must sign before booking.
+    Configurable per-business. When updated, existing signatures can be
+    invalidated so clients must re-sign."""
+    title = models.CharField(max_length=255, default='Terms & Conditions')
+    body = models.TextField(help_text='Full disclaimer text shown to the client')
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1, help_text='Increment to require re-signing')
+    validity_days = models.PositiveIntegerField(default=365, help_text='Days before signature expires (0=never)')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'bookings_disclaimer_template'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} (v{self.version})"
+
+
+class ClientDisclaimer(models.Model):
+    """Record of a client signing a disclaimer. Linked by email.
+    Expires after validity_days or when the template version changes."""
+    customer_email = models.EmailField(db_index=True)
+    customer_name = models.CharField(max_length=255)
+    disclaimer = models.ForeignKey(DisclaimerTemplate, on_delete=models.CASCADE, related_name='signatures')
+    version_signed = models.PositiveIntegerField()
+    signed_at = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    is_void = models.BooleanField(default=False, help_text='Admin can void to force re-signing')
+
+    class Meta:
+        db_table = 'bookings_client_disclaimer'
+        ordering = ['-signed_at']
+        indexes = [
+            models.Index(fields=['customer_email', 'disclaimer']),
+        ]
+
+    def __str__(self):
+        return f"{self.customer_email} signed {self.disclaimer.title} v{self.version_signed}"
+
+    @property
+    def is_valid(self):
+        if self.is_void:
+            return False
+        if self.version_signed < self.disclaimer.version:
+            return False
+        if self.disclaimer.validity_days > 0:
+            from django.utils import timezone as tz
+            expiry = self.signed_at + _timedelta(days=self.disclaimer.validity_days)
+            if tz.now() > expiry:
+                return False
+        return True

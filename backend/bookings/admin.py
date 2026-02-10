@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Service, TimeSlot, Booking
+from .models import Service, TimeSlot, Booking, DisclaimerTemplate, ClientDisclaimer
 
 
 @admin.register(Service)
@@ -22,3 +22,17 @@ class BookingAdmin(admin.ModelAdmin):
     list_filter = ['status', 'assigned_staff']
     search_fields = ['customer_name', 'customer_email']
     date_hierarchy = 'created_at'
+
+
+@admin.register(DisclaimerTemplate)
+class DisclaimerTemplateAdmin(admin.ModelAdmin):
+    list_display = ['title', 'version', 'is_active', 'validity_days', 'updated_at']
+    list_filter = ['is_active']
+
+
+@admin.register(ClientDisclaimer)
+class ClientDisclaimerAdmin(admin.ModelAdmin):
+    list_display = ['customer_email', 'customer_name', 'disclaimer', 'version_signed', 'signed_at', 'is_void']
+    list_filter = ['is_void', 'disclaimer']
+    search_fields = ['customer_email', 'customer_name']
+    date_hierarchy = 'signed_at'

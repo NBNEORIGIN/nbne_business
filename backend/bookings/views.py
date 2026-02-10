@@ -308,6 +308,140 @@ def assign_staff(request, booking_id):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+def bookable_staff(request):
+    """List staff members available for booking (public).
+    Optional ?service_id= to filter by service (future: M2M)."""
+    from .slot_utils import get_bookable_staff
+    service_id = request.query_params.get('service_id')
+    staff_list = get_bookable_staff(service_id)
+    return Response(staff_list)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def staff_slots(request):
+    """Get available time slots for a specific staff member on a date (public).
+    Required: ?staff_id=&service_id=&date=YYYY-MM-DD"""
+    from .slot_utils import generate_staff_slots
+    staff_id = request.query_params.get('staff_id')
+    service_id = request.query_params.get('service_id')
+    date_str = request.query_params.get('date')
+
+    if not all([staff_id, service_id, date_str]):
+        return Response({'error': 'staff_id, service_id, and date are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        slots = generate_staff_slots(int(staff_id), int(service_id), date_str)
+    except (ValueError, Exception) as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({'date': date_str, 'staff_id': int(staff_id), 'slots': slots})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def disclaimer_check(request):
+    """Check if a customer has a valid disclaimer on file.
+    Required: ?email="""
+    from .models import DisclaimerTemplate, ClientDisclaimer
+    email = request.query_params.get('email', '').strip().lower()
+    if not email:
+        return Response({'error': 'email parameter required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    active_templates = DisclaimerTemplate.objects.filter(is_active=True)
+    if not active_templates.exists():
+        return Response({'required': False, 'valid': True, 'message': 'No disclaimer required.'})
+
+    template = active_templates.first()
+    signature = ClientDisclaimer.objects.filter(
+        customer_email__iexact=email,
+        disclaimer=template,
+        is_void=False,
+    ).order_by('-signed_at').first()
+
+    if signature and signature.is_valid:
+        return Response({
+            'required': True,
+            'valid': True,
+            'signed_at': signature.signed_at,
+            'version': signature.version_signed,
+        })
+
+    return Response({
+        'required': True,
+        'valid': False,
+        'disclaimer': {
+            'id': template.id,
+            'title': template.title,
+            'body': template.body,
+            'version': template.version,
+        },
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def disclaimer_sign(request):
+    """Sign a disclaimer form. Body: {email, name, disclaimer_id}"""
+    from .models import DisclaimerTemplate, ClientDisclaimer
+    email = request.data.get('email', '').strip().lower()
+    name = request.data.get('name', '').strip()
+    disclaimer_id = request.data.get('disclaimer_id')
+
+    if not all([email, name, disclaimer_id]):
+        return Response({'error': 'email, name, and disclaimer_id are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        template = DisclaimerTemplate.objects.get(id=disclaimer_id, is_active=True)
+    except DisclaimerTemplate.DoesNotExist:
+        return Response({'error': 'Disclaimer not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get client IP
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
+    if ',' in ip:
+        ip = ip.split(',')[0].strip()
+
+    signature = ClientDisclaimer.objects.create(
+        customer_email=email,
+        customer_name=name,
+        disclaimer=template,
+        version_signed=template.version,
+        ip_address=ip or None,
+    )
+
+    return Response({
+        'signed': True,
+        'signed_at': signature.signed_at,
+        'version': signature.version_signed,
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([IsManagerOrAbove])
+def disclaimer_void(request):
+    """Void a client's disclaimer signature (manager+). Body: {email} or {signature_id}"""
+    from .models import ClientDisclaimer
+    email = request.data.get('email', '').strip().lower()
+    sig_id = request.data.get('signature_id')
+
+    if sig_id:
+        try:
+            sig = ClientDisclaimer.objects.get(id=sig_id)
+            sig.is_void = True
+            sig.save(update_fields=['is_void'])
+            return Response({'voided': True, 'id': sig.id})
+        except ClientDisclaimer.DoesNotExist:
+            return Response({'error': 'Signature not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if email:
+        count = ClientDisclaimer.objects.filter(customer_email__iexact=email, is_void=False).update(is_void=True)
+        return Response({'voided': True, 'count': count})
+
+    return Response({'error': 'email or signature_id required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def booking_lookup(request):
     """Look up bookings by customer email (public)."""
     email = request.query_params.get('email', '').strip()

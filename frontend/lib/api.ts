@@ -207,6 +207,23 @@ export function getSlots(params?: { service_id?: number; date_from?: string; dat
   return apiFetch<any[]>(`/bookings/slots/${q ? '?' + q : ''}`)
 }
 
+export async function getBookableStaff(serviceId?: number) {
+  const q = serviceId ? `?service_id=${serviceId}` : ''
+  return apiFetch<any[]>(`/bookings/staff-available/${q}`)
+}
+
+export async function getStaffSlots(staffId: number, serviceId: number, date: string) {
+  return apiFetch<any>(`/bookings/staff-slots/?staff_id=${staffId}&service_id=${serviceId}&date=${date}`)
+}
+
+export async function checkDisclaimer(email: string) {
+  return apiFetch<any>(`/bookings/disclaimer/check/?email=${encodeURIComponent(email)}`)
+}
+
+export async function signDisclaimer(data: { email: string; name: string; disclaimer_id: number }) {
+  return apiFetch<any>('/bookings/disclaimer/sign/', { method: 'POST', body: JSON.stringify(data) })
+}
+
 export async function createBooking(data: any) {
   return apiFetch<any>('/bookings/create/', { method: 'POST', body: JSON.stringify(data) })
 }
