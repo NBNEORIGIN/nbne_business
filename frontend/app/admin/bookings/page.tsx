@@ -32,12 +32,13 @@ export default function AdminBookingsPage() {
           <option value="PENDING">Pending</option>
           <option value="PENDING_PAYMENT">Pending Payment</option>
           <option value="COMPLETED">Completed</option>
+          <option value="NO_SHOW">No Show</option>
           <option value="CANCELLED">Cancelled</option>
         </select>
       </div>
       <div className="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Time</th><th>Price</th><th>Status</th></tr></thead>
+          <thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Time</th><th>Price</th><th>Deposit</th><th>Status</th></tr></thead>
           <tbody>
             {filtered.map(b => (
               <tr key={b.id}>
@@ -47,10 +48,11 @@ export default function AdminBookingsPage() {
                 <td>{b.slot_date}</td>
                 <td>{b.slot_start} – {b.slot_end}</td>
                 <td style={{ fontWeight: 600 }}>{formatPrice(b.price_pence)}</td>
-                <td><span className={`badge ${b.status === 'CONFIRMED' ? 'badge-success' : b.status === 'CANCELLED' ? 'badge-danger' : b.status === 'COMPLETED' ? 'badge-info' : 'badge-warning'}`}>{b.status}</span></td>
+                <td>{b.deposit_pence > 0 ? formatPrice(b.deposit_pence) : '—'}</td>
+                <td><span className={`badge ${b.status === 'CONFIRMED' ? 'badge-success' : b.status === 'CANCELLED' || b.status === 'NO_SHOW' ? 'badge-danger' : b.status === 'COMPLETED' ? 'badge-info' : 'badge-warning'}`}>{b.status === 'NO_SHOW' ? 'No Show' : b.status}</span></td>
               </tr>
             ))}
-            {filtered.length === 0 && <tr><td colSpan={7} className="empty-state">No bookings found</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={8} className="empty-state">No bookings found</td></tr>}
           </tbody>
         </table>
       </div>

@@ -190,7 +190,15 @@ export async function getServices() {
   return apiFetch<any[]>('/bookings/services/')
 }
 
-export async function getSlots(params?: { service_id?: number; date_from?: string; date_to?: string }) {
+export async function createService(data: any) {
+  return apiFetch<any>('/bookings/services/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateService(id: number, data: any) {
+  return apiFetch<any>(`/bookings/services/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export function getSlots(params?: { service_id?: number; date_from?: string; date_to?: string }) {
   const qs = new URLSearchParams()
   if (params?.service_id) qs.set('service_id', String(params.service_id))
   if (params?.date_from) qs.set('date_from', params.date_from)
