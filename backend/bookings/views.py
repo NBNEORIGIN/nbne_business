@@ -268,6 +268,44 @@ def confirm_booking(request, booking_id):
     return Response(BookingSerializer(booking).data)
 
 
+@api_view(['POST'])
+@permission_classes([IsStaffOrAbove])
+def complete_booking(request, booking_id):
+    """Mark a booking as completed (staff+)."""
+    try:
+        booking = Booking.objects.get(id=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    if booking.status != 'CONFIRMED':
+        return Response({'error': f'Cannot complete booking with status {booking.status}.'}, status=status.HTTP_400_BAD_REQUEST)
+    booking.complete()
+    return Response(BookingSerializer(booking).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsStaffOrAbove])
+def assign_staff(request, booking_id):
+    """Assign a staff member to a booking (staff+)."""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    try:
+        booking = Booking.objects.select_related('service', 'time_slot').get(id=booking_id)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    staff_id = request.data.get('staff_id')
+    if staff_id is None or staff_id == '' or staff_id == 0:
+        booking.assigned_staff = None
+        booking.save(update_fields=['assigned_staff', 'updated_at'])
+        return Response(BookingSerializer(booking).data)
+    try:
+        staff_user = User.objects.get(id=int(staff_id))
+    except (User.DoesNotExist, ValueError):
+        return Response({'error': 'Staff member not found'}, status=status.HTTP_404_NOT_FOUND)
+    booking.assigned_staff = staff_user
+    booking.save(update_fields=['assigned_staff', 'updated_at'])
+    return Response(BookingSerializer(booking).data)
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def booking_lookup(request):

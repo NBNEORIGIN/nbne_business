@@ -227,8 +227,16 @@ export async function cancelBooking(id: number, reason = '') {
   return apiFetch<any>(`/bookings/${id}/cancel/`, { method: 'POST', body: JSON.stringify({ reason }) })
 }
 
+export async function completeBooking(id: number) {
+  return apiFetch<any>(`/bookings/${id}/complete/`, { method: 'POST' })
+}
+
 export async function markNoShow(id: number) {
   return apiFetch<any>(`/bookings/${id}/no-show/`, { method: 'POST' })
+}
+
+export async function assignStaffToBooking(bookingId: number, staffId: number | null) {
+  return apiFetch<any>(`/bookings/${bookingId}/assign-staff/`, { method: 'POST', body: JSON.stringify({ staff_id: staffId || 0 }) })
 }
 
 export async function getBookingReports(params?: { report?: string; date_from?: string; date_to?: string; staff_id?: number }) {
