@@ -66,6 +66,42 @@ TENANTS = {
         ],
         'comms_channels': [('General', 'GENERAL'), ('Trainers', 'TEAM'), ('Front Desk', 'TEAM')],
     },
+    'mind-department': {
+        'business_name': 'The Mind Department',
+        'tagline': 'Mindfulness for clarity, calm and sustainable performance',
+        'colour_primary': '#8D9889',
+        'colour_secondary': '#27382E',
+        'colour_background': '#EEE8E5',
+        'colour_text': '#27382E',
+        'font_heading': 'RoxboroughCF, serif',
+        'font_body': 'RoxboroughCF, serif',
+        'font_url': 'https://fonts.cdnfonts.com/css/roxborough-cf',
+        'email': 'contact@theminddepartment.com',
+        'phone': '07395 812669',
+        'address': '8 Park Road, Swarland, NE65 9JD',
+        'website_url': 'https://www.theminddepartment.com',
+        'social_instagram': 'https://instagram.com/aly.theminddepartment',
+        'deposit_percentage': 50,
+        'enabled_modules': ['bookings', 'payments', 'staff', 'analytics'],
+        'services': [
+            ('Group Mindfulness Class', 'Group Classes', 60, 1200, 0),
+            ('8-Week Group Mindfulness Course', 'Group Classes', 60, 8000, 4000),
+            ('1:1 Mindfulness Session', 'One-to-one', 60, 5000, 2500),
+            ('8-Week 1:1 Mindfulness Course', 'One-to-one', 60, 35000, 17500),
+            ('Workplace Wellbeing Talk', 'Corporate', 60, 25000, 12500),
+            ('Workplace Wellbeing Workshop', 'Corporate', 120, 45000, 22500),
+        ],
+        'comms_channels': [],
+        'staff_users': [
+            ('aly', 'contact@theminddepartment.com', 'Aly', 'Harwood', 'owner'),
+        ],
+        'disclaimer': {
+            'title': 'Wellbeing Session Disclaimer',
+            'body': 'The Mind Department offers wellness sessions designed to support your personal growth and wellbeing.\n\nPlease note: Our sessions are not a substitute for medical or psychological treatment. If you have any medical concerns, please consult with a qualified healthcare professional.\n\nBy proceeding, you confirm that you are participating in these sessions for wellness purposes and understand their supportive nature.\n\nYou also confirm that you have read and accept our terms and conditions, and that you consent to The Mind Department storing your booking data in accordance with our privacy policy.\n\nThis agreement is valid for 12 months from the date of signing.',
+            'version': 1,
+            'validity_days': 365,
+        },
+    },
     'nbne': {
         'business_name': 'NBNE',
         'tagline': 'Business Technology & Consulting',
@@ -112,11 +148,27 @@ class Command(BaseCommand):
 
             self._seed_tenant(slug, cfg)
 
+            # Create tenant-specific staff users if configured
+            if cfg.get('staff_users'):
+                for uname, uemail, ufirst, ulast, urole in cfg['staff_users']:
+                    u = self._user(uname, uemail, ufirst, ulast, urole)
+                    self.stdout.write(f'  Tenant user: {uname} ({urole})')
+                    # Use first staff_user as owner for staff seeding
+                    if urole == 'owner':
+                        owner = u
+
+            # Seed disclaimer if configured
+            if cfg.get('disclaimer'):
+                self._seed_disclaimer(cfg['disclaimer'])
+
             modules = cfg['enabled_modules']
             if 'bookings' in modules:
                 self._seed_bookings(cfg, customer)
             if 'staff' in modules:
-                self._seed_staff(cfg, owner, manager, staff1, staff2)
+                if cfg.get('staff_users'):
+                    self._seed_staff_custom(cfg)
+                else:
+                    self._seed_staff(cfg, owner, manager, staff1, staff2)
             if 'comms' in modules and cfg.get('comms_channels'):
                 self._seed_comms(slug, cfg, owner, manager, staff1, staff2)
             if 'compliance' in modules:
@@ -155,22 +207,25 @@ class Command(BaseCommand):
 
     def _seed_tenant(self, slug, cfg):
         from tenants.models import TenantSettings
-        ts, created = TenantSettings.objects.update_or_create(
-            slug=slug,
-            defaults={
-                'business_name': cfg['business_name'],
-                'tagline': cfg['tagline'],
-                'colour_primary': cfg['colour_primary'],
-                'colour_secondary': cfg['colour_secondary'],
-                'email': cfg['email'],
-                'phone': cfg['phone'],
-                'address': cfg['address'],
-                'currency': 'GBP',
-                'currency_symbol': '£',
-                'deposit_percentage': cfg['deposit_percentage'],
-                'enabled_modules': cfg['enabled_modules'],
-            }
-        )
+        defaults = {
+            'business_name': cfg['business_name'],
+            'tagline': cfg['tagline'],
+            'colour_primary': cfg['colour_primary'],
+            'colour_secondary': cfg['colour_secondary'],
+            'email': cfg['email'],
+            'phone': cfg['phone'],
+            'address': cfg['address'],
+            'currency': 'GBP',
+            'currency_symbol': '£',
+            'deposit_percentage': cfg['deposit_percentage'],
+            'enabled_modules': cfg['enabled_modules'],
+        }
+        # Optional extended branding fields
+        for key in ('colour_background', 'colour_text', 'font_heading', 'font_body',
+                    'font_url', 'website_url', 'social_instagram'):
+            if key in cfg:
+                defaults[key] = cfg[key]
+        ts, created = TenantSettings.objects.update_or_create(slug=slug, defaults=defaults)
         self.stdout.write(f'  Tenant: {ts.business_name} ({"created" if created else "updated"})')
 
     def _seed_bookings(self, cfg, customer):
@@ -248,6 +303,37 @@ class Command(BaseCommand):
             defaults={'provider': 'HSE Online', 'completed_date': today - timedelta(days=400), 'expiry_date': today - timedelta(days=35)}
         )
         self.stdout.write(f'  Staff profiles: {StaffProfile.objects.count()}, Shifts: {Shift.objects.count()}')
+
+    def _seed_staff_custom(self, cfg):
+        """Seed staff profiles for tenants with custom staff_users config."""
+        from staff.models import StaffProfile, WorkingHours
+        for uname, uemail, ufirst, ulast, urole in cfg['staff_users']:
+            user = User.objects.get(username=uname)
+            p, _ = StaffProfile.objects.get_or_create(
+                user=user,
+                defaults={'display_name': f'{ufirst} {ulast}', 'phone': cfg.get('phone', '')}
+            )
+            # Set default working hours Mon-Fri 09:00-17:00
+            for day in range(5):
+                WorkingHours.objects.get_or_create(
+                    staff=p, day_of_week=day,
+                    defaults={'start_time': time(9, 0), 'end_time': time(17, 0), 'is_active': True}
+                )
+        self.stdout.write(f'  Custom staff profiles seeded')
+
+    def _seed_disclaimer(self, dcfg):
+        """Seed a disclaimer template for the tenant."""
+        from bookings.models import DisclaimerTemplate
+        dt, created = DisclaimerTemplate.objects.get_or_create(
+            title=dcfg['title'],
+            defaults={
+                'body': dcfg['body'],
+                'version': dcfg.get('version', 1),
+                'validity_days': dcfg.get('validity_days', 365),
+                'is_active': True,
+            }
+        )
+        self.stdout.write(f'  Disclaimer: {dt.title} v{dt.version} ({"created" if created else "exists"})')
 
     def _seed_comms(self, slug, cfg, owner, manager, staff1, staff2):
         from comms.models import Channel, Message
