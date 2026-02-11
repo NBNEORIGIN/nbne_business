@@ -3,9 +3,7 @@
 // Typed fetch helpers with JWT auth for Django backend
 // ============================================================
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').trim()
-  ? `${(process.env.NEXT_PUBLIC_API_BASE_URL || '').trim()}/api`
-  : '/api/django'
+const API_BASE = '/api/django'
 
 // --- Token Management (client-side) ---
 let accessToken: string | null = null
