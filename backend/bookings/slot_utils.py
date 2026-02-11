@@ -156,18 +156,28 @@ def _get_existing_bookings(staff_user_id, target_date):
     """
     Get existing non-cancelled bookings for a staff member on a date.
     Returns list of (start_datetime, end_datetime) tuples.
+    Handles both legacy TimeSlot bookings and staff-aware direct bookings.
     """
+    from django.db.models import Q
+
     bookings = Booking.objects.filter(
         assigned_staff_id=staff_user_id,
-        time_slot__date=target_date,
+    ).filter(
+        Q(time_slot__date=target_date) | Q(booking_date=target_date)
     ).exclude(
         status__in=['CANCELLED', 'NO_SHOW']
     ).select_related('time_slot', 'service')
 
     result = []
     for b in bookings:
-        start = datetime.combine(target_date, b.time_slot.start_time)
-        end = datetime.combine(target_date, b.time_slot.end_time)
+        if b.time_slot:
+            start = datetime.combine(target_date, b.time_slot.start_time)
+            end = datetime.combine(target_date, b.time_slot.end_time)
+        elif b.booking_date and b.booking_time:
+            start = datetime.combine(target_date, b.booking_time)
+            end = start + timedelta(minutes=b.service.duration_minutes)
+        else:
+            continue
         result.append((start, end))
 
     return result
