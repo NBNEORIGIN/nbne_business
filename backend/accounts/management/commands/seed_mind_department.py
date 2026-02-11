@@ -58,6 +58,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write('=== Seeding The Mind Department (production) ===')
 
+        # --- Cleanup stale data from any previous seed_demo runs ---
+        self._cleanup_stale()
+
         # --- Owner user ---
         owner = self._create_user(
             'aly', 'contact@theminddepartment.com', 'Aly', 'Harwood', 'owner'
@@ -76,6 +79,29 @@ class Command(BaseCommand):
         self._seed_disclaimer()
 
         self.stdout.write(self.style.SUCCESS('\nMind Department seed complete!'))
+
+    def _cleanup_stale(self):
+        """Remove any stale data from previous seed_demo runs on this isolated instance."""
+        from tenants.models import TenantSettings
+        from bookings.models import Service
+        stale = TenantSettings.objects.exclude(slug='mind-department')
+        if stale.exists():
+            count = stale.count()
+            stale.delete()
+            self.stdout.write(f'  Cleaned up {count} stale tenant(s)')
+        # Remove duplicate services (keep only one of each name)
+        seen = set()
+        for svc in Service.objects.order_by('id'):
+            if svc.name in seen:
+                svc.delete()
+            else:
+                seen.add(svc.name)
+        # Remove stale demo users (not aly)
+        stale_users = User.objects.exclude(username='aly').exclude(is_superuser=True)
+        demo_usernames = ['owner', 'manager', 'staff1', 'staff2', 'customer1']
+        deleted = stale_users.filter(username__in=demo_usernames).delete()[0]
+        if deleted:
+            self.stdout.write(f'  Cleaned up {deleted} stale demo user(s)')
 
     def _create_user(self, username, email, first, last, role):
         user, created = User.objects.get_or_create(
