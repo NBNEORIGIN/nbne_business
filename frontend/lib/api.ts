@@ -377,8 +377,8 @@ export async function getTimesheetSummary(params?: { period?: string; date?: str
 
 // --- Media URL helper ---
 const BACKEND_BASE = typeof window !== 'undefined'
-  ? (process.env.NEXT_PUBLIC_API_BASE_URL || '')
-  : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000')
+  ? (process.env.NEXT_PUBLIC_API_BASE_URL || '').trim()
+  : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000').trim()
 
 export function getMediaUrl(path: string | null | undefined): string {
   if (!path) return ''

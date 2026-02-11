@@ -47,7 +47,7 @@ export function hasModule(tenant: TenantConfig, mod: string): boolean {
   return tenant.enabled_modules.length === 0 || tenant.enabled_modules.includes(mod)
 }
 
-export const TENANT_SLUG = process.env.NEXT_PUBLIC_TENANT_SLUG || 'salon-x'
+export const TENANT_SLUG = (process.env.NEXT_PUBLIC_TENANT_SLUG || 'salon-x').trim()
 
 export function TenantProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<TenantConfig>(DEFAULT_CONFIG)
