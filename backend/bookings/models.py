@@ -74,7 +74,9 @@ class Booking(models.Model):
     customer_email = models.EmailField(db_index=True)
     customer_phone = models.CharField(max_length=50, blank=True, default='')
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name='bookings')
-    time_slot = models.ForeignKey(TimeSlot, on_delete=models.PROTECT, related_name='bookings')
+    time_slot = models.ForeignKey(TimeSlot, on_delete=models.PROTECT, related_name='bookings', null=True, blank=True)
+    booking_date = models.DateField(null=True, blank=True, db_index=True, help_text='Direct date for staff-aware bookings')
+    booking_time = models.TimeField(null=True, blank=True, help_text='Direct start time for staff-aware bookings')
     assigned_staff = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='assigned_bookings',
@@ -98,7 +100,9 @@ class Booking(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.customer_name} — {self.service.name} @ {self.time_slot.date} {self.time_slot.start_time}"
+        if self.time_slot:
+            return f"{self.customer_name} — {self.service.name} @ {self.time_slot.date} {self.time_slot.start_time}"
+        return f"{self.customer_name} — {self.service.name} @ {self.booking_date} {self.booking_time}"
 
     def clean(self):
         if self.time_slot_id and self.status != 'CANCELLED':
@@ -107,6 +111,8 @@ class Booking(models.Model):
             ).exclude(status='CANCELLED').exclude(pk=self.pk)
             if existing.count() >= self.time_slot.max_bookings:
                 raise ValidationError('This time slot is fully booked.')
+        if not self.time_slot_id and not (self.booking_date and self.booking_time):
+            raise ValidationError('Either time_slot or booking_date+booking_time is required.')
 
     def save(self, *args, **kwargs):
         if not kwargs.get('update_fields'):

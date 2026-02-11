@@ -114,27 +114,56 @@ def available_slots(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def create_booking(request):
-    """Create a new booking (public). Deposit computed server-side."""
+    """Create a new booking (public). Supports both legacy TimeSlot and staff-aware direct booking."""
     serializer = BookingCreateSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     data = serializer.validated_data
     checkout_url = None
+    use_legacy = data.get('time_slot_id') is not None
 
     with db_transaction.atomic():
         service = Service.objects.get(id=data['service_id'])
-        time_slot = TimeSlot.objects.select_for_update().get(id=data['time_slot_id'])
 
-        active_count = Booking.objects.filter(
-            time_slot=time_slot
-        ).exclude(status='CANCELLED').count()
+        if use_legacy:
+            # --- Legacy TimeSlot path ---
+            time_slot = TimeSlot.objects.select_for_update().get(id=data['time_slot_id'])
+            active_count = Booking.objects.filter(
+                time_slot=time_slot
+            ).exclude(status='CANCELLED').count()
+            if active_count >= time_slot.max_bookings:
+                return Response(
+                    {'error': 'This time slot is no longer available.'},
+                    status=status.HTTP_409_CONFLICT
+                )
+            booking_date = time_slot.date
+            booking_time_val = time_slot.start_time
+        else:
+            # --- Staff-aware direct booking path ---
+            time_slot = None
+            booking_date = data['booking_date']
+            booking_time_val = data['booking_time']
+            staff_id = data.get('staff_id')
 
-        if active_count >= time_slot.max_bookings:
-            return Response(
-                {'error': 'This time slot is no longer available.'},
-                status=status.HTTP_409_CONFLICT
-            )
+            # Validate no overlap with existing bookings for this staff member
+            if staff_id:
+                from datetime import datetime, timedelta
+                slot_start = datetime.combine(booking_date, booking_time_val)
+                slot_end = slot_start + timedelta(minutes=service.duration_minutes)
+                overlapping = Booking.objects.filter(
+                    assigned_staff_id=staff_id,
+                    booking_date=booking_date,
+                    status__in=['PENDING', 'PENDING_PAYMENT', 'CONFIRMED'],
+                ).exclude(booking_time__isnull=True)
+                for existing in overlapping:
+                    ex_start = datetime.combine(existing.booking_date, existing.booking_time)
+                    ex_end = ex_start + timedelta(minutes=existing.service.duration_minutes)
+                    if slot_start < ex_end and slot_end > ex_start:
+                        return Response(
+                            {'error': 'This time slot is no longer available.'},
+                            status=status.HTTP_409_CONFLICT
+                        )
 
         # Calculate deposit: percentage takes priority over fixed amount
         if service.deposit_percentage and service.deposit_percentage > 0:
@@ -149,6 +178,9 @@ def create_booking(request):
             customer_phone=data.get('customer_phone', ''),
             service=service,
             time_slot=time_slot,
+            booking_date=booking_date,
+            booking_time=booking_time_val,
+            assigned_staff_id=data.get('staff_id'),
             price_pence=service.price_pence,
             deposit_pence=deposit_pence,
             status='PENDING_PAYMENT' if needs_payment else 'PENDING',
@@ -174,8 +206,8 @@ def create_booking(request):
                     'cancel_url': f"{base_url}/?booking_id={booking.id}&status=cancel",
                     'metadata': {
                         'service_name': service.name,
-                        'slot_date': str(time_slot.date),
-                        'slot_time': str(time_slot.start_time),
+                        'slot_date': str(booking_date),
+                        'slot_time': str(booking_time_val),
                     },
                     'idempotency_key': f"booking-{booking.id}-{uuid.uuid4()}",
                 }

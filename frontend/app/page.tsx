@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { getServices, getBookableStaff, getStaffSlots, getSlots, checkDisclaimer, signDisclaimer, createBooking } from '@/lib/api'
+// getSlots still used for legacy TimeSlot fallback path
 import { useTenant } from '@/lib/tenant'
 
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
@@ -130,33 +131,19 @@ export default function PublicHomePage() {
       notes,
     }
     if (selectedLegacySlot) {
+      // Legacy path: pre-created TimeSlot
       bookingData.time_slot_id = selectedLegacySlot.id
-    } else if (selectedStaff) {
-      // For staff-aware bookings, we still need a TimeSlot.
-      // The backend create_booking expects time_slot_id.
-      // We'll pass the legacy slot if available, otherwise we need
-      // to find/create a matching TimeSlot. For now, use legacy slots
-      // as the primary path since the DB still uses TimeSlot model.
-      // TODO: In future, support direct staff+time booking without TimeSlot.
-      // For now, find a matching legacy slot or use the first available one.
-      const legacyRes = await getSlots({ service_id: selectedService.id, date_from: selectedDate, date_to: selectedDate })
-      const matchingSlot = (legacyRes.data || []).find((s: any) => s.start_time?.slice(0, 5) === selectedTime && s.has_capacity)
-      if (matchingSlot) {
-        bookingData.time_slot_id = matchingSlot.id
-      } else {
-        setError('This time slot is no longer available. Please try another time.')
-        setSubmitting(false)
-        return
+    } else {
+      // Staff-aware path: send date + time + staff directly
+      bookingData.booking_date = selectedDate
+      bookingData.booking_time = selectedTime
+      if (selectedStaff) {
+        bookingData.staff_id = selectedStaff.user_id
       }
     }
     const res = await createBooking(bookingData)
     setSubmitting(false)
     if (res.data) {
-      // If staff was selected, assign them to the booking
-      if (selectedStaff && res.data.id) {
-        const { assignStaffToBooking } = await import('@/lib/api')
-        await assignStaffToBooking(res.data.id, selectedStaff.user_id)
-      }
       setConfirmed(res.data)
       setStep('confirm')
     } else {
