@@ -91,7 +91,7 @@ export default function AdminBookingsPage() {
                 <td>#{b.id}</td>
                 <td><div style={{ fontWeight: 600 }}>{b.customer_name}</div><div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{b.customer_email}</div></td>
                 <td>{b.service_name}</td>
-                <td><div>{b.slot_date}</div><div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{b.slot_start} – {b.slot_end}</div></td>
+                <td><div>{b.slot_date}</div><div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{b.slot_start}{b.slot_end ? ` – ${b.slot_end}` : ''}</div></td>
                 <td style={{ fontWeight: 600 }}>{formatPrice(b.price_pence)}</td>
                 <td>{b.deposit_pence > 0 ? formatPrice(b.deposit_pence) : '—'}</td>
                 <td>
