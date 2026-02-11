@@ -69,6 +69,7 @@ export default function PublicHomePage() {
   async function selectDate(dateStr: string) {
     setSelectedDate(dateStr)
     setSelectedTime('')
+    setError('')
     setLoadingSlots(true)
     if (selectedStaff) {
       const res = await getStaffSlots(selectedStaff.user_id, selectedService.id, dateStr)
@@ -85,12 +86,14 @@ export default function PublicHomePage() {
 
   function selectTime(time: string) {
     setSelectedTime(time)
+    setError('')
     setStep('details')
   }
 
   function selectLegacySlot(slot: any) {
     setSelectedLegacySlot(slot)
     setSelectedTime(slot.start_time.slice(0, 5))
+    setError('')
     setStep('details')
   }
 
