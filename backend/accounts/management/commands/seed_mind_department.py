@@ -89,6 +89,13 @@ class Command(BaseCommand):
             count = stale.count()
             stale.delete()
             self.stdout.write(f'  Cleaned up {count} stale tenant(s)')
+        # Remove services not belonging to Mind Department
+        valid_names = {s[0] for s in MIND_DEPARTMENT['services']}
+        stale_svcs = Service.objects.exclude(name__in=valid_names)
+        if stale_svcs.exists():
+            count = stale_svcs.count()
+            stale_svcs.delete()
+            self.stdout.write(f'  Cleaned up {count} stale service(s)')
         # Remove duplicate services (keep only one of each name)
         seen = set()
         for svc in Service.objects.order_by('id'):
