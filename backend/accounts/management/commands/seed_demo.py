@@ -82,7 +82,7 @@ TENANTS = {
         'website_url': 'https://www.theminddepartment.com',
         'social_instagram': 'https://instagram.com/aly.theminddepartment',
         'deposit_percentage': 50,
-        'enabled_modules': ['bookings', 'payments', 'staff', 'analytics'],
+        'enabled_modules': ['bookings', 'payments', 'staff', 'compliance', 'documents'],
         'services': [
             ('Group Mindfulness Class', 'Group Classes', 60, 1200, 0),
             ('8-Week Group Mindfulness Course', 'Group Classes', 60, 8000, 4000),
