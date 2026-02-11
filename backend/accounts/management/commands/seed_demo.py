@@ -84,12 +84,11 @@ TENANTS = {
         'deposit_percentage': 50,
         'enabled_modules': ['bookings', 'payments', 'staff', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
-            ('Group Mindfulness Class', 'Group Classes', 60, 1200, 0),
-            ('8-Week Group Mindfulness Course', 'Group Classes', 60, 8000, 4000),
-            ('1:1 Mindfulness Session', 'One-to-one', 60, 5000, 2500),
-            ('8-Week 1:1 Mindfulness Course', 'One-to-one', 60, 35000, 17500),
-            ('Workplace Wellbeing Talk', 'Corporate', 60, 25000, 12500),
-            ('Workplace Wellbeing Workshop', 'Corporate', 120, 45000, 22500),
+            ('Mindful Movement & Meditation Class', 'Group Classes', 60, 1000, 0),
+            ('Mindfulness Now 8-Week Group Course', 'Group Classes', 60, 20000, 10000),
+            ('1:1 Mindfulness Session', 'One-to-one', 60, 6500, 3250),
+            ('Workplace Wellbeing', 'Corporate', 60, 0, 0),
+            ('Private Event Session', 'Events', 60, 0, 0),
         ],
         'comms_channels': [],
         'staff_users': [

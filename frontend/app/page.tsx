@@ -206,7 +206,7 @@ export default function PublicHomePage() {
                       <div style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>{svc.duration_minutes} min</div>
                     </div>
                     <div style={{ textAlign: 'right', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
-                      <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--color-primary-dark)' }}>{formatPrice(svc.price_pence)}</div>
+                      <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--color-primary-dark)' }}>{svc.price_pence > 0 ? formatPrice(svc.price_pence) : 'Contact for pricing'}</div>
                       {(svc.deposit_percentage > 0 || svc.deposit_pence > 0) && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                           Deposit: {svc.deposit_percentage > 0 ? `${svc.deposit_percentage}%` : formatPrice(svc.deposit_pence)}
