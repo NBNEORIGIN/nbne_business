@@ -15,6 +15,9 @@ export interface TenantConfig {
   currency_symbol: string
   logo_url: string
   favicon_url: string
+  font_heading: string
+  font_body: string
+  font_url: string
 }
 
 const DEFAULT_CONFIG: TenantConfig = {
@@ -29,6 +32,9 @@ const DEFAULT_CONFIG: TenantConfig = {
   currency_symbol: '£',
   logo_url: '',
   favicon_url: '',
+  font_heading: '',
+  font_body: '',
+  font_url: '',
 }
 
 const TenantContext = createContext<TenantConfig>(DEFAULT_CONFIG)
@@ -63,6 +69,18 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--color-primary-dark', config.colour_secondary)
     root.style.setProperty('--color-bg', config.colour_background)
     root.style.setProperty('--color-text', config.colour_text)
+    if (config.font_heading) root.style.setProperty('--font-heading', config.font_heading)
+    if (config.font_body) root.style.setProperty('--font-body', config.font_body)
+    if (config.font_url) {
+      const existing = document.querySelector('link[data-tenant-font]')
+      if (!existing) {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = config.font_url
+        link.setAttribute('data-tenant-font', 'true')
+        document.head.appendChild(link)
+      }
+    }
     if (config.favicon_url) {
       const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement
       if (link) link.href = config.favicon_url
