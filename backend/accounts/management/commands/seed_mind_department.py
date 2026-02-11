@@ -82,12 +82,21 @@ class Command(BaseCommand):
     def _cleanup_stale(self):
         """Remove any stale data from previous seed_demo runs on this isolated instance."""
         from tenants.models import TenantSettings
-        from bookings.models import Service
+        from bookings.models import Service, Booking, TimeSlot
         stale = TenantSettings.objects.exclude(slug='mind-department')
         if stale.exists():
             count = stale.count()
             stale.delete()
             self.stdout.write(f'  Cleaned up {count} stale tenant(s)')
+        # Remove ALL bookings and timeslots (clean slate for production)
+        bk_count = Booking.objects.all().count()
+        if bk_count:
+            Booking.objects.all().delete()
+            self.stdout.write(f'  Cleaned up {bk_count} stale booking(s)')
+        ts_count = TimeSlot.objects.all().count()
+        if ts_count:
+            TimeSlot.objects.all().delete()
+            self.stdout.write(f'  Cleaned up {ts_count} stale timeslot(s)')
         # Remove services not belonging to Mind Department
         valid_names = {s[0] for s in MIND_DEPARTMENT['services']}
         stale_svcs = Service.objects.exclude(name__in=valid_names)
@@ -156,7 +165,7 @@ class Command(BaseCommand):
     def _seed_services(self):
         from bookings.models import Service
         for name, cat, dur, price, dep in MIND_DEPARTMENT['services']:
-            Service.objects.get_or_create(
+            Service.objects.update_or_create(
                 name=name,
                 defaults={
                     'category': cat,
