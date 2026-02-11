@@ -336,7 +336,11 @@ class Command(BaseCommand):
         self.stdout.write(f'  Disclaimer: {dt.title} v{dt.version} ({"created" if created else "exists"})')
 
     def _seed_comms(self, slug, cfg, owner, manager, staff1, staff2):
-        from comms.models import Channel, Message
+        try:
+            from comms.models import Channel, Message
+        except Exception:
+            self.stdout.write('  Comms module not available — skipping')
+            return
 
         channels = []
         for ch_name, ch_type in cfg['comms_channels']:
