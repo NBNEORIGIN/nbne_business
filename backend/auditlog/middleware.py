@@ -77,6 +77,7 @@ class AuditLogMiddleware:
                 'training', 'absence', 'channels', 'messages',
                 'incidents', 'rams', 'documents', 'leads', 'users',
                 'tenant', 'payments', 'recommendations',
+                'categories', 'items', 'compliance', 'logs', 'calendar',
             ):
                 return segment.title()
         return None

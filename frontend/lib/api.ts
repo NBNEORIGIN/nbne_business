@@ -433,6 +433,82 @@ export async function sendMessage(channelId: number, body: string, files?: File[
 }
 
 // --- Compliance ---
+export async function getComplianceDashboard() {
+  return apiFetch<any>('/compliance/dashboard/')
+}
+
+export async function getComplianceCalendar(days = 90) {
+  return apiFetch<any>(`/compliance/calendar/?days=${days}`)
+}
+
+export async function getComplianceCategories() {
+  return apiFetch<any[]>('/compliance/categories/')
+}
+
+export async function createComplianceCategory(data: any) {
+  return apiFetch<any>('/compliance/categories/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function getComplianceItems(params?: { status?: string; category?: number; legal?: boolean }) {
+  const qs = new URLSearchParams()
+  if (params?.status) qs.set('status', params.status)
+  if (params?.category) qs.set('category', String(params.category))
+  if (params?.legal) qs.set('legal', 'true')
+  const q = qs.toString()
+  return apiFetch<any[]>(`/compliance/items/${q ? '?' + q : ''}`)
+}
+
+export async function createComplianceItem(data: any) {
+  return apiFetch<any>('/compliance/items/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function completeComplianceItem(id: number, completedDate?: string) {
+  return apiFetch<any>(`/compliance/items/${id}/complete/`, {
+    method: 'POST', body: JSON.stringify(completedDate ? { completed_date: completedDate } : {}),
+  })
+}
+
+export async function assignComplianceItem(id: number, userId: number) {
+  return apiFetch<any>(`/compliance/items/${id}/assign/`, { method: 'POST', body: JSON.stringify({ user_id: userId }) })
+}
+
+export async function getMyActions() {
+  return apiFetch<any[]>('/compliance/my-actions/')
+}
+
+export async function getMyTraining() {
+  return apiFetch<any[]>('/compliance/my-training/')
+}
+
+export async function getTrainingList(params?: { user?: number; type?: string; status?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.user) qs.set('user', String(params.user))
+  if (params?.type) qs.set('type', params.type)
+  if (params?.status) qs.set('status', params.status)
+  const q = qs.toString()
+  return apiFetch<any[]>(`/compliance/training/${q ? '?' + q : ''}`)
+}
+
+export async function createTrainingRecord(data: any) {
+  return apiFetch<any>('/compliance/training/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function getComplianceDocuments(params?: { type?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.type) qs.set('type', params.type)
+  const q = qs.toString()
+  return apiFetch<any[]>(`/compliance/documents/${q ? '?' + q : ''}`)
+}
+
+export async function getComplianceActionLogs(params?: { item?: number; incident?: number; limit?: number }) {
+  const qs = new URLSearchParams()
+  if (params?.item) qs.set('item', String(params.item))
+  if (params?.incident) qs.set('incident', String(params.incident))
+  if (params?.limit) qs.set('limit', String(params.limit))
+  const q = qs.toString()
+  return apiFetch<any[]>(`/compliance/logs/${q ? '?' + q : ''}`)
+}
+
 export async function getIncidents(params?: { status?: string }) {
   const qs = new URLSearchParams()
   if (params?.status) qs.set('status', params.status)
@@ -442,6 +518,34 @@ export async function getIncidents(params?: { status?: string }) {
 
 export async function createIncident(data: any) {
   return apiFetch<any>('/compliance/incidents/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function uploadIncidentPhoto(incidentId: number, image: File, caption = '') {
+  const token = getAccessToken()
+  const formData = new FormData()
+  formData.append('image', image)
+  formData.append('caption', caption)
+  try {
+    const res = await fetch(`${API_BASE}/compliance/incidents/${incidentId}/photo/`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      return { data: null, error: err.detail || err.error || `Error ${res.status}`, status: res.status }
+    }
+    const data = await res.json()
+    return { data, error: null, status: res.status }
+  } catch (err: any) {
+    return { data: null, error: err.message || 'Network error', status: 0 }
+  }
+}
+
+export async function updateIncidentStatus(id: number, status: string, notes = '') {
+  return apiFetch<any>(`/compliance/incidents/${id}/status/`, {
+    method: 'POST', body: JSON.stringify({ status, resolution_notes: notes }),
+  })
 }
 
 export async function getRams() {

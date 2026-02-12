@@ -5,6 +5,10 @@ echo "Collecting static files..."
 python manage.py collectstatic --noinput
 echo "Seeding demo data..."
 python manage.py seed_demo
+echo "Seeding UK compliance baseline..."
+python manage.py seed_uk_baseline || true
+echo "Updating compliance statuses..."
+python manage.py update_compliance_status || true
 echo "Syncing chat channel members..."
 python manage.py sync_channel_members
 echo "Resetting staff passwords and sending welcome emails..."
