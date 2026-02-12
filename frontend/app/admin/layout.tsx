@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { href: '/admin/schedule', label: 'Timesheets', icon: '🕐', module: 'staff' },
   { href: '/admin/clients', label: 'CRM', icon: '📋', module: 'crm' },
   { href: '/admin/chat', label: 'Team Chat', icon: '💬', module: 'comms' },
-  { href: '/admin/hse', label: 'Health & Safety', icon: '🛡️', module: 'compliance' },
+  { href: '/admin/health-safety', label: 'Health & Safety', icon: '🛡️', module: 'compliance' },
   { href: '/admin/documents', label: 'Documents', icon: '📁', module: 'documents' },
   { href: '/admin/analytics', label: 'Analytics', icon: '📈', module: 'analytics' },
   { href: '/admin/audit', label: 'Audit Log', icon: '🔍', module: '_always' },
@@ -60,7 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <a
               key={item.href}
               href={item.href}
-              className={`nav-item ${pathname === item.href ? 'active' : ''}`}
+              className={`nav-item ${item.href === '/admin' ? (pathname === '/admin' ? 'active' : '') : pathname.startsWith(item.href) ? 'active' : ''}`}
               onClick={() => setSidebarOpen(false)}
             >
               <span className="nav-icon">{item.icon}</span>
