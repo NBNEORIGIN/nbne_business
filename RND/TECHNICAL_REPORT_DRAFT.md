@@ -181,6 +181,95 @@ Each must demonstrate:
 - SQLite sufficient for demo/dev; PostgreSQL swap is a single env var change
 
 **Next Steps:**
-- Wire frontend to consume Django API instead of demo data
+- Wire frontend to consume Django API instead of demo data ✅ (see Iteration 3)
 - WebSocket/SSE for real-time chat
 - AI vision integration for HSE hazard detection
+
+### Iteration 3 — UK Health & Safety Compliance Module (2026-02-12)
+
+**Completed (9 phases):**
+
+1. **Data Models** — 5 new models with tenant isolation patterns:
+   - `ComplianceCategory` — grouping layer with `legal_requirement` flag for statutory vs best-practice
+   - `ComplianceItem` — core scheduling unit with 9 frequency types (weekly → 5-year + custom), auto-calculated `next_due_date`, RAG status engine
+   - `TrainingRecord` — per-user certificate tracking with expiry, provider, certificate number
+   - `DocumentVault` — version-chained document storage with `supersedes` FK, `is_current` flag, expiry tracking
+   - `ComplianceActionLog` — unified compliance audit trail (created, completed, status_changed, reminder_sent)
+   - Extended `IncidentReport` with UK RIDDOR fields (`injury_type`, `riddor_reportable`, `riddor_reference`, `body_part_injured`, `first_aid_given`, `witnesses`)
+
+2. **Scheduling Engine** — `update_compliance_status` management command:
+   - Deterministic status transitions: overdue (past due), due_soon (≤30 days), compliant (>30 days)
+   - Training expiry detection with auto-status update
+   - Dry-run mode for safe preview
+   - Designed for daily cron execution
+
+3. **DRF API Layer** — 20+ endpoints with strict RBAC:
+   - **Tier 2 (Staff):** incident reporting, own training view, assigned actions
+   - **Tier 3 (Manager/Owner):** full CRUD, dashboard with compliance score, calendar feed, CSV export, document vault, training management, action logs
+   - Dashboard computes per-category compliance percentages and overall score
+   - Calendar merges compliance items, training expiry, and document expiry into unified timeline
+
+4. **Frontend** — Live API HSE page replacing demo data:
+   - 8 tabs: Dashboard, Register, Training, Documents, Incidents, Calendar, RAMS, Audit Log
+   - RAG colour coding (green ≥80%, amber ≥60%, red <60%)
+   - Compliance score circle with per-category progress bars
+   - Incident reporting form with RIDDOR fields, severity, injury type
+   - Status filter buttons on compliance register
+   - CSV export link
+
+5. **UK Baseline Template** — `seed_uk_baseline` command:
+   - 6 categories: Fire Safety, Electrical Safety, Training, General Compliance, Equipment, Hygiene & Welfare
+   - 15 items with UK-specific frequencies and legal references (BS 5839-1, BS 7671, EICR, PAT, COSHH, RIDDOR 2013)
+   - Idempotent (safe to re-run)
+
+6. **Email Reminders** — `send_compliance_reminders` command:
+   - Threshold triggers at 30, 7, 1 days before due + daily for overdue
+   - Training expiry reminders at 30, 7, 1 days
+   - Legal requirement items flagged with regulatory consequence warning
+   - Dry-run mode
+
+7. **Audit & Security:**
+   - `ComplianceActionLog` entries on all create/update/complete/status-change operations
+   - Document versioning with `upload_new_version()` method (marks old as non-current)
+   - RBAC enforced server-side on every endpoint
+   - Audit middleware updated to recognise new compliance entity types
+
+8. **R&D Log** — `RND/logs/compliance_module_iteration.md`:
+   - Architecture decisions documented
+   - UK regulation interpretation uncertainties (RIDDOR auto-submission, PAT frequency, status thresholds)
+   - Known limitations (no tenant FK, no offline drafts, no file upload UI, list-based calendar)
+   - Next improvements prioritised
+
+9. **Testing** — 32 tests, all passing:
+   - Model logic: frequency calculation, status transitions, mark_completed, auto-save next_due
+   - Training: expired/expiring_soon/valid status properties
+   - Document vault: version chaining, is_current flag management
+   - RBAC: 13 endpoint × role tests (customer/staff/manager/owner)
+   - Action logging: creation, completion, incident logging verified
+   - Baseline seed: idempotency, minimum count verification
+
+**Findings:**
+- Frequency-based scheduling with auto-calculated next_due_date eliminates manual diary management — the system perpetually cycles compliance items
+- 30-day "due soon" threshold works well for annual/3-year items but causes near-immediate alerts for weekly items (fire alarm tests) — proportional thresholds needed
+- RIDDOR flag-only approach is correct; auto-submission to HSE carries legal liability and requires their API integration
+- Document version chaining via `supersedes` FK is simpler than a separate version table and avoids orphan cleanup
+- UK baseline seed provides immediate value on tenant creation — new businesses get a compliant starting point without manual setup
+- ComplianceActionLog separate from platform AuditEntry allows compliance-specific filtering and reporting without polluting the general audit trail
+
+**Uncertainties Resolved:**
+- ✅ Single Django app can serve both staff and manager compliance views via RBAC permission classes
+- ✅ Scheduling engine handles all UK standard frequencies (weekly fire tests through 5-year EICR)
+- ✅ Frontend can display live compliance data with RAG indicators using existing CSS design system
+
+**Uncertainties Remaining:**
+- ❓ Whether proportional reminder thresholds (scaled to frequency) reduce alert fatigue for weekly items
+- ❓ Whether PWA push notifications (via existing comms PushSubscription) improve compliance completion rates vs email-only
+- ❓ Whether AI vision can reliably detect compliance gaps from workplace photos (Phase 5.2 of original plan)
+- ❓ Multi-tenant-per-database isolation — current approach uses infrastructure isolation (one Railway instance per tenant)
+
+**Next Steps:**
+- PWA push notifications for compliance reminders
+- Visual calendar component (FullCalendar or similar)
+- File upload UI for documents and training certificates
+- AI vision hazard detection integration
+- Offline incident draft capability (IndexedDB + service worker sync)
