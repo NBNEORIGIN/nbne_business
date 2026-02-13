@@ -199,21 +199,24 @@ WHITENOISE_AUTOREFRESH = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CORS settings for frontend
-CORS_ALLOWED_ORIGINS = [
+_cors_defaults = ','.join([
     'http://localhost:3000',
     'http://localhost:3001',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:3001',
     'https://nbne-business.vercel.app',
     'https://nbne-business-nbne.vercel.app',
-]
+    'https://nbne-business-restaurant-x.vercel.app',
+    'https://nbne-business-health-club-x.vercel.app',
+])
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default=_cors_defaults).split(',')
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = ['*']
 CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 
 # CSRF trusted origins for admin
-_csrf_default = 'https://nbnebusiness-production.up.railway.app'
+_csrf_default = 'https://nbneplatform-production.up.railway.app'
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default=_csrf_default).split(',')
 
 # Email configuration
