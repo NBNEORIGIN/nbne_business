@@ -409,15 +409,15 @@ class Command(BaseCommand):
         from crm.models import Lead
 
         leads_data = [
-            ('Emma Wilson', 'emma@example.com', 'WEBSITE', 'CONVERTED', 15000),
-            ('Liam Brown', 'liam@example.com', 'REFERRAL', 'QUALIFIED', 8000),
-            ('Sophia Davis', 'sophia@example.com', 'SOCIAL', 'NEW', 5000),
-            ('Noah Taylor', 'noah@example.com', 'WALK_IN', 'CONTACTED', 12000),
-            ('Olivia Jones', 'olivia@example.com', 'PHONE', 'LOST', 3000),
+            ('Emma Wilson', 'emma@example.com', 'website', 'CONVERTED', 15000),
+            ('Liam Brown', 'liam@example.com', 'referral', 'QUALIFIED', 8000),
+            ('Sophia Davis', 'sophia@example.com', 'social', 'NEW', 5000),
+            ('Noah Taylor', 'noah@example.com', 'manual', 'CONTACTED', 12000),
+            ('Olivia Jones', 'olivia@example.com', 'other', 'LOST', 3000),
         ]
         for name, email, source, status, value in leads_data:
             Lead.objects.get_or_create(
                 email=email,
-                defaults={'name': name, 'source': source, 'status': status, 'value_pence': value, 'created_by': owner}
+                defaults={'name': name, 'source': source, 'status': status, 'value_pence': value}
             )
         self.stdout.write(f'  Leads: {Lead.objects.count()}')
