@@ -249,16 +249,16 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stderr.write(f'  ERROR with category {cat_data["category"]}: {e}')
 
-        # Reconnect signals
-        post_save.connect(recalculate_score_on_save)
-        post_delete.connect(recalculate_score_on_delete)
-
         self.stdout.write(self.style.SUCCESS(f'\nSeeded {created_count} compliance items.'))
 
-        # Recalculate score
+        # Recalculate score (keep signals disconnected to avoid recursion)
         try:
             from compliance.models import PeaceOfMindScore
             PeaceOfMindScore.recalculate()
             self.stdout.write(self.style.SUCCESS('Peace of Mind Score recalculated.'))
         except Exception as e:
             self.stderr.write(f'Score recalculation error: {e}')
+
+        # Reconnect signals after all seeding + recalculation is done
+        post_save.connect(recalculate_score_on_save)
+        post_delete.connect(recalculate_score_on_delete)
