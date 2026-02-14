@@ -33,13 +33,44 @@
   .content { max-width: 960px; margin: 0 auto; }
 
   /* ── Header ── */
+  .header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
   .header h1 {
     font-size: 1.75rem; font-weight: 700; color: #111827;
     margin-bottom: 0.2rem;
   }
+  .header .issue-count {
+    font-weight: 400; font-size: 1rem; color: #6b7280;
+  }
   .header .date {
-    font-size: 0.85rem; color: #9ca3af; margin-bottom: 1.5rem;
+    font-size: 0.85rem; color: #9ca3af;
     display: block;
+  }
+
+  /* ── View toggle ── */
+  .view-toggle { display: flex; gap: 0.35rem; }
+  .view-toggle button {
+    padding: 0.3rem 0.85rem; border-radius: 5px;
+    border: 1px solid #d1d5db; background: #fff; color: #6b7280;
+    font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  }
+  .view-toggle button.on {
+    background: #111827; color: #fff; border-color: #111827;
+  }
+
+  /* ── Resolved row (sorted view) ── */
+  .resolved-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+    align-items: center;
+    padding: 0.6rem 1rem 0.6rem 12px;
+    border-bottom: 1px solid #f3f4f6;
+    border-left: 3px solid #d1fae5;
+    background: #fff;
+  }
+  .resolved-row .action-taken {
+    font-size: 0.85rem; color: #059669; font-weight: 500;
   }
 
   /* ── Sorted banner ── */
@@ -158,8 +189,14 @@
 
   <!-- Header -->
   <div class="header">
-    <h1>Today</h1>
-    <span class="date" id="today-date"></span>
+    <div>
+      <h1>Today<span class="issue-count" id="issue-count"> &mdash; 3 issues</span></h1>
+      <span class="date" id="today-date"></span>
+    </div>
+    <div class="view-toggle">
+      <button class="on" id="btn-active" onclick="switchView('active')">Active</button>
+      <button id="btn-sorted" onclick="switchView('sorted')">Sorted</button>
+    </div>
   </div>
 
   <!-- ═══ STATE A: Active ═══ -->
@@ -231,8 +268,16 @@
 
   </div>
 
-  <!-- ═══ STATE B: Sorted ═══ -->
-  <div id="state-sorted" style="display: none;">
+  <!-- ═══ Sorted view: resolved today ═══ -->
+  <div id="view-sorted" style="display: none;">
+    <div id="resolved-list"></div>
+    <div id="resolved-empty" class="sorted-banner">
+      <p>Nothing resolved yet today.</p>
+    </div>
+  </div>
+
+  <!-- ═══ All clear banner ═══ -->
+  <div id="all-clear" style="display: none;">
     <div class="sorted-banner">
       <p>All issues resolved. Sorted.</p>
     </div>
@@ -241,10 +286,9 @@
 </div>
 </div>
 
-<!-- Dev toggle -->
+<!-- Dev: reset button -->
 <div class="preview-toggle">
-  <button class="active" onclick="resetDemo()">Reset</button>
-  <button onclick="showSorted()">Show Sorted</button>
+  <button class="active" onclick="resetDemo()">Reset Demo</button>
 </div>
 
 <script>
@@ -253,41 +297,111 @@
 
   const totalRows = 3;
   let resolvedCount = 0;
+  let currentView = 'active';
+  const resolvedItems = [];
+
+  // Row data for building resolved view
+  const rowData = {
+    'row-1': { summary: '4 bookings affected', context: 'Chloe off sick today' },
+    'row-2': { summary: '11:00 booking unassigned', context: 'Full Colour \u2014 Emma Watson' },
+    'row-3': { summary: '\u00A385 deposit missing \u2014 14:00', context: 'Sarah Connor \u2014 Balayage' },
+  };
 
   function resolveRow(id, label) {
     const row = document.getElementById(id);
     if (!row || row.classList.contains('resolving')) return;
 
-    // Update feedback text to match clicked action
     const fb = row.querySelector('.row-feedback');
     fb.textContent = label + ' \u2014 awaiting response';
-
     row.classList.add('resolving');
 
     setTimeout(() => {
       row.classList.add('resolved');
       resolvedCount++;
+      resolvedItems.push({ ...rowData[id], action: label });
+      updateHeader();
+      renderResolved();
+
       if (resolvedCount >= totalRows) {
         document.getElementById('state-active').style.display = 'none';
-        document.getElementById('state-sorted').style.display = 'block';
+        document.getElementById('all-clear').style.display = 'block';
       }
     }, 1500);
   }
 
-  function showSorted() {
-    document.getElementById('state-active').style.display = 'none';
-    document.getElementById('state-sorted').style.display = 'block';
+  function updateHeader() {
+    const remaining = totalRows - resolvedCount;
+    const el = document.getElementById('issue-count');
+    if (remaining <= 0) {
+      el.textContent = '';
+    } else {
+      el.innerHTML = ' &mdash; ' + remaining + ' issue' + (remaining !== 1 ? 's' : '');
+    }
+    // Update sorted button count
+    const btnSorted = document.getElementById('btn-sorted');
+    btnSorted.textContent = 'Sorted' + (resolvedItems.length > 0 ? ' (' + resolvedItems.length + ')' : '');
+  }
+
+  function renderResolved() {
+    const list = document.getElementById('resolved-list');
+    const empty = document.getElementById('resolved-empty');
+    if (resolvedItems.length === 0) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    list.innerHTML = resolvedItems.map(r =>
+      '<div class="resolved-row">' +
+        '<div class="row-what">' +
+          '<div class="summary">' + r.summary + '</div>' +
+          '<div class="context">' + r.context + '</div>' +
+        '</div>' +
+        '<div class="action-taken">' + r.action + '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  function switchView(view) {
+    currentView = view;
+    const btnActive = document.getElementById('btn-active');
+    const btnSorted = document.getElementById('btn-sorted');
+    btnActive.classList.toggle('on', view === 'active');
+    btnSorted.classList.toggle('on', view === 'sorted');
+
+    if (view === 'sorted') {
+      document.getElementById('state-active').style.display = 'none';
+      document.getElementById('all-clear').style.display = 'none';
+      document.getElementById('view-sorted').style.display = 'block';
+      renderResolved();
+    } else {
+      document.getElementById('view-sorted').style.display = 'none';
+      if (resolvedCount >= totalRows) {
+        document.getElementById('state-active').style.display = 'none';
+        document.getElementById('all-clear').style.display = 'block';
+      } else {
+        document.getElementById('state-active').style.display = 'block';
+        document.getElementById('all-clear').style.display = 'none';
+      }
+    }
   }
 
   function resetDemo() {
     resolvedCount = 0;
+    resolvedItems.length = 0;
+    currentView = 'active';
     document.getElementById('state-active').style.display = 'block';
-    document.getElementById('state-sorted').style.display = 'none';
+    document.getElementById('view-sorted').style.display = 'none';
+    document.getElementById('all-clear').style.display = 'none';
+    document.getElementById('btn-active').classList.add('on');
+    document.getElementById('btn-sorted').classList.remove('on');
     document.querySelectorAll('.row').forEach(r => {
       r.classList.remove('resolving', 'resolved');
       r.style.height = ''; r.style.padding = ''; r.style.margin = '';
       r.style.border = ''; r.style.overflow = '';
     });
+    updateHeader();
+    renderResolved();
   }
 </script>
 
