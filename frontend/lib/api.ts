@@ -1,9 +1,9 @@
 // ============================================================
-// NBNE Platform Rev 2 — API Client
+// NBNE Platform Rev 3 — API Client
 // Typed fetch helpers with JWT auth for Django backend
 // ============================================================
 
-const API_BASE = 'https://nbnebusiness-production-6853.up.railway.app/api'
+const API_BASE = 'https://nbneplatform-production.up.railway.app/api'
 
 // --- Token Management (client-side) ---
 let accessToken: string | null = null
