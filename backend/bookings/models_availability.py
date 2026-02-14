@@ -3,6 +3,7 @@ Staff Availability Engine — Models
 Rule-based availability supporting split shifts, overrides, leave, blocks, shifts, and timesheets.
 Designed to power booking slot generation reliably for UK small businesses.
 """
+from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -96,7 +97,7 @@ class AvailabilityOverride(models.Model):
     mode = models.CharField(max_length=10, choices=OVERRIDE_MODE_CHOICES)
     reason = models.TextField(blank=True, default='')
     created_by = models.ForeignKey(
-        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='created_overrides',
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -165,11 +166,11 @@ class LeaveRequest(models.Model):
     status = models.CharField(max_length=10, choices=LEAVE_STATUS_CHOICES, default='REQUESTED')
     reason = models.TextField(blank=True, default='')
     created_by = models.ForeignKey(
-        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='created_leave_requests',
     )
     approved_by = models.ForeignKey(
-        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='approved_leave_requests',
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -200,7 +201,7 @@ class BlockedTime(models.Model):
     end_datetime = models.DateTimeField()
     reason = models.TextField(blank=True, default='')
     created_by = models.ForeignKey(
-        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='created_blocked_times',
     )
     created_at = models.DateTimeField(auto_now_add=True)
