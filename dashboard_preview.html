@@ -29,11 +29,8 @@
   .sidebar a:hover { background: #334155; color: #fff; }
 
   /* ── Main ── */
-  .main {
-    flex: 1; padding: 2.5rem;
-    display: flex; justify-content: center;
-  }
-  .content { width: 100%; max-width: 580px; }
+  .main { flex: 1; padding: 2.5rem; }
+  .content { max-width: 960px; margin: 0 auto; }
 
   /* ── Header ── */
   .header h1 {
@@ -41,89 +38,89 @@
     margin-bottom: 0.2rem;
   }
   .header .date {
-    font-size: 0.85rem; color: #9ca3af; margin-bottom: 2rem;
+    font-size: 0.85rem; color: #9ca3af; margin-bottom: 1.5rem;
     display: block;
-  }
-
-  /* ── State line ── */
-  .state-line {
-    font-size: 0.95rem; color: #6b7280; margin-bottom: 1.25rem;
   }
 
   /* ── Sorted banner ── */
   .sorted-banner {
-    padding: 3rem 1.5rem; text-align: center; border-radius: 10px;
+    padding: 3rem 1.5rem; text-align: center; border-radius: 8px;
     border: 1px solid #e5e7eb; background: #fafafa;
   }
   .sorted-banner p {
     font-size: 1.05rem; font-weight: 500; color: #374151;
   }
 
-  /* ── Issue card ── */
-  .card {
-    border: 1px solid #e5e7eb; border-radius: 10px;
-    padding: 1.25rem 1.5rem; background: #fff;
-    margin-bottom: 0.75rem;
-    transition: opacity 0.3s ease, transform 0.3s ease;
+  /* ── Column headers ── */
+  .col-headers {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;
+    padding: 0 0 0.5rem 15px;
+    border-bottom: 1px solid #e5e7eb; margin-bottom: 0;
   }
-  .card.urgent {
-    border-color: #fecaca; background: #fef2f2;
-  }
-  .card.resolving {
-    opacity: 0.5; pointer-events: none;
-  }
-  .card.resolved {
-    opacity: 0; transform: translateY(-8px);
-    height: 0; padding: 0; margin: 0; border: none; overflow: hidden;
-  }
-  .card-title {
-    font-size: 0.95rem; font-weight: 600; color: #111827;
-    margin-bottom: 0.3rem;
-  }
-  .card.urgent .card-title { color: #991b1b; }
-  .card-impact {
-    font-size: 0.85rem; color: #6b7280; line-height: 1.4;
-    margin-bottom: 1rem;
+  .col-headers span {
+    font-size: 0.7rem; font-weight: 600; color: #9ca3af;
+    text-transform: uppercase; letter-spacing: 0.05em;
   }
 
-  /* ── Feedback line (shown after action) ── */
-  .card-feedback {
-    font-size: 0.85rem; color: #374151; font-weight: 500;
-    padding: 0.5rem 0; display: none;
+  /* ── Issue row ── */
+  .row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;
+    align-items: center;
+    padding: 0.75rem 1rem 0.75rem 12px;
+    border-bottom: 1px solid #f3f4f6;
+    border-left: 3px solid #d1d5db;
+    background: #fff;
+    transition: opacity 0.3s ease;
   }
-  .card.resolving .card-feedback { display: block; }
-  .card.resolving .card-actions { display: none; }
+  .row.sev-critical { border-left-color: #ef4444; }
+  .row.sev-high     { border-left-color: #f59e0b; }
+  .row.resolving    { opacity: 0.5; pointer-events: none; }
+  .row.resolved     {
+    opacity: 0; height: 0; padding: 0; margin: 0;
+    border: none; overflow: hidden;
+    transition: opacity 0.3s ease, height 0s 0.3s;
+  }
 
-  /* ── Primary button ── */
+  /* ── Col 1: What happened ── */
+  .row-what .summary {
+    font-size: 0.9rem; font-weight: 600; color: #111827; line-height: 1.3;
+  }
+  .row-what .context {
+    font-size: 0.8rem; color: #9ca3af; margin-top: 0.1rem;
+  }
+
+  /* ── Col 2: Primary action ── */
   .btn-primary {
-    display: inline-block; padding: 0.5rem 1.25rem;
-    border-radius: 6px; border: none;
+    display: inline-block; padding: 0.45rem 1rem;
+    border-radius: 5px; border: none;
     background: #111827; color: #fff;
     font-size: 0.85rem; font-weight: 500;
-    cursor: pointer; transition: background 0.15s;
+    cursor: pointer; white-space: nowrap;
+    transition: background 0.15s;
   }
   .btn-primary:hover { background: #1f2937; }
-  .card.urgent .btn-primary { background: #dc2626; }
-  .card.urgent .btn-primary:hover { background: #b91c1c; }
-
   .btn-reason {
-    display: block; font-size: 0.75rem; color: #9ca3af;
-    margin-top: 0.3rem;
+    display: block; font-size: 0.7rem; color: #9ca3af; margin-top: 0.2rem;
   }
+  .row-feedback {
+    font-size: 0.85rem; color: #374151; font-weight: 500;
+    display: none;
+  }
+  .row.resolving .row-feedback { display: block; }
+  .row.resolving .row-action-live { display: none; }
 
-  /* ── Secondary actions ── */
-  .secondary-label {
-    font-size: 0.75rem; color: #9ca3af; margin: 0.75rem 0 0.35rem;
-  }
-  .secondary-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  /* ── Col 3: Alternatives ── */
+  .row-alts { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .btn-secondary {
-    padding: 0.3rem 0.75rem; border-radius: 5px;
+    padding: 0.3rem 0.65rem; border-radius: 4px;
     border: 1px solid #d1d5db; background: #fff; color: #374151;
-    font-size: 0.8rem; cursor: pointer; transition: background 0.15s;
+    font-size: 0.78rem; cursor: pointer; white-space: nowrap;
+    transition: background 0.15s;
   }
   .btn-secondary:hover { background: #f3f4f6; }
+  .row.resolving .row-alts { visibility: hidden; }
 
-  /* ── Preview toggle (dev only) ── */
+  /* ── Dev toggle ── */
   .preview-toggle {
     position: fixed; bottom: 1rem; right: 1rem;
     display: flex; gap: 0.4rem; z-index: 10;
@@ -165,75 +162,79 @@
     <span class="date" id="today-date"></span>
   </div>
 
-  <!-- ════════════════════════════════════════ -->
-  <!-- STATE A: Active issues                  -->
-  <!-- ════════════════════════════════════════ -->
+  <!-- ═══ STATE A: Active ═══ -->
   <div id="state-active">
 
-    <div class="state-line" id="issue-count">3 issues need attention.</div>
+    <!-- Column headers -->
+    <div class="col-headers">
+      <span>What happened</span>
+      <span>Action</span>
+      <span>Alternatives</span>
+    </div>
 
-    <!-- Card 1: Operational blocker — staff sick -->
-    <div class="card urgent" id="card-1">
-      <div class="card-title">Chloe off sick today</div>
-      <div class="card-impact">4 bookings affected. No cover assigned.</div>
-      <div class="card-feedback">Cover request sent to Sam (awaiting response).</div>
-      <div class="card-actions">
-        <button class="btn-primary" onclick="resolveCard('card-1', 'Cover request sent to Sam (awaiting response).')">
-          Request cover from Sam
-        </button>
-        <span class="btn-reason">Next in 7-day rotation</span>
-        <div class="secondary-label">Other options:</div>
-        <div class="secondary-actions">
-          <button class="btn-secondary" onclick="resolveCard('card-1', 'Cover request sent to Jordan.')">Request Jordan</button>
-          <button class="btn-secondary" onclick="resolveCard('card-1', 'Owner covering Chloe\u2019s bookings.')">Owner cover</button>
+    <!-- Row 1: Operational blocker — staff sick -->
+    <div class="row sev-critical" id="row-1">
+      <div class="row-what">
+        <div class="summary">4 bookings affected</div>
+        <div class="context">Chloe off sick today</div>
+      </div>
+      <div>
+        <div class="row-action-live">
+          <button class="btn-primary" onclick="resolveRow('row-1','Request cover from Sam')">Request cover from Sam</button>
+          <span class="btn-reason">Next in 7-day rotation</span>
         </div>
+        <div class="row-feedback">Request sent to Sam &mdash; awaiting response</div>
+      </div>
+      <div class="row-alts">
+        <button class="btn-secondary" onclick="resolveRow('row-1','Request cover from Jordan')">Request Jordan</button>
+        <button class="btn-secondary" onclick="resolveRow('row-1','Owner cover')">Owner cover</button>
       </div>
     </div>
 
-    <!-- Card 2: Operational blocker — unassigned booking -->
-    <div class="card urgent" id="card-2">
-      <div class="card-title">Unassigned booking — 11:00</div>
-      <div class="card-impact">Emma Watson — Full Colour. No stylist assigned.</div>
-      <div class="card-feedback">Assigned to Sam.</div>
-      <div class="card-actions">
-        <button class="btn-primary" onclick="resolveCard('card-2', 'Assigned to Sam.')">
-          Assign Sam
-        </button>
-        <span class="btn-reason">Available for Full Colour</span>
-        <div class="secondary-label">Other options:</div>
-        <div class="secondary-actions">
-          <button class="btn-secondary" onclick="resolveCard('card-2', 'Assigned to Jordan.')">Assign Jordan</button>
-          <button class="btn-secondary" onclick="resolveCard('card-2', 'Booking rescheduled.')">Reschedule</button>
+    <!-- Row 2: Operational blocker — unassigned booking -->
+    <div class="row sev-critical" id="row-2">
+      <div class="row-what">
+        <div class="summary">11:00 booking unassigned</div>
+        <div class="context">Full Colour &mdash; Emma Watson</div>
+      </div>
+      <div>
+        <div class="row-action-live">
+          <button class="btn-primary" onclick="resolveRow('row-2','Assign Sam')">Assign Sam</button>
+          <span class="btn-reason">Available for Full Colour</span>
         </div>
+        <div class="row-feedback">Assigned to Sam</div>
+      </div>
+      <div class="row-alts">
+        <button class="btn-secondary" onclick="resolveRow('row-2','Assign Jordan')">Assign Jordan</button>
+        <button class="btn-secondary" onclick="resolveRow('row-2','Reschedule')">Reschedule</button>
       </div>
     </div>
 
-    <!-- Card 3: Revenue risk — deposit missing -->
-    <div class="card" id="card-3">
-      <div class="card-title">Deposit missing — 14:00</div>
-      <div class="card-impact">Sarah Connor — Balayage. £85 outstanding.</div>
-      <div class="card-feedback">Payment request sent.</div>
-      <div class="card-actions">
-        <button class="btn-primary" onclick="resolveCard('card-3', 'Payment request sent.')">
-          Request payment
-        </button>
-        <span class="btn-reason">£85.00 outstanding</span>
-        <div class="secondary-label">Other options:</div>
-        <div class="secondary-actions">
-          <button class="btn-secondary" onclick="resolveCard('card-3', 'Marked as paid.')">Mark as paid</button>
-          <button class="btn-secondary" onclick="resolveCard('card-3', 'Booking cancelled.')">Cancel booking</button>
+    <!-- Row 3: Revenue risk — deposit missing -->
+    <div class="row sev-high" id="row-3">
+      <div class="row-what">
+        <div class="summary">&pound;85 deposit missing &mdash; 14:00</div>
+        <div class="context">Sarah Connor &mdash; Balayage</div>
+      </div>
+      <div>
+        <div class="row-action-live">
+          <button class="btn-primary" onclick="resolveRow('row-3','Request payment')">Request payment</button>
+          <span class="btn-reason">&pound;85.00 outstanding</span>
         </div>
+        <div class="row-feedback">Payment request sent</div>
+      </div>
+      <div class="row-alts">
+        <button class="btn-secondary" onclick="resolveRow('row-3','Mark as paid')">Mark as paid</button>
+        <button class="btn-secondary" onclick="resolveRow('row-3','Cancel booking')">Cancel booking</button>
       </div>
     </div>
 
   </div>
 
-  <!-- ════════════════════════════════════════ -->
-  <!-- STATE B: Sorted (calm)                  -->
-  <!-- ════════════════════════════════════════ -->
+  <!-- ═══ STATE B: Sorted ═══ -->
   <div id="state-sorted" style="display: none;">
     <div class="sorted-banner">
-      <p>No active issues. Sorted.</p>
+      <p>All issues resolved. Sorted.</p>
     </div>
   </div>
 
@@ -247,40 +248,30 @@
 </div>
 
 <script>
-  // Date
   document.getElementById('today-date').textContent =
     new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-  let totalCards = 3;
+  const totalRows = 3;
   let resolvedCount = 0;
 
-  function resolveCard(id, feedback) {
-    const card = document.getElementById(id);
-    if (!card || card.classList.contains('resolving')) return;
+  function resolveRow(id, label) {
+    const row = document.getElementById(id);
+    if (!row || row.classList.contains('resolving')) return;
 
-    // Show feedback
-    card.querySelector('.card-feedback').textContent = feedback;
-    card.classList.add('resolving');
+    // Update feedback text to match clicked action
+    const fb = row.querySelector('.row-feedback');
+    fb.textContent = label + ' \u2014 awaiting response';
 
-    // After a beat, remove the card
+    row.classList.add('resolving');
+
     setTimeout(() => {
-      card.classList.add('resolved');
+      row.classList.add('resolved');
       resolvedCount++;
-      updateCount();
+      if (resolvedCount >= totalRows) {
+        document.getElementById('state-active').style.display = 'none';
+        document.getElementById('state-sorted').style.display = 'block';
+      }
     }, 1500);
-  }
-
-  function updateCount() {
-    const remaining = totalCards - resolvedCount;
-    const countEl = document.getElementById('issue-count');
-    if (remaining <= 0) {
-      // Transition to sorted
-      document.getElementById('state-active').style.display = 'none';
-      document.getElementById('state-sorted').style.display = 'block';
-    } else {
-      countEl.textContent = remaining + ' issue' + (remaining !== 1 ? 's' : '') +
-        ' need' + (remaining === 1 ? 's' : '') + ' attention.';
-    }
   }
 
   function showSorted() {
@@ -292,11 +283,10 @@
     resolvedCount = 0;
     document.getElementById('state-active').style.display = 'block';
     document.getElementById('state-sorted').style.display = 'none';
-    document.getElementById('issue-count').textContent = '3 issues need attention.';
-    document.querySelectorAll('.card').forEach(c => {
-      c.classList.remove('resolving', 'resolved');
-      c.style.height = ''; c.style.padding = ''; c.style.margin = '';
-      c.style.border = ''; c.style.overflow = '';
+    document.querySelectorAll('.row').forEach(r => {
+      r.classList.remove('resolving', 'resolved');
+      r.style.height = ''; r.style.padding = ''; r.style.margin = '';
+      r.style.border = ''; r.style.overflow = '';
     });
   }
 </script>

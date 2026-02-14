@@ -28,10 +28,18 @@ interface DashboardData {
   summary: { total: number; critical: number; high: number; warning: number; info: number }
 }
 
+const SEV_BORDER: Record<string, string> = {
+  critical: '#ef4444',
+  high: '#f59e0b',
+  warning: '#d1d5db',
+  info: '#d1d5db',
+}
+
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [resolving, setResolving] = useState<Record<string, string>>({})
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -44,6 +52,21 @@ export default function AdminDashboard() {
       setLoading(false)
     })
   }, [])
+
+  const evtKey = (evt: DashboardEvent) => `${evt.event_type}-${evt.entity_id}`
+
+  const handleAction = (evt: DashboardEvent, label: string) => {
+    const key = evtKey(evt)
+    setResolving((prev) => ({ ...prev, [key]: label }))
+    setTimeout(() => {
+      setDismissed((prev) => new Set(prev).add(key))
+      setResolving((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+    }, 1500)
+  }
 
   if (loading) return (
     <div style={{ padding: '3rem 0', textAlign: 'center', color: '#9ca3af', fontSize: '0.95rem' }}>
@@ -58,20 +81,16 @@ export default function AdminDashboard() {
   if (!data) return null
 
   const visibleEvents = data.events.filter(
-    (e) => !dismissed.has(`${e.event_type}-${e.entity_id}`)
+    (e: DashboardEvent) => !dismissed.has(evtKey(e))
   )
   const isSorted = data.state === 'sorted' || visibleEvents.length === 0
 
-  const handleDismiss = (evt: DashboardEvent) => {
-    setDismissed((prev) => new Set(prev).add(`${evt.event_type}-${evt.entity_id}`))
-  }
-
   return (
-    <div style={{ maxWidth: 620, margin: '0 auto' }}>
+    <div style={{ maxWidth: 960, margin: '0 auto' }}>
 
       {/* ── Header ── */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#111827', marginBottom: '0.25rem' }}>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#111827', marginBottom: '0.2rem' }}>
           Today
         </h1>
         <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>
@@ -79,111 +98,125 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── State line ── */}
+      {/* ── Sorted state ── */}
       {isSorted ? (
         <div style={{
-          padding: '3rem 1.5rem', textAlign: 'center', borderRadius: 10,
+          padding: '3rem 1.5rem', textAlign: 'center', borderRadius: 8,
           border: '1px solid #e5e7eb', backgroundColor: '#fafafa',
         }}>
           <div style={{ fontSize: '1.05rem', fontWeight: 500, color: '#374151' }}>
-            No active issues. Sorted.
+            All issues resolved. Sorted.
           </div>
         </div>
       ) : (
         <>
+          {/* ── Column headers ── */}
           <div style={{
-            fontSize: '0.95rem', color: '#6b7280', marginBottom: '1.25rem',
+            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem',
+            padding: '0 0 0.5rem 12px',
+            borderBottom: '1px solid #e5e7eb', marginBottom: '0.5rem',
           }}>
-            {visibleEvents.length} issue{visibleEvents.length !== 1 ? 's' : ''} need{visibleEvents.length === 1 ? 's' : ''} attention.
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              What happened
+            </div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Action
+            </div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Alternatives
+            </div>
           </div>
 
-          {/* ── Issue cards ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {visibleEvents.map((evt, i) => {
-              const isUrgent = evt.severity === 'critical'
-              const primary = evt.actions[0]
-              const secondary = evt.actions.slice(1)
+          {/* ── Issue rows ── */}
+          {visibleEvents.map((evt: DashboardEvent, i: number) => {
+            const key = evtKey(evt)
+            const isResolving = key in resolving
+            const borderColor = SEV_BORDER[evt.severity] || '#d1d5db'
+            const primary = evt.actions[0]
+            const secondary = evt.actions.slice(1)
 
-              return (
-                <div key={`${evt.event_type}-${evt.entity_id}-${i}`} style={{
-                  border: isUrgent ? '1px solid #fecaca' : '1px solid #e5e7eb',
-                  borderRadius: 10,
-                  padding: '1.25rem 1.5rem',
-                  backgroundColor: isUrgent ? '#fef2f2' : '#fff',
-                }}>
-                  {/* Title */}
-                  <div style={{
-                    fontSize: '0.95rem', fontWeight: 600,
-                    color: isUrgent ? '#991b1b' : '#111827',
-                    marginBottom: '0.35rem',
-                  }}>
+            return (
+              <div
+                key={`${key}-${i}`}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: '1rem',
+                  alignItems: 'center',
+                  padding: '0.75rem 1rem 0.75rem 0',
+                  borderBottom: '1px solid #f3f4f6',
+                  borderLeft: `3px solid ${borderColor}`,
+                  paddingLeft: '12px',
+                  backgroundColor: '#fff',
+                  opacity: isResolving ? 0.5 : 1,
+                  transition: 'opacity 0.3s ease',
+                }}
+              >
+                {/* Col 1 — What happened */}
+                <div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827', lineHeight: 1.3 }}>
                     {evt.summary}
                   </div>
-
-                  {/* Impact */}
-                  <div style={{
-                    fontSize: '0.85rem', color: '#6b7280',
-                    marginBottom: '1rem', lineHeight: 1.4,
-                  }}>
+                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.15rem' }}>
                     {evt.detail}
                   </div>
+                </div>
 
-                  {/* Primary action */}
-                  {primary && (
-                    <div style={{ marginBottom: secondary.length > 0 ? '0.75rem' : 0 }}>
+                {/* Col 2 — Primary action / feedback */}
+                <div>
+                  {isResolving ? (
+                    <div style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 500 }}>
+                      {resolving[key]} — awaiting response
+                    </div>
+                  ) : primary ? (
+                    <div>
                       <button
-                        onClick={() => handleDismiss(evt)}
+                        onClick={() => handleAction(evt, primary.label)}
                         style={{
-                          display: 'inline-block',
-                          padding: '0.5rem 1.25rem',
-                          borderRadius: 6,
+                          padding: '0.45rem 1rem',
+                          borderRadius: 5,
                           border: 'none',
-                          backgroundColor: isUrgent ? '#dc2626' : '#111827',
+                          backgroundColor: '#111827',
                           color: '#fff',
                           fontSize: '0.85rem',
                           fontWeight: 500,
                           cursor: 'pointer',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {primary.label}
                       </button>
-                      <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.35rem' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '0.25rem' }}>
                         {primary.reason}
                       </div>
                     </div>
-                  )}
-
-                  {/* Secondary actions */}
-                  {secondary.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '0.35rem' }}>
-                        Other options:
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        {secondary.map((action, j) => (
-                          <button
-                            key={j}
-                            onClick={() => handleDismiss(evt)}
-                            style={{
-                              padding: '0.3rem 0.75rem',
-                              borderRadius: 5,
-                              border: '1px solid #d1d5db',
-                              backgroundColor: '#fff',
-                              color: '#374151',
-                              fontSize: '0.8rem',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {action.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
-              )
-            })}
-          </div>
+
+                {/* Col 3 — Alternatives */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  {!isResolving && secondary.map((action: DashboardAction, j: number) => (
+                    <button
+                      key={j}
+                      onClick={() => handleAction(evt, action.label)}
+                      style={{
+                        padding: '0.3rem 0.65rem',
+                        borderRadius: 4,
+                        border: '1px solid #d1d5db',
+                        backgroundColor: '#fff',
+                        color: '#374151',
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </>
       )}
     </div>
