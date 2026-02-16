@@ -284,7 +284,7 @@ export async function getBookingReports(params?: { report?: string; date_from?: 
 
 // --- Staff ---
 export async function getStaffList() {
-  return apiFetch<any[]>('/staff/')
+  return apiFetch<any[]>('/staff-module/')
 }
 
 export async function createStaff(data: { first_name: string; last_name: string; email: string; phone?: string; role?: string }) {
