@@ -3,7 +3,7 @@
 // Typed fetch helpers with JWT auth for Django backend
 // ============================================================
 
-const API_BASE = 'https://nbneplatform-production.up.railway.app/api'
+const API_BASE = '/api/django'
 
 // --- Token Management (client-side) ---
 let accessToken: string | null = null
