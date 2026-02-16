@@ -4,7 +4,8 @@ from django.db import models
 
 class DocumentTag(models.Model):
     """Tag for categorising documents."""
-    name = models.CharField(max_length=100, unique=True)
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='document_tags')
+    name = models.CharField(max_length=100)
     colour = models.CharField(max_length=50, blank=True, default='', help_text='Optional CSS colour')
 
     class Meta:
@@ -33,6 +34,7 @@ class Document(models.Model):
         ('staff', 'All Staff'),
     ]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='documents')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='GENERAL', db_index=True)

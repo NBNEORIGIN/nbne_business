@@ -40,7 +40,8 @@ def _serialize_message(msg):
 @permission_classes([IsAuthenticated])
 def list_channels(request):
     """GET /api/comms/channels/ — list channels the user belongs to (or all for staff)."""
-    channels = Channel.objects.all()
+    tenant = getattr(request, 'tenant', None)
+    channels = Channel.objects.filter(tenant=tenant)
     # Auto-join user to General channel if not already a member
     general = channels.filter(channel_type='GENERAL').first()
     if general and not general.members.filter(user=request.user).exists():
@@ -53,7 +54,8 @@ def list_channels(request):
 def list_messages(request, channel_id):
     """GET /api/comms/channels/<id>/messages/ — list messages in a channel."""
     try:
-        channel = Channel.objects.get(id=channel_id)
+        tenant = getattr(request, 'tenant', None)
+        channel = Channel.objects.get(id=channel_id, tenant=tenant)
     except Channel.DoesNotExist:
         return Response({'error': 'Channel not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -68,7 +70,8 @@ def list_messages(request, channel_id):
 def create_message(request, channel_id):
     """POST /api/comms/channels/<id>/messages/create/ — send a message."""
     try:
-        channel = Channel.objects.get(id=channel_id)
+        tenant = getattr(request, 'tenant', None)
+        channel = Channel.objects.get(id=channel_id, tenant=tenant)
     except Channel.DoesNotExist:
         return Response({'error': 'Channel not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -95,8 +98,9 @@ def create_message(request, channel_id):
 @permission_classes([IsAuthenticated])
 def ensure_general_channel(request):
     """POST /api/comms/ensure-general/ — create the General channel if it doesn't exist."""
+    tenant = getattr(request, 'tenant', None)
     ch, created = Channel.objects.get_or_create(
-        channel_type='GENERAL',
+        tenant=tenant, channel_type='GENERAL',
         defaults={'name': 'General'},
     )
     if not ch.members.filter(user=request.user).exists():

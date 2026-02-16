@@ -29,6 +29,7 @@ class Service(models.Model):
         ('free', 'Free / No Payment'),
     ]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='services')
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     category = models.CharField(max_length=100, blank=True, default='', help_text='e.g. Mindfulness, Group, Corporate')
@@ -132,6 +133,7 @@ class Staff(models.Model):
         ('manager', 'Manager'),
         ('owner', 'Owner'),
     ]
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='booking_staff')
     name = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True)
@@ -151,6 +153,7 @@ class Staff(models.Model):
 
 
 class Client(models.Model):
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='clients')
     name = models.CharField(max_length=200)
     email = models.EmailField()
     phone = models.CharField(max_length=20)
@@ -200,6 +203,7 @@ class Booking(models.Model):
         ('credit', 'Used Credit'),
     ]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='bookings')
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='bookings')
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name='bookings')
     staff = models.ForeignKey(Staff, on_delete=models.PROTECT, related_name='bookings')

@@ -3,7 +3,8 @@ from django.utils import timezone
 
 
 class Customer(models.Model):
-    email = models.EmailField(unique=True, db_index=True)
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='payment_customers')
+    email = models.EmailField(db_index=True)
     name = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=50, blank=True, null=True)
     provider = models.CharField(max_length=50, default='stripe')

@@ -12,12 +12,13 @@ from .serializers import RecommendationSerializer
 @permission_classes([IsManagerOrAbove])
 def dashboard(request):
     """Cross-module analytics dashboard (manager+)."""
+    tenant = getattr(request, 'tenant', None)
     data = {
-        'bookings': _booking_stats(),
-        'revenue': _revenue_stats(),
-        'staff': _staff_stats(),
-        'crm': _crm_stats(),
-        'compliance': _compliance_stats(),
+        'bookings': _booking_stats(tenant),
+        'revenue': _revenue_stats(tenant),
+        'staff': _staff_stats(tenant),
+        'crm': _crm_stats(tenant),
+        'compliance': _compliance_stats(tenant),
     }
     return Response(data)
 
@@ -26,7 +27,8 @@ def dashboard(request):
 @permission_classes([IsManagerOrAbove])
 def recommendations(request):
     """List active recommendations (manager+)."""
-    recs = Recommendation.objects.filter(is_dismissed=False)
+    tenant = getattr(request, 'tenant', None)
+    recs = Recommendation.objects.filter(tenant=tenant, is_dismissed=False)
     return Response(RecommendationSerializer(recs, many=True).data)
 
 
@@ -35,7 +37,8 @@ def recommendations(request):
 def dismiss_recommendation(request, rec_id):
     """Dismiss a recommendation (manager+)."""
     try:
-        rec = Recommendation.objects.get(id=rec_id)
+        tenant = getattr(request, 'tenant', None)
+        rec = Recommendation.objects.get(id=rec_id, tenant=tenant)
     except Recommendation.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
     rec.is_dismissed = True
@@ -48,11 +51,12 @@ def dismiss_recommendation(request, rec_id):
 def generate_recommendations(request):
     """Generate new recommendations based on current data (manager+)."""
     # Placeholder — in production this would run AI analysis
+    tenant = getattr(request, 'tenant', None)
     generated = []
-    booking_stats = _booking_stats()
+    booking_stats = _booking_stats(tenant)
     if booking_stats.get('cancelled', 0) > 2:
         rec, created = Recommendation.objects.get_or_create(
-            title='High cancellation rate detected',
+            tenant=tenant, title='High cancellation rate detected',
             defaults={
                 'description': f"{booking_stats['cancelled']} bookings cancelled. Consider reviewing cancellation policy.",
                 'recommendation_type': 'REVENUE', 'priority': 8,
@@ -61,10 +65,10 @@ def generate_recommendations(request):
         if created:
             generated.append(RecommendationSerializer(rec).data)
 
-    compliance_stats = _compliance_stats()
+    compliance_stats = _compliance_stats(tenant)
     if compliance_stats.get('open_incidents', 0) > 0:
         rec, created = Recommendation.objects.get_or_create(
-            title='Open compliance incidents require attention',
+            tenant=tenant, title='Open compliance incidents require attention',
             defaults={
                 'description': f"{compliance_stats['open_incidents']} open incidents. Review and resolve promptly.",
                 'recommendation_type': 'COMPLIANCE', 'priority': 9,
@@ -76,10 +80,10 @@ def generate_recommendations(request):
     return Response({'generated': len(generated), 'recommendations': generated})
 
 
-def _booking_stats():
+def _booking_stats(tenant=None):
     try:
         from bookings.models import Booking
-        qs = Booking.objects.all()
+        qs = Booking.objects.filter(tenant=tenant)
         return {
             'total': qs.count(),
             'confirmed': qs.filter(status='CONFIRMED').count(),
@@ -92,10 +96,10 @@ def _booking_stats():
         return {}
 
 
-def _revenue_stats():
+def _revenue_stats(tenant=None):
     try:
         from bookings.models import Booking
-        completed = Booking.objects.filter(status='COMPLETED')
+        completed = Booking.objects.filter(tenant=tenant, status='COMPLETED')
         total = completed.aggregate(t=Sum('price_pence'))['t'] or 0
         count = completed.count()
         return {
@@ -107,22 +111,22 @@ def _revenue_stats():
         return {}
 
 
-def _staff_stats():
+def _staff_stats(tenant=None):
     try:
         from staff.models import StaffProfile, LeaveRequest, TrainingRecord
         return {
-            'total': StaffProfile.objects.filter(is_active=True).count(),
-            'pending_leave': LeaveRequest.objects.filter(status='PENDING').count(),
-            'expired_training': sum(1 for t in TrainingRecord.objects.all() if t.is_expired),
+            'total': StaffProfile.objects.filter(tenant=tenant, is_active=True).count(),
+            'pending_leave': LeaveRequest.objects.filter(staff__tenant=tenant, status='PENDING').count(),
+            'expired_training': sum(1 for t in TrainingRecord.objects.filter(staff__tenant=tenant) if t.is_expired),
         }
     except Exception:
         return {}
 
 
-def _crm_stats():
+def _crm_stats(tenant=None):
     try:
         from crm.models import Lead
-        qs = Lead.objects.all()
+        qs = Lead.objects.filter(tenant=tenant)
         return {
             'total_leads': qs.count(),
             'new': qs.filter(status='NEW').count(),
@@ -133,13 +137,13 @@ def _crm_stats():
         return {}
 
 
-def _compliance_stats():
+def _compliance_stats(tenant=None):
     try:
         from compliance.models import IncidentReport, RAMSDocument
         return {
-            'open_incidents': IncidentReport.objects.exclude(status__in=['RESOLVED', 'CLOSED']).count(),
-            'total_incidents': IncidentReport.objects.count(),
-            'active_rams': RAMSDocument.objects.filter(status='ACTIVE').count(),
+            'open_incidents': IncidentReport.objects.filter(tenant=tenant).exclude(status__in=['RESOLVED', 'CLOSED']).count(),
+            'total_incidents': IncidentReport.objects.filter(tenant=tenant).count(),
+            'active_rams': RAMSDocument.objects.filter(tenant=tenant, status='ACTIVE').count(),
         }
     except Exception:
         return {}

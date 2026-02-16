@@ -70,7 +70,8 @@ class DocumentSerializer(serializers.ModelSerializer):
 @permission_classes([IsAuthenticated])
 def document_list(request):
     """List documents with optional filters."""
-    docs = Document.objects.prefetch_related('tags').select_related('uploaded_by', 'linked_staff')
+    tenant = getattr(request, 'tenant', None)
+    docs = Document.objects.filter(tenant=tenant).prefetch_related('tags').select_related('uploaded_by', 'linked_staff')
 
     # Exclude archived by default
     archived = request.query_params.get('archived')
@@ -114,7 +115,8 @@ def document_create(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    doc = serializer.save(uploaded_by=request.user)
+    tenant = getattr(request, 'tenant', None)
+    doc = serializer.save(uploaded_by=request.user, tenant=tenant)
 
     # Auto-populate filename and size from uploaded file
     if doc.file:
@@ -136,7 +138,8 @@ def document_create(request):
 def document_detail(request, doc_id):
     """Get, update, or delete a document."""
     try:
-        doc = Document.objects.prefetch_related('tags').select_related('uploaded_by', 'linked_staff').get(id=doc_id)
+        tenant = getattr(request, 'tenant', None)
+        doc = Document.objects.filter(tenant=tenant).prefetch_related('tags').select_related('uploaded_by', 'linked_staff').get(id=doc_id)
     except Document.DoesNotExist:
         return Response({'error': 'Document not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -171,7 +174,8 @@ def document_detail(request, doc_id):
 @permission_classes([IsAuthenticated])
 def document_summary(request):
     """Summary stats for the document vault."""
-    docs = Document.objects.filter(is_archived=False)
+    tenant = getattr(request, 'tenant', None)
+    docs = Document.objects.filter(tenant=tenant, is_archived=False)
     today = timezone.now().date()
 
     total = docs.count()
@@ -203,7 +207,9 @@ def document_summary(request):
 def expiry_reminders(request):
     """List documents expiring within their reminder window."""
     today = timezone.now().date()
+    tenant = getattr(request, 'tenant', None)
     docs = Document.objects.filter(
+        tenant=tenant,
         is_archived=False,
         expiry_date__isnull=False,
         expiry_date__gt=today,
@@ -217,7 +223,8 @@ def expiry_reminders(request):
 @permission_classes([IsAuthenticated])
 def tag_list(request):
     """List all document tags."""
-    tags = DocumentTag.objects.all()
+    tenant = getattr(request, 'tenant', None)
+    tags = DocumentTag.objects.filter(tenant=tenant)
     return Response(DocumentTagSerializer(tags, many=True).data)
 
 
@@ -228,7 +235,8 @@ def tag_create(request):
     serializer = DocumentTagSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    serializer.save()
+    tenant = getattr(request, 'tenant', None)
+    serializer.save(tenant=tenant)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 

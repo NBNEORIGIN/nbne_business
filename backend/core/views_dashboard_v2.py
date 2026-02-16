@@ -30,7 +30,8 @@ def dashboard_today(request):
         )
 
     lookahead = int(request.query_params.get('compliance_days', 14))
-    events = get_operational_events(compliance_lookahead_days=lookahead)
+    tenant = getattr(request, 'tenant', None)
+    events = get_operational_events(compliance_lookahead_days=lookahead, tenant=tenant)
     state = get_dashboard_state(events)
 
     # Summary counts for quick glance

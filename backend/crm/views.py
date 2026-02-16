@@ -30,7 +30,8 @@ def _serialize_lead(lead):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def list_leads(request):
-    qs = Lead.objects.all()
+    tenant = getattr(request, 'tenant', None)
+    qs = Lead.objects.filter(tenant=tenant)
     status_filter = request.query_params.get('status')
     if status_filter and status_filter != 'ALL':
         qs = qs.filter(status=status_filter)
@@ -40,8 +41,10 @@ def list_leads(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def create_lead(request):
+    tenant = getattr(request, 'tenant', None)
     d = request.data
     lead = Lead.objects.create(
+        tenant=tenant,
         name=d.get('name', ''),
         email=d.get('email', ''),
         phone=d.get('phone', ''),
@@ -57,7 +60,8 @@ def create_lead(request):
 @permission_classes([AllowAny])
 def update_lead_status(request, lead_id):
     try:
-        lead = Lead.objects.get(id=lead_id)
+        tenant = getattr(request, 'tenant', None)
+        lead = Lead.objects.get(id=lead_id, tenant=tenant)
     except Lead.DoesNotExist:
         return Response({'error': 'Lead not found'}, status=status.HTTP_404_NOT_FOUND)
     new_status = request.data.get('status')
@@ -90,7 +94,8 @@ def update_lead_status(request, lead_id):
 @permission_classes([AllowAny])
 def export_leads_csv(request):
     """GET /api/crm/leads/export/ — Download all leads as CSV"""
-    leads = Lead.objects.all()
+    tenant = getattr(request, 'tenant', None)
+    leads = Lead.objects.filter(tenant=tenant)
     status_filter = request.query_params.get('status')
     if status_filter and status_filter != 'ALL':
         leads = leads.filter(status=status_filter)
@@ -123,7 +128,8 @@ def sync_from_bookings(request):
         from bookings.models import Client, Booking
 
         created_count = 0
-        for client in Client.objects.all():
+        tenant = getattr(request, 'tenant', None)
+        for client in Client.objects.filter(tenant=tenant):
             if Lead.objects.filter(client_id=client.id).exists():
                 continue
             # Calculate total booking value for this client

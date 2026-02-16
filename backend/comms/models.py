@@ -8,6 +8,7 @@ class Channel(models.Model):
         ('TEAM', 'Team'),
         ('DIRECT', 'Direct'),
     ]
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='channels')
     name = models.CharField(max_length=100)
     channel_type = models.CharField(max_length=10, choices=CHANNEL_TYPES, default='GENERAL')
     created_at = models.DateTimeField(auto_now_add=True)

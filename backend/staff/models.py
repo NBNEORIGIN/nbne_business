@@ -4,6 +4,7 @@ from django.db import models
 
 class StaffProfile(models.Model):
     """Extended profile for a staff member, linked to custom User."""
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='staff_profiles')
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_profile')
     display_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=50, blank=True, default='')

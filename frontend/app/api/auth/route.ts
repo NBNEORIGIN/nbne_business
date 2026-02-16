@@ -21,9 +21,13 @@ export async function POST(request: NextRequest) {
   const password = body.password || ''
 
   try {
+    const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
     const djangoRes = await fetch(`${DJANGO_API}/api/auth/login/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(tenantSlug ? { 'X-Tenant-Slug': tenantSlug } : {}),
+      },
       body: JSON.stringify({ username, password }),
     })
 

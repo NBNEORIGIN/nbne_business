@@ -18,6 +18,7 @@ class Lead(models.Model):
         ('other', 'Other'),
     ]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='leads')
     name = models.CharField(max_length=200)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=30, blank=True)

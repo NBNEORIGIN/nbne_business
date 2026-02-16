@@ -157,10 +157,11 @@ def login_view(request):
     role = _get_role(user)
 
     refresh = RefreshToken.for_user(user)
-    # Embed role in JWT so the frontend middleware can read it
+    # Embed role and tenant in JWT so the frontend middleware can read it
     refresh['role'] = role
     refresh['name'] = f'{user.first_name} {user.last_name}'.strip() or user.username
     refresh['email'] = user.email
+    refresh['tenant_slug'] = user.tenant.slug if user.tenant else ''
 
     return Response({
         'access': str(refresh.access_token),
@@ -175,6 +176,7 @@ def login_view(request):
             'is_superuser': user.is_superuser,
             'is_staff': user.is_staff,
             'must_change_password': not user.has_usable_password(),
+            'tenant_slug': user.tenant.slug if user.tenant else '',
         },
     })
 

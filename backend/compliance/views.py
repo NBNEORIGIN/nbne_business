@@ -86,7 +86,8 @@ def dashboard(request):
     """
     GET /api/compliance/dashboard/
     """
-    score_obj = PeaceOfMindScore.objects.filter(pk=1).first()
+    tenant = getattr(request, 'tenant', None)
+    score_obj = PeaceOfMindScore.objects.filter(tenant=tenant).first()
     if not score_obj:
         score_obj = PeaceOfMindScore.recalculate()
 
@@ -101,15 +102,15 @@ def dashboard(request):
         else:
             change_message = f"Score decreased by {abs(change)}%."
 
-    open_incidents = IncidentReport.objects.exclude(status__in=['RESOLVED', 'CLOSED']).count()
+    open_incidents = IncidentReport.objects.filter(tenant=tenant).exclude(status__in=['RESOLVED', 'CLOSED']).count()
     today = timezone.now().date()
     overdue_equipment = Equipment.objects.filter(
-        next_inspection__lt=today
+        tenant=tenant, next_inspection__lt=today
     ).exclude(status='OUT_OF_SERVICE').count()
 
     # Accident counts
-    open_accidents = AccidentReport.objects.exclude(status='CLOSED').count()
-    riddor_count = AccidentReport.objects.filter(riddor_reportable=True).count()
+    open_accidents = AccidentReport.objects.filter(tenant=tenant).exclude(status='CLOSED').count()
+    riddor_count = AccidentReport.objects.filter(tenant=tenant, riddor_reportable=True).count()
 
     return Response({
         'score': score_obj.score,
@@ -140,7 +141,8 @@ def items_list(request):
     GET /api/compliance/items/
     Optional filters: ?status=OVERDUE&type=LEGAL&category=Fire+Safety
     """
-    qs = ComplianceItem.objects.select_related('category').all()
+    tenant = getattr(request, 'tenant', None)
+    qs = ComplianceItem.objects.select_related('category').filter(category__tenant=tenant)
     if request.query_params.get('status'):
         qs = qs.filter(status=request.query_params['status'])
     if request.query_params.get('type'):
@@ -158,8 +160,9 @@ def items_create(request):
     POST /api/compliance/items/create/
     """
     d = request.data
+    tenant = getattr(request, 'tenant', None)
     cat_name = d.get('category', '')
-    cat, _ = ComplianceCategory.objects.get_or_create(name=cat_name, defaults={'max_score': 10})
+    cat, _ = ComplianceCategory.objects.get_or_create(tenant=tenant, name=cat_name, defaults={'max_score': 10})
 
     item = ComplianceItem.objects.create(
         title=d.get('title', ''),
@@ -181,7 +184,8 @@ def items_create(request):
 def items_detail(request, item_id):
     """GET /api/compliance/items/<id>/"""
     try:
-        item = ComplianceItem.objects.select_related('category').get(id=item_id)
+        tenant = getattr(request, 'tenant', None)
+        item = ComplianceItem.objects.select_related('category').get(id=item_id, category__tenant=tenant)
     except ComplianceItem.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
     return Response(_serialize_item(item))
@@ -192,7 +196,8 @@ def items_detail(request, item_id):
 def items_delete(request, item_id):
     """DELETE /api/compliance/items/<id>/delete/"""
     try:
-        item = ComplianceItem.objects.get(id=item_id)
+        tenant = getattr(request, 'tenant', None)
+        item = ComplianceItem.objects.get(id=item_id, category__tenant=tenant)
     except ComplianceItem.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
     item.delete()
@@ -208,7 +213,8 @@ def mark_complete(request, item_id):
     Auto-recalculates next_due_date based on frequency_type.
     """
     try:
-        item = ComplianceItem.objects.get(id=item_id)
+        tenant = getattr(request, 'tenant', None)
+        item = ComplianceItem.objects.get(id=item_id, category__tenant=tenant)
     except ComplianceItem.DoesNotExist:
         return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -270,7 +276,9 @@ def calendar_data(request):
     _, last_day_num = cal_mod.monthrange(year, month)
     last_day = first_day.replace(day=last_day_num)
 
+    tenant = getattr(request, 'tenant', None)
     items = ComplianceItem.objects.select_related('category').filter(
+        category__tenant=tenant,
         next_due_date__gte=first_day,
         next_due_date__lte=last_day,
     )
@@ -304,7 +312,8 @@ def calendar_data(request):
 @permission_classes([AllowAny])
 def accidents_list(request):
     """GET /api/compliance/accidents/"""
-    qs = AccidentReport.objects.all()
+    tenant = getattr(request, 'tenant', None)
+    qs = AccidentReport.objects.filter(tenant=tenant)
     if request.query_params.get('status'):
         qs = qs.filter(status=request.query_params['status'])
     if request.query_params.get('riddor'):
@@ -323,7 +332,9 @@ def accidents_create(request):
         parts = d['time'].split(':')
         time_val = dt_time(int(parts[0]), int(parts[1]))
 
+    tenant = getattr(request, 'tenant', None)
     a = AccidentReport.objects.create(
+        tenant=tenant,
         date=d.get('date'),
         time=time_val,
         location=d.get('location', ''),
@@ -347,7 +358,8 @@ def accidents_create(request):
 def accidents_delete(request, accident_id):
     """DELETE /api/compliance/accidents/<id>/delete/"""
     try:
-        a = AccidentReport.objects.get(id=accident_id)
+        tenant = getattr(request, 'tenant', None)
+        a = AccidentReport.objects.get(id=accident_id, tenant=tenant)
     except AccidentReport.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
     a.delete()
@@ -359,7 +371,8 @@ def accidents_delete(request, accident_id):
 def accidents_update(request, accident_id):
     """PATCH /api/compliance/accidents/<id>/update/"""
     try:
-        a = AccidentReport.objects.get(id=accident_id)
+        tenant = getattr(request, 'tenant', None)
+        a = AccidentReport.objects.get(id=accident_id, tenant=tenant)
     except AccidentReport.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -382,7 +395,8 @@ def accidents_update(request, accident_id):
 def breakdown(request):
     """GET /api/compliance/breakdown/"""
     item_type_filter = request.query_params.get('type')
-    categories = ComplianceCategory.objects.all()
+    tenant = getattr(request, 'tenant', None)
+    categories = ComplianceCategory.objects.filter(tenant=tenant)
     result = []
 
     for cat in categories:
@@ -417,10 +431,11 @@ def breakdown(request):
 @permission_classes([AllowAny])
 def priority_actions(request):
     """GET /api/compliance/priorities/"""
-    overdue_legal = ComplianceItem.objects.filter(status='OVERDUE', item_type='LEGAL').order_by('due_date')
-    overdue_bp = ComplianceItem.objects.filter(status='OVERDUE', item_type='BEST_PRACTICE').order_by('due_date')
-    due_soon_legal = ComplianceItem.objects.filter(status='DUE_SOON', item_type='LEGAL').order_by('due_date')
-    due_soon_bp = ComplianceItem.objects.filter(status='DUE_SOON', item_type='BEST_PRACTICE').order_by('due_date')
+    tenant = getattr(request, 'tenant', None)
+    overdue_legal = ComplianceItem.objects.filter(category__tenant=tenant, status='OVERDUE', item_type='LEGAL').order_by('due_date')
+    overdue_bp = ComplianceItem.objects.filter(category__tenant=tenant, status='OVERDUE', item_type='BEST_PRACTICE').order_by('due_date')
+    due_soon_legal = ComplianceItem.objects.filter(category__tenant=tenant, status='DUE_SOON', item_type='LEGAL').order_by('due_date')
+    due_soon_bp = ComplianceItem.objects.filter(category__tenant=tenant, status='DUE_SOON', item_type='BEST_PRACTICE').order_by('due_date')
 
     combined = list(overdue_legal) + list(overdue_bp) + list(due_soon_legal) + list(due_soon_bp)
     top_items = combined[:10]
@@ -449,7 +464,8 @@ def priority_actions(request):
 @permission_classes([AllowAny])
 def categories_list(request):
     """GET /api/compliance/categories/"""
-    cats = ComplianceCategory.objects.all()
+    tenant = getattr(request, 'tenant', None)
+    cats = ComplianceCategory.objects.filter(tenant=tenant)
     return Response([
         {'id': c.id, 'name': c.name, 'max_score': c.max_score, 'current_score': c.current_score}
         for c in cats
@@ -505,14 +521,15 @@ def dashboard_v2(request):
     GET /api/compliance/dashboard-v2/
     Enhanced dashboard with time horizon, trend, priority scoring.
     """
-    score_obj = PeaceOfMindScore.objects.filter(pk=1).first()
+    tenant = getattr(request, 'tenant', None)
+    score_obj = PeaceOfMindScore.objects.filter(tenant=tenant).first()
     if not score_obj:
         score_obj = PeaceOfMindScore.recalculate()
 
     today = timezone.now().date()
 
     # --- Time horizon buckets ---
-    items = list(ComplianceItem.objects.select_related('category').all())
+    items = list(ComplianceItem.objects.select_related('category').filter(category__tenant=tenant))
 
     horizon = {'next_7': [], 'next_30': [], 'next_90': [], 'overdue': []}
     for item in items:
@@ -567,11 +584,11 @@ def dashboard_v2(request):
     summary_parts = []
     if score_obj.score >= 80:
         summary_parts.append("You are fully compliant.")
-    overdue_legal = ComplianceItem.objects.filter(status='OVERDUE', item_type='LEGAL').count()
+    overdue_legal = ComplianceItem.objects.filter(category__tenant=tenant, status='OVERDUE', item_type='LEGAL').count()
     if overdue_legal > 0:
         summary_parts.append(f"{overdue_legal} legal item{'s' if overdue_legal != 1 else ''} overdue — immediate action required.")
     due_14 = ComplianceItem.objects.filter(
-        status='DUE_SOON', item_type='LEGAL',
+        category__tenant=tenant, status='DUE_SOON', item_type='LEGAL',
         next_due_date__lte=today + timedelta(days=14)
     ).count()
     if due_14 > 0:
@@ -580,8 +597,8 @@ def dashboard_v2(request):
         summary_parts.append(score_obj.interpretation)
 
     # Accident stats
-    open_accidents = AccidentReport.objects.exclude(status='CLOSED').count()
-    riddor_count = AccidentReport.objects.filter(riddor_reportable=True).count()
+    open_accidents = AccidentReport.objects.filter(tenant=tenant).exclude(status='CLOSED').count()
+    riddor_count = AccidentReport.objects.filter(tenant=tenant, riddor_reportable=True).count()
 
     return Response({
         'score': score_obj.score,

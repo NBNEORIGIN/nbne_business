@@ -128,12 +128,13 @@ TENANTS = {
 
 
 class Command(BaseCommand):
-    help = 'Seed 3 exemplar demo tenants: Salon X, Restaurant X, Health Club X'
+    help = 'Seed demo tenants with isolated per-tenant data'
 
     def add_arguments(self, parser):
         parser.add_argument('--tenant', type=str, help='Seed only a specific tenant slug')
 
     def handle(self, *args, **options):
+        from tenants.models import TenantSettings
         target = options.get('tenant')
         slugs = [target] if target and target in TENANTS else list(TENANTS.keys())
 
@@ -141,21 +142,21 @@ class Command(BaseCommand):
             cfg = TENANTS[slug]
             self.stdout.write(f'\n=== Seeding {cfg["business_name"]} ({slug}) ===')
 
-            # --- Users (shared across tenants for demo simplicity) ---
-            owner = self._user('owner', 'jordan.riley@demo.local', 'Jordan', 'Riley', 'owner')
-            manager = self._user('manager', 'alex.morgan@demo.local', 'Alex', 'Morgan', 'manager')
-            staff1 = self._user('staff1', 'sam.kim@demo.local', 'Sam', 'Kim', 'staff')
-            staff2 = self._user('staff2', 'taylor.chen@demo.local', 'Taylor', 'Chen', 'staff')
-            customer = self._user('customer1', 'customer@demo.local', 'Jamie', 'Smith', 'customer')
+            # --- Create/update tenant ---
+            self.tenant = self._seed_tenant(slug, cfg)
 
-            self._seed_tenant(slug, cfg)
+            # --- Per-tenant users (unique usernames per tenant) ---
+            owner = self._user(f'{slug}-owner', f'owner@{slug}.demo', 'Jordan', 'Riley', 'owner')
+            manager = self._user(f'{slug}-manager', f'manager@{slug}.demo', 'Alex', 'Morgan', 'manager')
+            staff1 = self._user(f'{slug}-staff1', f'staff1@{slug}.demo', 'Sam', 'Kim', 'staff')
+            staff2 = self._user(f'{slug}-staff2', f'staff2@{slug}.demo', 'Taylor', 'Chen', 'staff')
+            customer = self._user(f'{slug}-customer', f'customer@{slug}.demo', 'Jamie', 'Smith', 'customer')
 
-            # Create tenant-specific staff users if configured
+            # Create tenant-specific staff users if configured (e.g. Mind Department, NBNE)
             if cfg.get('staff_users'):
                 for uname, uemail, ufirst, ulast, urole in cfg['staff_users']:
                     u = self._user(uname, uemail, ufirst, ulast, urole)
                     self.stdout.write(f'  Tenant user: {uname} ({urole})')
-                    # Use first staff_user as owner for staff seeding
                     if urole == 'owner':
                         owner = u
 
@@ -189,13 +190,14 @@ class Command(BaseCommand):
                 'email': email, 'first_name': first, 'last_name': last,
                 'role': role, 'is_staff': role in ('owner', 'manager'),
                 'is_superuser': role == 'owner',
+                'tenant': self.tenant,
             }
         )
         if created:
             user.set_password('admin123')
             user.save()
         else:
-            # Ensure demo users are always active on re-seed
+            # Ensure demo users are always active and linked to correct tenant on re-seed
             changed = False
             if not user.is_active:
                 user.is_active = True
@@ -204,6 +206,9 @@ class Command(BaseCommand):
                 user.role = role
                 user.is_staff = role in ('owner', 'manager')
                 user.is_superuser = role == 'owner'
+                changed = True
+            if user.tenant != self.tenant:
+                user.tenant = self.tenant
                 changed = True
             if changed:
                 user.save()
@@ -224,20 +229,20 @@ class Command(BaseCommand):
             'deposit_percentage': cfg['deposit_percentage'],
             'enabled_modules': cfg['enabled_modules'],
         }
-        # Optional extended branding fields
         for key in ('colour_background', 'colour_text', 'font_heading', 'font_body',
                     'font_url', 'website_url', 'social_instagram'):
             if key in cfg:
                 defaults[key] = cfg[key]
         ts, created = TenantSettings.objects.update_or_create(slug=slug, defaults=defaults)
         self.stdout.write(f'  Tenant: {ts.business_name} ({"created" if created else "updated"})')
+        return ts
 
     def _seed_bookings(self, cfg, customer):
         from bookings.models import Service, Staff as BookingStaff, Client, Booking
 
         for name, cat, dur, price, dep in cfg['services']:
             Service.objects.get_or_create(
-                name=name,
+                tenant=self.tenant, name=name,
                 defaults={
                     'category': cat,
                     'duration_minutes': dur,
@@ -246,39 +251,39 @@ class Command(BaseCommand):
                     'payment_type': 'deposit' if dep > 0 else ('free' if Decimal(price) == 0 else 'full'),
                 }
             )
-        self.stdout.write(f'  Services: {Service.objects.count()}')
+        svc_count = Service.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Services: {svc_count}')
 
-        # Create a demo staff member in the bookings.Staff model
         demo_staff, _ = BookingStaff.objects.get_or_create(
-            email='staff@demo.local',
+            tenant=self.tenant, email=f'staff@{self.tenant.slug}.demo',
             defaults={'name': 'Demo Staff', 'role': 'staff'}
         )
-        # Link staff to all services
-        demo_staff.services.set(Service.objects.all())
+        demo_staff.services.set(Service.objects.filter(tenant=self.tenant))
 
-        # Create a demo client
         demo_client, _ = Client.objects.get_or_create(
-            email=customer.email,
+            tenant=self.tenant, email=customer.email,
             defaults={'name': customer.get_full_name(), 'phone': '07700 900001'}
         )
 
-        # Create sample bookings across the next week
-        svc = Service.objects.first()
-        if svc and not Booking.objects.exists():
-            today = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
-            statuses = ['confirmed', 'pending', 'completed', 'cancelled', 'confirmed']
-            for i, st in enumerate(statuses):
-                start = today + timedelta(days=i + 1)
-                end = start + timedelta(minutes=svc.duration_minutes)
-                Booking.objects.create(
-                    client=demo_client,
-                    service=svc,
-                    staff=demo_staff,
-                    start_time=start,
-                    end_time=end,
-                    status=st,
-                )
-        self.stdout.write(f'  Bookings: {Booking.objects.count()}')
+        if not Booking.objects.filter(tenant=self.tenant).exists():
+            svc = Service.objects.filter(tenant=self.tenant).first()
+            if svc:
+                today = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
+                statuses = ['confirmed', 'pending', 'completed', 'cancelled', 'confirmed']
+                for i, st in enumerate(statuses):
+                    start = today + timedelta(days=i + 1)
+                    end = start + timedelta(minutes=svc.duration_minutes)
+                    Booking.objects.create(
+                        tenant=self.tenant,
+                        client=demo_client,
+                        service=svc,
+                        staff=demo_staff,
+                        start_time=start,
+                        end_time=end,
+                        status=st,
+                    )
+        bk_count = Booking.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Bookings: {bk_count}')
 
     def _seed_staff(self, cfg, owner, manager, staff1, staff2):
         from staff.models import StaffProfile, Shift, LeaveRequest, TrainingRecord
@@ -287,8 +292,11 @@ class Command(BaseCommand):
         profiles = {}
         for user, name in [(owner, 'Jordan Riley'), (manager, 'Alex Morgan'), (staff1, 'Sam Kim'), (staff2, 'Taylor Chen')]:
             p, _ = StaffProfile.objects.get_or_create(
-                user=user, defaults={'display_name': name, 'phone': user.email}
+                user=user, defaults={'tenant': self.tenant, 'display_name': name, 'phone': user.email}
             )
+            if not p.tenant:
+                p.tenant = self.tenant
+                p.save(update_fields=['tenant'])
             profiles[user.username] = p
 
         today = date.today()
@@ -300,24 +308,30 @@ class Command(BaseCommand):
                     defaults={'end_time': time(17, 0), 'location': location, 'is_published': True}
                 )
 
-        LeaveRequest.objects.get_or_create(
-            staff=profiles['staff1'], start_date=today + timedelta(days=10),
-            defaults={'end_date': today + timedelta(days=12), 'leave_type': 'ANNUAL', 'reason': 'Holiday', 'status': 'PENDING'}
-        )
-        LeaveRequest.objects.get_or_create(
-            staff=profiles['staff2'], start_date=today + timedelta(days=20),
-            defaults={'end_date': today + timedelta(days=21), 'leave_type': 'SICK', 'reason': 'Medical appointment', 'status': 'APPROVED', 'reviewed_by': profiles['manager']}
-        )
-
-        TrainingRecord.objects.get_or_create(
-            staff=profiles['staff1'], title='Fire Safety',
-            defaults={'provider': 'SafetyFirst Ltd', 'completed_date': today - timedelta(days=60), 'expiry_date': today + timedelta(days=300)}
-        )
-        TrainingRecord.objects.get_or_create(
-            staff=profiles['staff2'], title='COSHH Awareness',
-            defaults={'provider': 'HSE Online', 'completed_date': today - timedelta(days=400), 'expiry_date': today - timedelta(days=35)}
-        )
-        self.stdout.write(f'  Staff profiles: {StaffProfile.objects.count()}, Shifts: {Shift.objects.count()}')
+        staff1_key = f'{self.tenant.slug}-staff1'
+        staff2_key = f'{self.tenant.slug}-staff2'
+        manager_key = f'{self.tenant.slug}-manager'
+        if staff1_key in profiles:
+            LeaveRequest.objects.get_or_create(
+                staff=profiles[staff1_key], start_date=today + timedelta(days=10),
+                defaults={'end_date': today + timedelta(days=12), 'leave_type': 'ANNUAL', 'reason': 'Holiday', 'status': 'PENDING'}
+            )
+            TrainingRecord.objects.get_or_create(
+                staff=profiles[staff1_key], title='Fire Safety',
+                defaults={'provider': 'SafetyFirst Ltd', 'completed_date': today - timedelta(days=60), 'expiry_date': today + timedelta(days=300)}
+            )
+        if staff2_key in profiles:
+            LeaveRequest.objects.get_or_create(
+                staff=profiles[staff2_key], start_date=today + timedelta(days=20),
+                defaults={'end_date': today + timedelta(days=21), 'leave_type': 'SICK', 'reason': 'Medical appointment', 'status': 'APPROVED',
+                          'reviewed_by': profiles.get(manager_key)}
+            )
+            TrainingRecord.objects.get_or_create(
+                staff=profiles[staff2_key], title='COSHH Awareness',
+                defaults={'provider': 'HSE Online', 'completed_date': today - timedelta(days=400), 'expiry_date': today - timedelta(days=35)}
+            )
+        sp_count = StaffProfile.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Staff profiles: {sp_count}')
 
     def _seed_staff_custom(self, cfg):
         """Seed staff profiles for tenants with custom staff_users config."""
@@ -326,9 +340,11 @@ class Command(BaseCommand):
             user = User.objects.get(username=uname)
             p, _ = StaffProfile.objects.get_or_create(
                 user=user,
-                defaults={'display_name': f'{ufirst} {ulast}', 'phone': cfg.get('phone', '')}
+                defaults={'tenant': self.tenant, 'display_name': f'{ufirst} {ulast}', 'phone': cfg.get('phone', '')}
             )
-            # Set default working hours Mon-Fri 09:00-17:00
+            if not p.tenant:
+                p.tenant = self.tenant
+                p.save(update_fields=['tenant'])
             for day in range(5):
                 WorkingHours.objects.get_or_create(
                     staff=p, day_of_week=day,
@@ -358,8 +374,7 @@ class Command(BaseCommand):
 
         channels = []
         for ch_name, ch_type in cfg['comms_channels']:
-            ch, _ = Channel.objects.get_or_create(name=ch_name, defaults={'channel_type': ch_type})
-            # Only add demo users to channels for demo tenants, not NBNE (real site)
+            ch, _ = Channel.objects.get_or_create(tenant=self.tenant, name=ch_name, defaults={'channel_type': ch_type})
             if slug != 'nbne':
                 for u in [owner, manager, staff1, staff2]:
                     ChannelMember.objects.get_or_create(channel=ch, user=u)
@@ -369,13 +384,14 @@ class Command(BaseCommand):
             Message.objects.create(channel=channels[0], sender=owner, body='Welcome to the team chat!')
             Message.objects.create(channel=channels[0], sender=staff1, body='Thanks! Excited to be here.')
             Message.objects.create(channel=channels[0], sender=manager, body='Remember to check the rota for next week.')
-        self.stdout.write(f'  Channels: {Channel.objects.count()}, Messages: {Message.objects.count()}')
+        ch_count = Channel.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Channels: {ch_count}')
 
     def _seed_compliance(self, owner, staff1):
         from compliance.models import IncidentReport, RAMSDocument
 
         IncidentReport.objects.get_or_create(
-            title='Wet floor slip hazard',
+            tenant=self.tenant, title='Wet floor slip hazard',
             defaults={
                 'description': 'Water pooling near wash stations during busy period.',
                 'severity': 'MEDIUM', 'status': 'INVESTIGATING', 'location': 'Wash Area',
@@ -383,7 +399,7 @@ class Command(BaseCommand):
             }
         )
         IncidentReport.objects.get_or_create(
-            title='Chemical storage unlabelled',
+            tenant=self.tenant, title='Chemical storage unlabelled',
             defaults={
                 'description': 'Several COSHH substances found without proper labels.',
                 'severity': 'HIGH', 'status': 'OPEN', 'location': 'Store Room',
@@ -391,21 +407,23 @@ class Command(BaseCommand):
             }
         )
         RAMSDocument.objects.get_or_create(
-            title='General Risk Assessment',
+            tenant=self.tenant, title='General Risk Assessment',
             defaults={
                 'reference_number': 'RAMS-001', 'description': 'General risk assessment for operations.',
                 'status': 'ACTIVE', 'issue_date': date.today() - timedelta(days=90),
                 'expiry_date': date.today() + timedelta(days=275), 'created_by': owner,
             }
         )
-        self.stdout.write(f'  Incidents: {IncidentReport.objects.count()}, RAMS: {RAMSDocument.objects.count()}')
+        inc_count = IncidentReport.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Incidents: {inc_count}')
 
     def _seed_documents(self, owner, manager):
         from documents.models import DocumentTag
 
         for tag_name in ['Policy', 'HSE', 'Training', 'HR']:
-            DocumentTag.objects.get_or_create(name=tag_name)
-        self.stdout.write(f'  Document tags: {DocumentTag.objects.count()}')
+            DocumentTag.objects.get_or_create(tenant=self.tenant, name=tag_name)
+        tag_count = DocumentTag.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Document tags: {tag_count}')
 
     def _seed_crm(self, owner, manager):
         from crm.models import Lead
@@ -419,7 +437,8 @@ class Command(BaseCommand):
         ]
         for name, email, source, status, value in leads_data:
             Lead.objects.get_or_create(
-                email=email,
+                tenant=self.tenant, email=email,
                 defaults={'name': name, 'source': source, 'status': status, 'value_pence': value}
             )
-        self.stdout.write(f'  Leads: {Lead.objects.count()}')
+        lead_count = Lead.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Leads: {lead_count}')

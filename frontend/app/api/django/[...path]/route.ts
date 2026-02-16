@@ -13,6 +13,8 @@ async function proxyRequest(req: NextRequest) {
     if (contentType) headers['Content-Type'] = contentType
     const auth = req.headers.get('authorization')
     if (auth) headers['Authorization'] = auth
+    const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || req.headers.get('x-tenant-slug') || ''
+    if (tenantSlug) headers['X-Tenant-Slug'] = tenantSlug
 
     const init: RequestInit = {
       method: req.method,

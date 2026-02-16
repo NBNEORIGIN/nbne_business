@@ -12,6 +12,11 @@ class User(AbstractUser):
         ('owner', 'Owner'),
     ]
 
+    tenant = models.ForeignKey(
+        'tenants.TenantSettings', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='users',
+        help_text='Tenant this user belongs to',
+    )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer')
     phone = models.CharField(max_length=30, blank=True, default='')
     bio = models.TextField(blank=True, default='')

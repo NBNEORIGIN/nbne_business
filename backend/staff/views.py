@@ -22,7 +22,8 @@ from .serializers import (
 @permission_classes([IsStaffOrAbove])
 def staff_list(request):
     """List all staff profiles (staff+). Only active by default, ?include_inactive=true for all."""
-    profiles = StaffProfile.objects.select_related('user').all()
+    tenant = getattr(request, 'tenant', None)
+    profiles = StaffProfile.objects.select_related('user').filter(tenant=tenant)
     if request.query_params.get('include_inactive') != 'true':
         profiles = profiles.filter(is_active=True)
     return Response(StaffProfileSerializer(profiles, many=True).data)
@@ -32,7 +33,8 @@ def staff_list(request):
 @permission_classes([IsStaffOrAbove])
 def staff_detail(request, staff_id):
     try:
-        profile = StaffProfile.objects.select_related('user').get(id=staff_id)
+        tenant = getattr(request, 'tenant', None)
+        profile = StaffProfile.objects.select_related('user').get(id=staff_id, tenant=tenant)
     except StaffProfile.DoesNotExist:
         return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
     return Response(StaffProfileSerializer(profile).data)
@@ -67,16 +69,19 @@ def staff_create(request):
         username = f'{base_username}_{counter}'
         counter += 1
 
+    tenant = getattr(request, 'tenant', None)
     with transaction.atomic():
         user = User.objects.create_user(
             username=username, email=email, password=temp_password,
             first_name=first_name, last_name=last_name,
             role=role, is_staff=(role in ('manager', 'owner')),
         )
+        user.tenant = tenant
         user.must_change_password = True
-        user.save(update_fields=['must_change_password'])
+        user.save(update_fields=['must_change_password', 'tenant'])
         profile = StaffProfile.objects.create(
             user=user,
+            tenant=tenant,
             display_name=f'{first_name} {last_name}',
             phone=phone,
             hire_date=timezone.now().date(),
@@ -111,7 +116,8 @@ def staff_create(request):
 def staff_update(request, staff_id):
     """Update a staff member's details. Manager+ only."""
     try:
-        profile = StaffProfile.objects.select_related('user').get(id=staff_id)
+        tenant = getattr(request, 'tenant', None)
+        profile = StaffProfile.objects.select_related('user').get(id=staff_id, tenant=tenant)
     except StaffProfile.DoesNotExist:
         return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -154,7 +160,8 @@ def staff_update(request, staff_id):
 def staff_delete(request, staff_id):
     """Deactivate a staff member. Manager+ only."""
     try:
-        profile = StaffProfile.objects.select_related('user').get(id=staff_id)
+        tenant = getattr(request, 'tenant', None)
+        profile = StaffProfile.objects.select_related('user').get(id=staff_id, tenant=tenant)
     except StaffProfile.DoesNotExist:
         return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
     if profile.user.id == request.user.id:
@@ -182,7 +189,8 @@ def my_shifts(request):
 @permission_classes([IsStaffOrAbove])
 def shift_list(request):
     """List all shifts (staff+). Supports ?staff_id= and ?date= filters."""
-    shifts = Shift.objects.select_related('staff').all()
+    tenant = getattr(request, 'tenant', None)
+    shifts = Shift.objects.select_related('staff').filter(staff__tenant=tenant)
     staff_id = request.query_params.get('staff_id')
     if staff_id:
         shifts = shifts.filter(staff_id=staff_id)
@@ -234,7 +242,8 @@ def shift_delete(request, shift_id):
 @permission_classes([IsStaffOrAbove])
 def leave_list(request):
     """List leave requests (staff+). Staff see own, managers see all."""
-    leaves = LeaveRequest.objects.select_related('staff', 'reviewed_by').all()
+    tenant = getattr(request, 'tenant', None)
+    leaves = LeaveRequest.objects.select_related('staff', 'reviewed_by').filter(staff__tenant=tenant)
     if not request.user.is_manager_or_above:
         try:
             profile = request.user.staff_profile
@@ -285,7 +294,8 @@ def leave_review(request, leave_id):
 @permission_classes([IsStaffOrAbove])
 def training_list(request):
     """List training records (staff+)."""
-    records = TrainingRecord.objects.select_related('staff').all()
+    tenant = getattr(request, 'tenant', None)
+    records = TrainingRecord.objects.select_related('staff').filter(staff__tenant=tenant)
     if not request.user.is_manager_or_above:
         try:
             profile = request.user.staff_profile
@@ -310,7 +320,8 @@ def training_create(request):
 @permission_classes([IsManagerOrAbove])
 def absence_list(request):
     """List absence records (manager+)."""
-    records = AbsenceRecord.objects.select_related('staff').all()
+    tenant = getattr(request, 'tenant', None)
+    records = AbsenceRecord.objects.select_related('staff').filter(staff__tenant=tenant)
     staff_id = request.query_params.get('staff_id')
     if staff_id:
         records = records.filter(staff_id=staff_id)
@@ -334,7 +345,8 @@ def absence_create(request):
 @permission_classes([IsManagerOrAbove])
 def working_hours_list(request):
     """List working hours. ?staff_id= to filter by staff."""
-    qs = WorkingHours.objects.select_related('staff').filter(is_active=True)
+    tenant = getattr(request, 'tenant', None)
+    qs = WorkingHours.objects.select_related('staff').filter(is_active=True, staff__tenant=tenant)
     staff_id = request.query_params.get('staff_id')
     if staff_id:
         qs = qs.filter(staff_id=staff_id)
@@ -415,7 +427,8 @@ def working_hours_bulk_set(request):
 def timesheet_list(request):
     """List timesheet entries. ?staff_id=, ?date_from=, ?date_to= filters.
     Staff see own only; managers see all."""
-    qs = TimesheetEntry.objects.select_related('staff').all()
+    tenant = getattr(request, 'tenant', None)
+    qs = TimesheetEntry.objects.select_related('staff').filter(staff__tenant=tenant)
     if not request.user.is_manager_or_above:
         try:
             profile = request.user.staff_profile

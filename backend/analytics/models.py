@@ -8,6 +8,7 @@ class Recommendation(models.Model):
         ('STAFFING', 'Staffing'), ('OTHER', 'Other'),
     ]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='recommendations')
     title = models.CharField(max_length=255)
     description = models.TextField()
     recommendation_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='OTHER', db_index=True)

@@ -50,6 +50,7 @@ def log_event(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    tenant = getattr(request, 'tenant', None)
     evt = BusinessEvent.log(
         event_type=event_type,
         action_label=action_label,
@@ -59,6 +60,7 @@ def log_event(request):
         source_entity_id=data.get('source_entity_id'),
         action_detail=data.get('action_detail', ''),
         payload=data.get('payload', {}),
+        tenant=tenant,
     )
 
     return Response({
@@ -78,7 +80,8 @@ def today_resolved(request):
     Events auto-expire from this view after 24 hours.
     All records remain in the full audit log.
     """
-    events = BusinessEvent.today_resolved()
+    tenant = getattr(request, 'tenant', None)
+    events = BusinessEvent.today_resolved(tenant=tenant)
 
     return Response({
         'count': events.count(),
@@ -126,6 +129,7 @@ def decline_cover(request):
         )
 
     # Log the decline event
+    tenant = getattr(request, 'tenant', None)
     BusinessEvent.log(
         event_type='COVER_DECLINED',
         action_label=f'Cover declined (staff #{declined_staff_id})',
@@ -137,6 +141,7 @@ def decline_cover(request):
             'absent_staff_id': absent_staff_id,
             'declined_staff_id': declined_staff_id,
         },
+        tenant=tenant,
     )
 
     # Ensure declined_staff_id is in the list

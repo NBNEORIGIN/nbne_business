@@ -11,18 +11,21 @@ class ServiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Admin sees all services; public booking page sees only active
+        tenant = getattr(self.request, 'tenant', None)
+        qs = Service.objects.filter(tenant=tenant) if tenant else Service.objects.none()
         show_all = self.request.query_params.get('all', '')
         if show_all == '1' or self.action in ('update', 'partial_update', 'destroy', 'retrieve'):
-            return Service.objects.all()
-        return Service.objects.filter(active=True)
+            return qs
+        return qs.filter(active=True)
 
     def perform_create(self, serializer):
         # Support price_pence from frontend (convert to pounds)
+        tenant = getattr(self.request, 'tenant', None)
         price_pence = self.request.data.get('price_pence')
         if price_pence is not None:
-            serializer.save(price=int(price_pence) / 100)
+            serializer.save(price=int(price_pence) / 100, tenant=tenant)
         else:
-            serializer.save()
+            serializer.save(tenant=tenant)
 
     def perform_update(self, serializer):
         price_pence = self.request.data.get('price_pence')
@@ -153,10 +156,12 @@ class StaffViewSet(viewsets.ModelViewSet):
     serializer_class = StaffSerializer
 
     def get_queryset(self):
+        tenant = getattr(self.request, 'tenant', None)
+        qs = Staff.objects.filter(tenant=tenant) if tenant else Staff.objects.none()
         show_all = self.request.query_params.get('all', '')
         if show_all == '1' or self.action in ('update', 'partial_update', 'destroy', 'retrieve'):
-            return Staff.objects.all()
-        return Staff.objects.filter(active=True)
+            return qs
+        return qs.filter(active=True)
 
     def _get_name(self, data):
         """Extract name from first_name+last_name or name field."""
@@ -167,11 +172,12 @@ class StaffViewSet(viewsets.ModelViewSet):
         return data.get('name', '').strip() or None
 
     def perform_create(self, serializer):
+        tenant = getattr(self.request, 'tenant', None)
         name = self._get_name(self.request.data)
         if name:
-            serializer.save(name=name)
+            serializer.save(name=name, tenant=tenant)
         else:
-            serializer.save()
+            serializer.save(tenant=tenant)
 
     def perform_update(self, serializer):
         name = self._get_name(self.request.data)
@@ -182,13 +188,22 @@ class StaffViewSet(viewsets.ModelViewSet):
 
 
 class ClientViewSet(viewsets.ModelViewSet):
-    queryset = Client.objects.all()
     serializer_class = ClientSerializer
+
+    def get_queryset(self):
+        tenant = getattr(self.request, 'tenant', None)
+        return Client.objects.filter(tenant=tenant) if tenant else Client.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=getattr(self.request, 'tenant', None))
 
 
 class BookingViewSet(viewsets.ModelViewSet):
-    queryset = Booking.objects.all()
     serializer_class = BookingSerializer
+
+    def get_queryset(self):
+        tenant = getattr(self.request, 'tenant', None)
+        return Booking.objects.filter(tenant=tenant) if tenant else Booking.objects.none()
     
     def create(self, request, *args, **kwargs):
         """
@@ -217,9 +232,10 @@ class BookingViewSet(viewsets.ModelViewSet):
         
         try:
             with transaction.atomic():
-                # Find or create client by email
+                # Find or create client by email (scoped to tenant)
+                tenant = getattr(request, 'tenant', None)
                 client, created = Client.objects.get_or_create(
-                    email=client_email,
+                    tenant=tenant, email=client_email,
                     defaults={
                         'name': client_name,
                         'phone': client_phone,
@@ -263,6 +279,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                 
                 # Create booking
                 booking = Booking.objects.create(
+                    tenant=tenant,
                     client=client,
                     staff=staff,
                     service=service,

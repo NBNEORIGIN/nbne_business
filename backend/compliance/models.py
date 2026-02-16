@@ -6,6 +6,7 @@ class IncidentReport(models.Model):
     SEVERITY_CHOICES = [('LOW', 'Low'), ('MEDIUM', 'Medium'), ('HIGH', 'High'), ('CRITICAL', 'Critical')]
     STATUS_CHOICES = [('OPEN', 'Open'), ('INVESTIGATING', 'Investigating'), ('RESOLVED', 'Resolved'), ('CLOSED', 'Closed')]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='incidents')
     title = models.CharField(max_length=255)
     description = models.TextField()
     severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='MEDIUM', db_index=True)
@@ -63,6 +64,7 @@ class SignOff(models.Model):
 class RiskAssessment(models.Model):
     STATUS_CHOICES = [('CURRENT', 'Current'), ('REVIEW_DUE', 'Review Due'), ('EXPIRED', 'Expired'), ('DRAFT', 'Draft')]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='risk_assessments')
     title = models.CharField(max_length=255)
     site_area = models.CharField(max_length=255, help_text='Area or location assessed')
     assessor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='assessments')
@@ -135,6 +137,7 @@ class Equipment(models.Model):
         ('OTHER', 'Other'),
     ]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='equipment')
     name = models.CharField(max_length=255)
     location = models.CharField(max_length=255)
     category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='OTHER', db_index=True)
@@ -204,7 +207,8 @@ class EquipmentInspection(models.Model):
 
 class ComplianceCategory(models.Model):
     """Categories for compliance scoring (e.g. Fire Safety, Chemical Handling)"""
-    name = models.CharField(max_length=255, unique=True)
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='compliance_categories')
+    name = models.CharField(max_length=255)
     max_score = models.IntegerField(default=10)
     current_score = models.IntegerField(default=0)
     notes = models.TextField(blank=True, default='')
@@ -378,6 +382,7 @@ class AccidentReport(models.Model):
         ('CLOSED', 'Closed'),
     ]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='accident_reports')
     date = models.DateField(db_index=True)
     time = models.TimeField(null=True, blank=True)
     location = models.CharField(max_length=255, blank=True, default='')
@@ -414,8 +419,9 @@ class AccidentReport(models.Model):
 class PeaceOfMindScore(models.Model):
     """
     Cached Peace of Mind Score (0–100).
-    Single row — recalculated on item changes and daily.
+    Single row per tenant — recalculated on item changes and daily.
     """
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='peace_of_mind_scores')
     score = models.IntegerField(default=0)
     previous_score = models.IntegerField(default=0)
     total_items = models.IntegerField(default=0)
@@ -567,6 +573,7 @@ class ScoreAuditLog(models.Model):
 class RAMSDocument(models.Model):
     STATUS_CHOICES = [('DRAFT', 'Draft'), ('ACTIVE', 'Active'), ('EXPIRED', 'Expired'), ('ARCHIVED', 'Archived')]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='rams_documents')
     title = models.CharField(max_length=255)
     reference_number = models.CharField(max_length=100, blank=True, default='', db_index=True)
     description = models.TextField(blank=True, default='')

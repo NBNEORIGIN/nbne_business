@@ -46,6 +46,7 @@ class BusinessEvent(models.Model):
         ('FAILED', 'Failed'),
     ]
 
+    tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='business_events')
     event_type = models.CharField(max_length=50, choices=EVENT_TYPES, db_index=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='COMPLETED')
 
@@ -98,9 +99,10 @@ class BusinessEvent(models.Model):
     @classmethod
     def log(cls, event_type, action_label, user=None, source_event_type='',
             source_entity_type='', source_entity_id=None, action_detail='',
-            payload=None, status='COMPLETED'):
+            payload=None, status='COMPLETED', tenant=None):
         """Convenience factory for creating events."""
         return cls.objects.create(
+            tenant=tenant,
             event_type=event_type,
             status=status,
             source_event_type=source_event_type,
@@ -113,11 +115,14 @@ class BusinessEvent(models.Model):
         )
 
     @classmethod
-    def today_resolved(cls):
+    def today_resolved(cls, tenant=None):
         """Return events from today that represent resolved dashboard actions."""
         now = timezone.now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        return cls.objects.filter(
+        qs = cls.objects.filter(
             created_at__gte=today_start,
             status='COMPLETED',
-        ).select_related('performed_by')
+        )
+        if tenant:
+            qs = qs.filter(tenant=tenant)
+        return qs.select_related('performed_by')

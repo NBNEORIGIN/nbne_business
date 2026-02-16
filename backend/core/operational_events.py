@@ -31,7 +31,7 @@ from django.conf import settings
 from django.utils import timezone
 
 
-def get_operational_events(compliance_lookahead_days=14):
+def get_operational_events(compliance_lookahead_days=14, tenant=None):
     """
     Main entry point. Returns a list of operational events sorted by severity.
     Only queries modules that are enabled.
@@ -44,13 +44,13 @@ def get_operational_events(compliance_lookahead_days=14):
     events = []
 
     if getattr(settings, 'BOOKINGS_MODULE_ENABLED', False):
-        events.extend(_booking_events(today_start, today_end, tomorrow_end))
+        events.extend(_booking_events(today_start, today_end, tomorrow_end, tenant))
 
     if getattr(settings, 'STAFF_MODULE_ENABLED', False):
-        events.extend(_staff_leave_events(today_start, today_end, tomorrow_end))
+        events.extend(_staff_leave_events(today_start, today_end, tomorrow_end, tenant))
 
     if getattr(settings, 'COMPLIANCE_MODULE_ENABLED', False):
-        events.extend(_compliance_events(today_start, compliance_lookahead_days))
+        events.extend(_compliance_events(today_start, compliance_lookahead_days, tenant))
 
     # Sort by operational priority:
     # 1) Today's operational blockers (sick staff, unassigned bookings)
@@ -93,13 +93,15 @@ def get_dashboard_state(events):
 # Booking events
 # ---------------------------------------------------------------------------
 
-def _booking_events(today_start, today_end, tomorrow_end):
+def _booking_events(today_start, today_end, tomorrow_end, tenant=None):
     from bookings.models import Booking, Staff as BookingStaff
 
     events = []
+    t_filter = {'tenant': tenant} if tenant else {}
 
     # 1. Bookings cancelled today
     cancelled_today = Booking.objects.filter(
+        **t_filter,
         updated_at__gte=today_start,
         updated_at__lt=today_end,
         status='cancelled',
@@ -124,6 +126,7 @@ def _booking_events(today_start, today_end, tomorrow_end):
 
     # 2. Bookings with no staff assigned (today or tomorrow)
     unassigned = Booking.objects.filter(
+        **t_filter,
         start_time__gte=today_start,
         start_time__lt=tomorrow_end,
         staff__isnull=True,
@@ -172,6 +175,7 @@ def _booking_events(today_start, today_end, tomorrow_end):
 
     # 3. Today's bookings with no payment (deposit missing)
     unpaid_today = Booking.objects.filter(
+        **t_filter,
         start_time__gte=today_start,
         start_time__lt=today_end,
         status__in=['confirmed', 'pending'],
@@ -206,7 +210,7 @@ def _booking_events(today_start, today_end, tomorrow_end):
 # Staff / Leave events
 # ---------------------------------------------------------------------------
 
-def _staff_leave_events(today_start, today_end, tomorrow_end):
+def _staff_leave_events(today_start, today_end, tomorrow_end, tenant=None):
     events = []
 
     try:
@@ -310,7 +314,7 @@ def _staff_leave_events(today_start, today_end, tomorrow_end):
 # Compliance events
 # ---------------------------------------------------------------------------
 
-def _compliance_events(today_start, lookahead_days):
+def _compliance_events(today_start, lookahead_days, tenant=None):
     events = []
 
     try:
@@ -319,9 +323,12 @@ def _compliance_events(today_start, lookahead_days):
         return events
 
     today = today_start.date()
+    t_filter = {'category__tenant': tenant} if tenant else {}
+    t_filter_direct = {'tenant': tenant} if tenant else {}
 
     # 1. Overdue compliance items
     overdue = ComplianceItem.objects.filter(
+        **t_filter,
         status='OVERDUE',
     ).select_related('category')
 
@@ -344,6 +351,7 @@ def _compliance_events(today_start, lookahead_days):
     # 2. Due soon (within lookahead)
     due_soon_date = today + timedelta(days=lookahead_days)
     due_soon = ComplianceItem.objects.filter(
+        **t_filter,
         status='DUE_SOON',
         next_due_date__lte=due_soon_date,
     ).select_related('category')
@@ -366,6 +374,7 @@ def _compliance_events(today_start, lookahead_days):
 
     # 3. Open incidents
     open_incidents = IncidentReport.objects.filter(
+        **t_filter_direct,
         status__in=['OPEN', 'INVESTIGATING'],
     )
 
