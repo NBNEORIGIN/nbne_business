@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const API_BASE = 'https://nbnebusiness-production-6853.up.railway.app'
+const API_BASE = process.env.DJANGO_BACKEND_URL || 'https://nbnebusiness-production.up.railway.app'
 
 async function proxyRequest(req: NextRequest) {
   const url = new URL(req.url)
