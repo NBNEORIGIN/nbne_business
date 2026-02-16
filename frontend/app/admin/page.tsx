@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand } from '@/lib/api'
 
 interface DashboardAction {
@@ -52,6 +52,70 @@ const ACTION_EVENT_MAP: Record<string, string> = {
   incident_open: 'INCIDENT_RESOLVED',
 }
 
+// Priority ordering: structural > unassigned > revenue > admin
+const PRIORITY_ORDER: Record<string, number> = {
+  staff_sick: 1,
+  booking_unassigned: 2,
+  deposit_missing: 3,
+  booking_cancelled: 4,
+  leave_pending: 5,
+  compliance_expiry: 6,
+  incident_open: 7,
+}
+
+// Priority border colour
+function priorityColor(eventType: string): string {
+  if (['staff_sick', 'booking_unassigned'].includes(eventType)) return '#ef4444'
+  if (['deposit_missing', 'booking_cancelled'].includes(eventType)) return '#f59e0b'
+  return '#d1d5db'
+}
+
+// Merge detail + why_it_matters into single tight sentence
+function situationText(evt: DashboardEvent): string {
+  const why = evt.why_it_matters || ''
+  if (!why) return evt.detail
+  // If detail already contains the why info, just return detail
+  if (evt.detail.toLowerCase().includes(why.toLowerCase().slice(0, 20))) return evt.detail
+  return `${evt.detail.replace(/\.\s*$/, '')} \u2014 ${why.replace(/\.\s*$/, '').toLowerCase()}.`
+}
+
+// Formatted date: "Today — Mon 16 Feb"
+function formattedDate(): string {
+  const d = new Date()
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  return `Today \u2014 ${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`
+}
+
+// Demo snapshot data (will be replaced by API when available)
+const DEMO_STAFF = [
+  { name: 'Sam', hours: '09:00 \u2013 17:00', off: false },
+  { name: 'Jordan', hours: '10:00 \u2013 18:00', off: false },
+  { name: 'Alex', hours: '09:00 \u2013 15:00', off: false },
+  { name: 'Morgan', hours: '11:00 \u2013 19:00', off: false },
+  { name: 'Taylor', hours: '09:00 \u2013 17:00', off: false },
+  { name: 'Chloe', hours: 'Sick', off: true },
+]
+
+// Demo timeline density (09:00–18:00, 36 quarter-hour blocks)
+function buildTimelineDensity(): number[] {
+  const slots = [
+    [9,0,9,45],[9,15,10,0],[10,0,11,0],[10,30,11,30],
+    [11,0,12,0],[11,30,12,30],[12,0,13,0],
+    [13,0,14,0],[13,30,14,30],[14,0,15,0],[14,0,14,45],
+    [15,0,16,0],[15,30,16,30],[16,0,17,0],
+    [16,30,17,30],[17,0,18,0],[17,0,17,45],[17,30,18,0],
+  ]
+  const blocks = 36
+  const density = new Array(blocks).fill(0)
+  slots.forEach(([sh, sm, eh, em]) => {
+    const startBlock = Math.max(0, Math.floor(((sh - 9) * 60 + sm) / 15))
+    const endBlock = Math.min(blocks, Math.ceil(((eh - 9) * 60 + em) / 15))
+    for (let i = startBlock; i < endBlock; i++) density[i]++
+  })
+  return density
+}
+
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -65,6 +129,20 @@ export default function AdminDashboard() {
   const [cmdText, setCmdText] = useState('')
   const [cmdResult, setCmdResult] = useState<any>(null)
   const [cmdLoading, setCmdLoading] = useState(false)
+  const [cmdFeedback, setCmdFeedback] = useState<string | null>(null)
+
+  // Toast
+  const [toast, setToast] = useState<string | null>(null)
+
+  // Snapshot
+  const [staffPanelOpen, setStaffPanelOpen] = useState(false)
+  const [snapStaffIn] = useState(5)
+  const [snapStaffOff] = useState(1)
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 2500)
+  }, [])
 
   useEffect(() => {
     Promise.all([
@@ -87,9 +165,8 @@ export default function AdminDashboard() {
 
   const handleAction = async (evt: DashboardEvent, action: DashboardAction) => {
     const key = evtKey(evt)
-    setResolving((prev: Record<string, string>) => ({ ...prev, [key]: action.label }))
+    setResolving((prev) => ({ ...prev, [key]: action.label }))
 
-    // Log the business event (no silent mutation)
     const eventType = ACTION_EVENT_MAP[evt.event_type] || 'OWNER_OVERRIDE'
     await logBusinessEvent({
       event_type: eventType,
@@ -102,24 +179,25 @@ export default function AdminDashboard() {
     })
 
     setTimeout(async () => {
-      setDismissed((prev: Set<string>) => new Set(prev).add(key))
-      setResolving((prev: Record<string, string>) => {
+      setDismissed((prev) => new Set(prev).add(key))
+      setResolving((prev) => {
         const next = { ...prev }
         delete next[key]
         return next
       })
-      // Refresh resolved events from backend
+      showToast(`\u2192 ${action.label}`)
       const res = await getTodayResolved()
       if (!res.error && res.data) {
         setResolvedEvents(res.data.events || [])
       }
-    }, 1500)
+    }, 800)
   }
 
   const handleCommand = async () => {
     if (!cmdText.trim()) return
     setCmdLoading(true)
     setCmdResult(null)
+    setCmdFeedback(null)
     const res = await parseAssistantCommand(cmdText)
     setCmdLoading(false)
     if (!res.error && res.data) {
@@ -138,9 +216,11 @@ export default function AdminDashboard() {
       action_detail: intent.description,
       payload: { ...intent.entities, source: 'assistant_command' },
     })
+    const feedback = intent.description || 'Action confirmed.'
     setCmdResult(null)
     setCmdText('')
-    // Refresh
+    setCmdFeedback(feedback)
+    setTimeout(() => setCmdFeedback(null), 3000)
     const res = await getTodayResolved()
     if (!res.error && res.data) {
       setResolvedEvents(res.data.events || [])
@@ -149,7 +229,7 @@ export default function AdminDashboard() {
 
   if (loading) return (
     <div style={{ padding: '3rem 0', textAlign: 'center', color: '#9ca3af', fontSize: '0.95rem' }}>
-      Loading…
+      Loading\u2026
     </div>
   )
   if (error) return (
@@ -160,99 +240,207 @@ export default function AdminDashboard() {
   if (!data) return null
 
   const visibleEvents = data.events
-    .filter((e: DashboardEvent) => !dismissed.has(evtKey(e)))
+    .filter((e) => !dismissed.has(evtKey(e)))
+    .sort((a, b) => (PRIORITY_ORDER[a.event_type] || 99) - (PRIORITY_ORDER[b.event_type] || 99))
     .slice(0, 5)
   const activeCount = visibleEvents.length
   const allSorted = data.state === 'sorted' || activeCount === 0
   const sortedCount = resolvedEvents.length
 
-  const tog = (on: boolean) => ({
+  // Impact calculations
+  const revenueAtRisk = visibleEvents.reduce((sum, e) => {
+    if (e.event_type === 'deposit_missing') return sum + 85
+    return sum
+  }, 0)
+  const bookingsAffected = visibleEvents.reduce((sum, e) => {
+    if (e.event_type === 'staff_sick') return sum + 4
+    if (e.event_type === 'booking_unassigned') return sum + 1
+    return sum
+  }, 0)
+
+  const tog = (on: boolean): React.CSSProperties => ({
     padding: '0.3rem 0.85rem', borderRadius: 5,
     border: '1px solid #d1d5db',
     backgroundColor: on ? '#111827' : '#fff',
     color: on ? '#fff' : '#6b7280',
-    fontSize: '0.8rem', fontWeight: 500 as const, cursor: 'pointer' as const,
+    fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer',
   })
 
+  const density = buildTimelineDensity()
+
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <div style={{ maxWidth: 860, margin: '0 auto', position: 'relative' }}>
 
-      {/* ── Global Command Bar ── */}
-      <div style={{
-        display: 'flex', gap: '0.5rem', marginBottom: '1.5rem',
-        padding: '0.6rem 0.75rem', borderRadius: 8,
-        border: '1px solid #e5e7eb', backgroundColor: '#fff',
-      }}>
-        <input
-          type="text"
-          value={cmdText}
-          onChange={(e: any) => setCmdText(e.target.value)}
-          onKeyDown={(e: any) => e.key === 'Enter' && handleCommand()}
-          placeholder="Type what happened or what you want to do…"
-          style={{
-            flex: 1, border: 'none', outline: 'none', fontSize: '0.9rem',
-            color: '#111827', backgroundColor: 'transparent',
-          }}
-        />
-        <button
-          onClick={handleCommand}
-          disabled={cmdLoading || !cmdText.trim()}
-          style={{
-            padding: '0.35rem 0.75rem', borderRadius: 5, border: 'none',
-            backgroundColor: '#111827', color: '#fff',
-            fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer',
-            opacity: cmdLoading || !cmdText.trim() ? 0.4 : 1,
-          }}
-        >
-          {cmdLoading ? '…' : 'Go'}
-        </button>
-      </div>
-
-      {/* Command result / confirmation */}
-      {cmdResult && (
+      {/* ── Command area ── */}
+      <div style={{ marginBottom: '1rem' }}>
         <div style={{
-          marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: 8,
-          border: '1px solid #e5e7eb', backgroundColor: '#fafafa',
+          display: 'flex', gap: '0.5rem',
+          padding: '0.6rem 0.75rem', borderRadius: 8,
+          border: '1px solid #e5e7eb', backgroundColor: '#fff',
         }}>
-          {cmdResult.parsed ? (
-            <div>
-              <div style={{ fontSize: '0.9rem', color: '#111827', marginBottom: '0.5rem' }}>
-                {cmdResult.confirmation_message}
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input
+            type="text"
+            value={cmdText}
+            onChange={(e) => setCmdText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCommand()}
+            placeholder="Type what happened or what you want to do\u2026"
+            style={{
+              flex: 1, border: 'none', outline: 'none', fontSize: '0.9rem',
+              color: '#111827', backgroundColor: 'transparent',
+            }}
+          />
+          <button
+            onClick={handleCommand}
+            disabled={cmdLoading || !cmdText.trim()}
+            style={{
+              padding: '0.35rem 0.75rem', borderRadius: 5, border: 'none',
+              backgroundColor: '#111827', color: '#fff',
+              fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer',
+              opacity: cmdLoading || !cmdText.trim() ? 0.4 : 1,
+            }}
+          >
+            {cmdLoading ? '\u2026' : 'Go'}
+          </button>
+        </div>
+
+        {/* Compact assistant strip */}
+        {cmdResult && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.6rem',
+            padding: '0.4rem 0.75rem', marginTop: '0.35rem',
+            fontSize: '0.85rem', color: '#374151',
+          }}>
+            <span style={{ flex: 1 }}>
+              {cmdResult.parsed ? cmdResult.confirmation_message : cmdResult.message}
+            </span>
+            {cmdResult.parsed && (
+              <>
                 <button
                   onClick={handleCommandConfirm}
                   style={{
-                    padding: '0.35rem 0.85rem', borderRadius: 5, border: 'none',
+                    padding: '0.25rem 0.65rem', borderRadius: 4, border: 'none',
                     backgroundColor: '#111827', color: '#fff',
-                    fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer',
+                    fontSize: '0.78rem', fontWeight: 500, cursor: 'pointer',
                   }}
                 >
-                  Confirm
+                  {cmdResult.intent?.event_type === 'STAFF_SICK' ? 'Confirm absence' : 'Confirm'}
                 </button>
                 <button
                   onClick={() => { setCmdResult(null); setCmdText('') }}
                   style={{
-                    padding: '0.35rem 0.85rem', borderRadius: 5,
-                    border: '1px solid #d1d5db', backgroundColor: '#fff', color: '#6b7280',
-                    fontSize: '0.8rem', cursor: 'pointer',
+                    fontSize: '0.78rem', color: '#9ca3af', cursor: 'pointer',
+                    border: 'none', background: 'none',
                   }}
                 >
                   Cancel
                 </button>
-              </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Post-confirm feedback */}
+        {cmdFeedback && (
+          <div style={{
+            padding: '0.4rem 0.75rem', marginTop: '0.35rem',
+            fontSize: '0.85rem', color: '#059669', fontWeight: 500,
+          }}>
+            {cmdFeedback}
+          </div>
+        )}
+      </div>
+
+      {/* ── Operational Snapshot ── */}
+      <div style={{
+        display: 'flex', alignItems: 'stretch',
+        border: '1px solid #e5e7eb', borderRadius: 8, backgroundColor: '#fff',
+        marginBottom: staffPanelOpen ? 0 : '1rem', overflow: 'hidden',
+      }}>
+        {[
+          { label: 'Staff In', value: String(snapStaffIn), cls: '', click: true },
+          { label: 'Staff Off', value: String(snapStaffOff), cls: snapStaffOff > 0 ? 'danger' : '', click: true },
+          { label: 'Bookings', value: '18', sub: '(78%)', cls: '' },
+          { label: 'Revenue Today', value: '\u00A31,240', cls: '' },
+          { label: 'Gaps', value: '3', sub: 'empty slots', cls: 'warn' },
+        ].map((cell, i) => (
+          <div
+            key={i}
+            onClick={cell.click ? () => setStaffPanelOpen(!staffPanelOpen) : undefined}
+            style={{
+              flex: 1, padding: '0.55rem 0.75rem', textAlign: 'center',
+              borderRight: i < 4 ? '1px solid #f3f4f6' : 'none',
+              cursor: cell.click ? 'pointer' : 'default',
+            }}
+          >
+            <div style={{
+              fontSize: '0.65rem', fontWeight: 600, color: '#9ca3af',
+              textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.15rem',
+            }}>
+              {cell.label}
             </div>
-          ) : (
-            <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>{cmdResult.message}</div>
-          )}
+            <div style={{
+              fontSize: '1.05rem', fontWeight: 700, lineHeight: 1.2,
+              color: cell.cls === 'danger' ? '#ef4444' : cell.cls === 'warn' ? '#f59e0b' : '#111827',
+            }}>
+              {cell.value}
+              {cell.sub && (
+                <span style={{ fontSize: '0.72rem', fontWeight: 400, color: '#9ca3af', marginLeft: '0.2rem' }}>
+                  {cell.sub}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Staff expand panel */}
+      {staffPanelOpen && (
+        <div style={{
+          padding: '0.5rem 0.75rem',
+          border: '1px solid #e5e7eb', borderTop: 'none',
+          borderRadius: '0 0 8px 8px', backgroundColor: '#fafafa',
+          marginBottom: '1rem',
+        }}>
+          {DEMO_STAFF.map((s, i) => (
+            <div key={i} style={{
+              display: 'flex', justifyContent: 'space-between',
+              fontSize: '0.82rem', padding: '0.2rem 0',
+              color: s.off ? '#ef4444' : '#374151',
+            }}>
+              <span>{s.name}</span>
+              <span style={{ fontSize: '0.78rem', color: s.off ? '#ef4444' : '#9ca3af' }}>{s.hours}</span>
+            </div>
+          ))}
         </div>
       )}
 
+      {/* ── Mini Timeline 09:00–18:00 ── */}
+      <div style={{
+        display: 'flex', height: 18, borderRadius: 4, overflow: 'hidden',
+        marginBottom: '0.15rem', backgroundColor: '#f3f4f6',
+      }}>
+        {density.map((d, i) => (
+          <div key={i} style={{
+            width: `${(100 / 36).toFixed(2)}%`, height: '100%',
+            backgroundColor: d > 0 ? '#1e293b' : '#e5e7eb',
+            opacity: d > 0 ? Math.min(1, 0.3 + d * 0.25) : 1,
+          }} />
+        ))}
+      </div>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between',
+        fontSize: '0.65rem', color: '#9ca3af', marginBottom: '0.75rem',
+      }}>
+        {['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'].map(t => (
+          <span key={t}>{t}</span>
+        ))}
+      </div>
+
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#111827', marginBottom: '0.15rem' }}>
-            Today
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#111827', marginBottom: '0.1rem' }}>
+            {formattedDate()}
           </h1>
           <div style={{ fontSize: '0.9rem', color: '#6b7280' }}>
             {allSorted
@@ -260,8 +448,16 @@ export default function AdminDashboard() {
               : `${activeCount} thing${activeCount !== 1 ? 's' : ''} need${activeCount === 1 ? 's' : ''} sorting.`
             }
           </div>
+          {!allSorted && (revenueAtRisk > 0 || bookingsAffected > 0) && (
+            <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.15rem' }}>
+              {[
+                revenueAtRisk > 0 ? `\u00A3${revenueAtRisk} revenue at risk` : '',
+                bookingsAffected > 0 ? `${bookingsAffected} booking${bookingsAffected !== 1 ? 's' : ''} affected` : '',
+              ].filter(Boolean).join(' \u00B7 ')}
+            </div>
+          )}
         </div>
-        <div style={{ display: 'flex', gap: '0.35rem' }}>
+        <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.35rem' }}>
           <button onClick={() => setView('active')} style={tog(view === 'active')}>Active</button>
           <button onClick={() => setView('sorted')} style={tog(view === 'sorted')}>
             Sorted{sortedCount > 0 ? ` (${sortedCount})` : ''}
@@ -269,7 +465,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── Sorted view: from backend BusinessEvent log ── */}
+      {/* ── Sorted view ── */}
       {view === 'sorted' ? (
         sortedCount === 0 ? (
           <div style={{ padding: '3rem 1.5rem', textAlign: 'center', borderRadius: 8, border: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
@@ -277,16 +473,15 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div>
-            {/* Column headers */}
             <div style={{
               display: 'grid', gridTemplateColumns: '1fr 140px 100px 80px', gap: '0.75rem',
-              padding: '0 0 0.4rem 0', borderBottom: '1px solid #e5e7eb', marginBottom: 0,
+              padding: '0 0 0.4rem 0', borderBottom: '1px solid #e5e7eb',
             }}>
-              {['Action taken', 'Who', 'Type', 'Time'].map((h: string) => (
+              {['Action taken', 'Who', 'Type', 'Time'].map((h) => (
                 <div key={h} style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>{h}</div>
               ))}
             </div>
-            {resolvedEvents.map((r: ResolvedEvent) => {
+            {resolvedEvents.map((r) => {
               const time = new Date(r.created_at)
               return (
                 <div key={r.id} style={{
@@ -309,21 +504,19 @@ export default function AdminDashboard() {
           <div style={{ fontSize: '0.95rem', color: '#374151', fontWeight: 500 }}>All sorted. You&rsquo;re good.</div>
         </div>
 
-      /* ── Active: 4-column horizontal rows ── */
+      /* ── Active: 3-column rows with priority borders ── */
       ) : (
         <div>
-          {/* Column headers */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr', gap: '0.75rem',
-            padding: '0 0 0.4rem 0', borderBottom: '1px solid #e5e7eb', marginBottom: 0,
+            display: 'grid', gridTemplateColumns: '2.5fr 1fr 1fr', gap: '0.75rem',
+            padding: '0 0 0.4rem 0.75rem', borderBottom: '1px solid #e5e7eb',
           }}>
-            {['What happened', 'Why it matters', 'Action', 'Options'].map((h: string) => (
+            {['Situation', 'Action', 'Options'].map((h) => (
               <div key={h} style={{ fontSize: '0.7rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>{h}</div>
             ))}
           </div>
 
-          {/* Issue rows */}
-          {visibleEvents.map((evt: DashboardEvent, i: number) => {
+          {visibleEvents.map((evt, i) => {
             const key = evtKey(evt)
             const isResolving = key in resolving
             const primary = evt.actions[0]
@@ -334,51 +527,47 @@ export default function AdminDashboard() {
                 key={`${key}-${i}`}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '2fr 1.2fr 1fr 1fr',
+                  gridTemplateColumns: '2.5fr 1fr 1fr',
                   gap: '0.75rem',
-                  padding: '0.65rem 0',
+                  padding: '0.6rem 0 0.6rem 0.75rem',
                   borderBottom: '1px solid #f3f4f6',
-                  alignItems: 'flex-start',
-                  opacity: isResolving ? 0.4 : 1,
-                  transition: 'opacity 0.3s ease',
+                  borderLeft: `3px solid ${priorityColor(evt.event_type)}`,
+                  alignItems: 'center',
+                  opacity: isResolving ? 0.35 : 1,
+                  transition: 'opacity 0.4s ease',
                 }}
               >
                 {isResolving ? (
-                  <div style={{ gridColumn: '1 / -1', fontSize: '0.88rem', color: '#374151' }}>
-                    {resolving[key]} — awaiting response.
+                  <div style={{ gridColumn: '1 / -1', fontSize: '0.85rem', color: '#374151' }}>
+                    {resolving[key]}
                   </div>
                 ) : (
                   <>
-                    {/* Col 1 — What happened */}
-                    <div style={{ fontSize: '0.88rem', color: '#111827', lineHeight: 1.45 }}>
-                      {evt.detail}
+                    {/* Situation (merged what + why) */}
+                    <div style={{ fontSize: '0.88rem', color: '#111827', lineHeight: 1.4 }}>
+                      {situationText(evt)}
                     </div>
 
-                    {/* Col 2 — Why it matters */}
-                    <div style={{ fontSize: '0.82rem', color: '#6b7280', lineHeight: 1.4 }}>
-                      {evt.why_it_matters || primary?.reason || ''}
-                    </div>
-
-                    {/* Col 3 — Primary action */}
+                    {/* Primary action with arrow */}
                     <div>
                       {primary && (
                         <button
                           onClick={() => handleAction(evt, primary)}
                           style={{
-                            padding: '0.35rem 0.75rem', borderRadius: 5, border: 'none',
+                            padding: '0.3rem 0.7rem', borderRadius: 5, border: 'none',
                             backgroundColor: '#111827', color: '#fff',
                             fontSize: '0.82rem', fontWeight: 500, cursor: 'pointer',
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          {primary.label}
+                          &rarr; {primary.label}
                         </button>
                       )}
                     </div>
 
-                    {/* Col 4 — Secondary options */}
-                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '0.2rem' }}>
-                      {secondary.map((a: DashboardAction, j: number) => (
+                    {/* Secondary options */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                      {secondary.map((a, j) => (
                         <span
                           key={j}
                           onClick={() => handleAction(evt, a)}
@@ -396,6 +585,18 @@ export default function AdminDashboard() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── Toast ── */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+          padding: '0.5rem 1.25rem', borderRadius: 6,
+          backgroundColor: '#111827', color: '#fff',
+          fontSize: '0.82rem', fontWeight: 500, zIndex: 100,
+        }}>
+          {toast}
         </div>
       )}
     </div>
