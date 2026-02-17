@@ -132,11 +132,16 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--tenant', type=str, help='Seed only a specific tenant slug')
+        parser.add_argument('--delete-demo', action='store_true', help='Delete all demo data for the specified tenant(s)')
 
     def handle(self, *args, **options):
         from tenants.models import TenantSettings
         target = options.get('tenant')
         slugs = [target] if target and target in TENANTS else list(TENANTS.keys())
+
+        if options.get('delete_demo'):
+            self._delete_demo(slugs)
+            return
 
         for slug in slugs:
             cfg = TENANTS[slug]
@@ -182,6 +187,84 @@ class Command(BaseCommand):
                 self._seed_crm(owner, manager)
 
         self.stdout.write(self.style.SUCCESS('\nAll demo data seeded successfully!'))
+
+    def _delete_demo(self, slugs):
+        """Delete all demo data for the specified tenant slugs."""
+        from tenants.models import TenantSettings
+        for slug in slugs:
+            try:
+                tenant = TenantSettings.objects.get(slug=slug)
+            except TenantSettings.DoesNotExist:
+                self.stdout.write(f'  Tenant {slug} not found — skipping')
+                continue
+            self.stdout.write(f'\n=== Deleting demo data for {tenant.business_name} ({slug}) ===')
+            # Delete in dependency order (children first)
+            models_to_clear = []
+            try:
+                from staff.models import TimesheetEntry, WorkingHours, Shift, LeaveRequest, TrainingRecord, ProjectCode, StaffProfile
+                models_to_clear += [
+                    ('TimesheetEntry', TimesheetEntry.objects.filter(staff__tenant=tenant)),
+                    ('WorkingHours', WorkingHours.objects.filter(staff__tenant=tenant)),
+                    ('Shift', Shift.objects.filter(staff__tenant=tenant)),
+                    ('LeaveRequest', LeaveRequest.objects.filter(staff__tenant=tenant)),
+                    ('TrainingRecord', TrainingRecord.objects.filter(staff__tenant=tenant)),
+                    ('ProjectCode', ProjectCode.objects.filter(tenant=tenant)),
+                    ('StaffProfile', StaffProfile.objects.filter(tenant=tenant)),
+                ]
+            except Exception:
+                pass
+            try:
+                from bookings.models import Booking, Client, Service
+                from bookings.models import Staff as BookingStaff
+                models_to_clear += [
+                    ('Booking', Booking.objects.filter(tenant=tenant)),
+                    ('Client', Client.objects.filter(tenant=tenant)),
+                    ('BookingStaff', BookingStaff.objects.filter(tenant=tenant)),
+                    ('Service', Service.objects.filter(tenant=tenant)),
+                ]
+            except Exception:
+                pass
+            try:
+                from comms.models import Message, ChannelMember, Channel
+                for ch in Channel.objects.filter(tenant=tenant):
+                    Message.objects.filter(channel=ch).delete()
+                    ChannelMember.objects.filter(channel=ch).delete()
+                models_to_clear += [('Channel', Channel.objects.filter(tenant=tenant))]
+            except Exception:
+                pass
+            try:
+                from compliance.models import IncidentReport, RAMSDocument
+                models_to_clear += [
+                    ('IncidentReport', IncidentReport.objects.filter(tenant=tenant)),
+                    ('RAMSDocument', RAMSDocument.objects.filter(tenant=tenant)),
+                ]
+            except Exception:
+                pass
+            try:
+                from documents.models import DocumentTag
+                models_to_clear += [('DocumentTag', DocumentTag.objects.filter(tenant=tenant))]
+            except Exception:
+                pass
+            try:
+                from crm.models import Lead
+                models_to_clear += [('Lead', Lead.objects.filter(tenant=tenant))]
+            except Exception:
+                pass
+
+            for name, qs in models_to_clear:
+                count = qs.count()
+                if count:
+                    qs.delete()
+                    self.stdout.write(f'  Deleted {count} {name}')
+
+            # Delete demo users (prefixed with tenant slug)
+            demo_users = User.objects.filter(username__startswith=f'{slug}-', tenant=tenant)
+            u_count = demo_users.count()
+            if u_count:
+                demo_users.delete()
+                self.stdout.write(f'  Deleted {u_count} demo users')
+
+            self.stdout.write(self.style.SUCCESS(f'  Done — {slug} demo data cleared'))
 
     def _user(self, username, email, first, last, role):
         user, created = User.objects.get_or_create(
@@ -286,7 +369,7 @@ class Command(BaseCommand):
         self.stdout.write(f'  Bookings: {bk_count}')
 
     def _seed_staff(self, cfg, owner, manager, staff1, staff2):
-        from staff.models import StaffProfile, Shift, LeaveRequest, TrainingRecord
+        from staff.models import StaffProfile, Shift, LeaveRequest, TrainingRecord, WorkingHours, ProjectCode, TimesheetEntry
 
         location = cfg['business_name']
         profiles = {}
@@ -330,6 +413,62 @@ class Command(BaseCommand):
                 staff=profiles[staff2_key], title='COSHH Awareness',
                 defaults={'provider': 'HSE Online', 'completed_date': today - timedelta(days=400), 'expiry_date': today - timedelta(days=35)}
             )
+
+        # --- Working Hours (Mon-Fri 9-17 for all, Sat 10-14 for staff) ---
+        for p in profiles.values():
+            for day in range(5):  # Mon-Fri
+                WorkingHours.objects.get_or_create(
+                    staff=p, day_of_week=day,
+                    defaults={'start_time': time(9, 0), 'end_time': time(17, 0), 'break_minutes': 30, 'is_active': True}
+                )
+        # Staff1 also works Saturday mornings
+        if staff1_key in profiles:
+            WorkingHours.objects.get_or_create(
+                staff=profiles[staff1_key], day_of_week=5,
+                defaults={'start_time': time(10, 0), 'end_time': time(14, 0), 'break_minutes': 0, 'is_active': True}
+            )
+        wh_count = WorkingHours.objects.filter(staff__tenant=self.tenant).count()
+        self.stdout.write(f'  Working hours: {wh_count}')
+
+        # --- Project Codes ---
+        pc1, _ = ProjectCode.objects.get_or_create(
+            tenant=self.tenant, code='GEN',
+            defaults={'name': 'General Operations', 'is_billable': False}
+        )
+        pc2, _ = ProjectCode.objects.get_or_create(
+            tenant=self.tenant, code='CLIENT-A',
+            defaults={'name': 'Client A Project', 'client_name': 'Client A Ltd', 'is_billable': True, 'hourly_rate': Decimal('45.00')}
+        )
+        pc_count = ProjectCode.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Project codes: {pc_count}')
+
+        # --- Timesheets (last 7 working days for all staff) ---
+        ts_count_before = TimesheetEntry.objects.filter(staff__tenant=self.tenant).count()
+        if ts_count_before == 0:
+            for p in profiles.values():
+                for day_offset in range(-7, 0):
+                    d = today + timedelta(days=day_offset)
+                    if d.weekday() >= 5:
+                        continue  # skip weekends
+                    pc = pc2 if day_offset % 3 == 0 else pc1
+                    # Slight variance for realism
+                    actual_start = time(9, 0) if day_offset % 4 != 0 else time(9, 15)
+                    actual_end = time(17, 0) if day_offset % 5 != 0 else time(16, 45)
+                    status = 'WORKED' if day_offset % 7 != -1 else 'LATE'
+                    TimesheetEntry.objects.get_or_create(
+                        staff=p, date=d,
+                        defaults={
+                            'scheduled_start': time(9, 0), 'scheduled_end': time(17, 0),
+                            'scheduled_break_minutes': 30,
+                            'actual_start': actual_start, 'actual_end': actual_end,
+                            'actual_break_minutes': 30,
+                            'status': status,
+                            'project_code': pc,
+                        }
+                    )
+        ts_count = TimesheetEntry.objects.filter(staff__tenant=self.tenant).count()
+        self.stdout.write(f'  Timesheet entries: {ts_count}')
+
         sp_count = StaffProfile.objects.filter(tenant=self.tenant).count()
         self.stdout.write(f'  Staff profiles: {sp_count}')
 

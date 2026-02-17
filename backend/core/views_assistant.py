@@ -94,6 +94,49 @@ PARSE_RULES = [
         'action': 'resolve_incident',
         'description': 'Resolve an open incident',
     },
+    # Staff module — shifts / timesheets / hours / training
+    {
+        'keywords': ['add shift', 'create shift', 'new shift', 'schedule shift'],
+        'event_type': 'SHIFT_CREATED',
+        'action': 'add_shift',
+        'description': 'Add a new shift to the rota',
+    },
+    {
+        'keywords': ['generate timesheets', 'create timesheets', 'build timesheets'],
+        'event_type': 'TIMESHEETS_GENERATED',
+        'action': 'generate_timesheets',
+        'description': 'Generate timesheet entries from working hours',
+    },
+    {
+        'keywords': ['export timesheets', 'download timesheets', 'payroll csv', 'export csv', 'download csv', 'export payroll'],
+        'event_type': 'TIMESHEETS_EXPORTED',
+        'action': 'export_timesheets',
+        'description': 'Export timesheets as CSV for payroll',
+    },
+    {
+        'keywords': ['add staff', 'new staff', 'hire staff', 'create staff', 'new employee', 'add team member'],
+        'event_type': 'STAFF_ADDED',
+        'action': 'add_staff',
+        'description': 'Add a new staff member',
+    },
+    {
+        'keywords': ['training expired', 'expired training', 'overdue training', 'training due', 'check training'],
+        'event_type': 'TRAINING_CHECK',
+        'action': 'check_training',
+        'description': 'Check for expired or due training records',
+    },
+    {
+        'keywords': ['set hours', 'set working hours', 'update hours', 'change hours'],
+        'event_type': 'HOURS_UPDATED',
+        'action': 'set_hours',
+        'description': 'Update working hours for a staff member',
+    },
+    {
+        'keywords': ['running late', 'late today', 'late arrival', 'will be late'],
+        'event_type': 'STAFF_LATE',
+        'action': 'log_late',
+        'description': 'Log a late arrival for a staff member',
+    },
 ]
 
 # Common staff name patterns to extract
@@ -196,6 +239,25 @@ def _extract_entities(text):
     except Exception:
         pass
 
+    # Also check StaffProfile names (staff module)
+    if 'staff_name' not in entities:
+        try:
+            from staff.models import StaffProfile
+            profiles = StaffProfile.objects.filter(is_active=True).select_related('user')
+            for p in profiles:
+                display = f"{p.user.first_name} {p.user.last_name}".strip()
+                first = p.user.first_name.strip()
+                if display and display.lower() in text.lower():
+                    entities['staff_name'] = display
+                    entities['staff_id'] = p.id
+                    break
+                elif first and first.lower() in text.lower():
+                    entities['staff_name'] = display or first
+                    entities['staff_id'] = p.id
+                    break
+        except Exception:
+            pass
+
     return entities
 
 
@@ -216,6 +278,13 @@ def _build_confirmation(rule, entities, original_text):
         'LEAVE_DECLINED': f'Decline leave for {staff}?' if staff else 'Decline this leave request?',
         'COMPLIANCE_COMPLETED': 'Mark compliance item as completed?',
         'INCIDENT_RESOLVED': 'Resolve this incident?',
+        'SHIFT_CREATED': f'Add a shift for {staff}?' if staff else 'Add a new shift?',
+        'TIMESHEETS_GENERATED': 'Generate timesheets from working hours for this period?',
+        'TIMESHEETS_EXPORTED': 'Download payroll CSV for the current period?',
+        'STAFF_ADDED': 'Add a new staff member?',
+        'TRAINING_CHECK': f'Check training status for {staff}?' if staff else 'Check for expired or due training?',
+        'HOURS_UPDATED': f'Update working hours for {staff}?' if staff else 'Update working hours?',
+        'STAFF_LATE': f'Log {staff} as arriving late today?' if staff else 'Log a late arrival?',
     }
 
     return templates.get(rule['event_type'], f'Execute: {rule["description"]}?')

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand, getPayrollSummary, getLeaveRequests, reviewLeave, getTrainingReminders } from '@/lib/api'
 
 interface DashboardAction {
@@ -117,6 +118,7 @@ function buildTimelineDensity(): number[] {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -238,6 +240,21 @@ export default function AdminDashboard() {
     }
   }
 
+  // Staff command → tab navigation map
+  const STAFF_CMD_NAV: Record<string, string> = {
+    'add_shift': '/admin/staff?tab=shifts',
+    'generate_timesheets': '/admin/staff?tab=timesheets',
+    'export_timesheets': '/admin/staff?tab=timesheets',
+    'add_staff': '/admin/staff?tab=profiles',
+    'check_training': '/admin/staff?tab=training',
+    'set_hours': '/admin/staff?tab=hours',
+    'log_late': '/admin/staff?tab=timesheets',
+    'log_sick': '/admin/staff?tab=leave',
+    'request_cover': '/admin/staff?tab=shifts',
+    'approve_leave': '/admin/staff?tab=leave',
+    'decline_leave': '/admin/staff?tab=leave',
+  }
+
   const handleCommandConfirm = async () => {
     if (!cmdResult?.intent) return
     const intent = cmdResult.intent
@@ -255,6 +272,11 @@ export default function AdminDashboard() {
     const res = await getTodayResolved()
     if (!res.error && res.data) {
       setResolvedEvents(res.data.events || [])
+    }
+    // Navigate to relevant Staff tab if this is a staff command
+    const navTarget = STAFF_CMD_NAV[intent.action]
+    if (navTarget) {
+      setTimeout(() => router.push(navTarget), 800)
     }
   }
 
