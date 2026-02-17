@@ -443,19 +443,29 @@ def working_hours_bulk_set(request):
         profile = StaffProfile.objects.get(id=staff_id, tenant=tenant)
     except StaffProfile.DoesNotExist:
         return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+    from datetime import datetime as _dt
     try:
         with transaction.atomic():
             WorkingHours.objects.filter(staff=profile).delete()
-            created = []
+            created_ids = []
             for h in hours:
+                # Parse time strings to datetime.time objects
+                st = h['start_time']
+                et = h['end_time']
+                if isinstance(st, str):
+                    st = _dt.strptime(st, '%H:%M').time()
+                if isinstance(et, str):
+                    et = _dt.strptime(et, '%H:%M').time()
                 wh = WorkingHours.objects.create(
                     staff=profile,
                     day_of_week=h['day_of_week'],
-                    start_time=h['start_time'],
-                    end_time=h['end_time'],
+                    start_time=st,
+                    end_time=et,
                     break_minutes=h.get('break_minutes', 0),
                 )
-                created.append(wh)
+                created_ids.append(wh.id)
+        # Re-fetch to ensure proper field types for serializer
+        created = list(WorkingHours.objects.filter(id__in=created_ids).order_by('day_of_week', 'start_time'))
         return Response(WorkingHoursSerializer(created, many=True).data, status=status.HTTP_201_CREATED)
     except Exception as e:
         import traceback
