@@ -549,9 +549,7 @@ export async function getComplianceDashboard() {
   return apiFetch<any>('/compliance/dashboard/')
 }
 
-export async function getComplianceCalendar(days = 90) {
-  return apiFetch<any>(`/compliance/calendar/?days=${days}`)
-}
+// getComplianceCalendar moved below with year/month params
 
 export async function getComplianceCategories() {
   return apiFetch<any[]>('/compliance/categories/')
@@ -660,12 +658,34 @@ export async function deleteComplianceItem(id: number) {
   return apiFetch<any>(`/compliance/items/${id}/delete/`, { method: 'DELETE' })
 }
 
+export async function completeComplianceItemWithEvidence(id: number, formData: FormData) {
+  const res = await fetch(`/api/django/compliance/items/${id}/complete/`, { method: 'POST', body: formData })
+  const data = await res.json()
+  return { data, error: res.ok ? null : data.error || 'Failed' }
+}
+
 export async function getWiggumDashboard() {
   return apiFetch<any>('/compliance/wiggum/')
 }
 
 export async function parseComplianceCommand(text: string) {
   return apiFetch<any>('/compliance/parse-command/', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
+export async function getComplianceCalendar(year: number, month: number) {
+  return apiFetch<any>(`/compliance/calendar/?year=${year}&month=${month}`)
+}
+
+export async function getComplianceAuditLog(limit = 20) {
+  return apiFetch<any>(`/compliance/audit-log/?limit=${limit}`)
+}
+
+export async function getDashboardV2() {
+  return apiFetch<any>('/compliance/dashboard-v2/')
+}
+
+export async function recalculateComplianceScore() {
+  return apiFetch<any>('/compliance/recalculate/', { method: 'POST' })
 }
 
 export async function getRams() {
