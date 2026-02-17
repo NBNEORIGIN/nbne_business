@@ -261,11 +261,38 @@ export default function AdminStaffPage() {
   // --- Timesheet handlers ---
   const initTsDates = () => {
     const now = new Date()
+    const first = new Date(now.getFullYear(), now.getMonth(), 1)
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    return { from: first.toISOString().split('T')[0], to: last.toISOString().split('T')[0] }
+  }
+
+  const setTsRange = (from: string, to: string) => {
+    setTsDateFrom(from)
+    setTsDateTo(to)
+    loadTimesheets(from, to)
+  }
+
+  const tsThisWeek = () => {
+    const now = new Date()
     const mon = new Date(now)
     mon.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1))
     const sun = new Date(mon)
     sun.setDate(mon.getDate() + 6)
-    return { from: mon.toISOString().split('T')[0], to: sun.toISOString().split('T')[0] }
+    setTsRange(mon.toISOString().split('T')[0], sun.toISOString().split('T')[0])
+  }
+
+  const tsThisMonth = () => {
+    const now = new Date()
+    const first = new Date(now.getFullYear(), now.getMonth(), 1)
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    setTsRange(first.toISOString().split('T')[0], last.toISOString().split('T')[0])
+  }
+
+  const tsLastMonth = () => {
+    const now = new Date()
+    const first = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const last = new Date(now.getFullYear(), now.getMonth(), 0)
+    setTsRange(first.toISOString().split('T')[0], last.toISOString().split('T')[0])
   }
 
   const loadTimesheets = async (from?: string, to?: string, staffId?: string) => {
@@ -480,6 +507,11 @@ export default function AdminStaffPage() {
 
       {tab === 'timesheets' && (
         <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <button className="btn btn-sm" onClick={tsThisWeek}>This Week</button>
+            <button className="btn btn-sm" onClick={tsThisMonth}>This Month</button>
+            <button className="btn btn-sm" onClick={tsLastMonth}>Last Month</button>
+          </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
             <div>
               <label className="form-label">From</label>
