@@ -147,6 +147,17 @@ def staff_update(request, staff_id):
         profile.emergency_contact_phone = data['emergency_contact_phone'].strip()
     if 'notes' in data:
         profile.notes = data['notes']
+    # Payroll & hours fields
+    if 'pay_type' in data and data['pay_type'] in ('salaried', 'hourly'):
+        profile.pay_type = data['pay_type']
+    if 'overtime_eligible' in data:
+        profile.overtime_eligible = bool(data['overtime_eligible'])
+    if 'contracted_hours_per_week' in data:
+        profile.contracted_hours_per_week = data['contracted_hours_per_week']
+    if 'hourly_rate' in data:
+        profile.hourly_rate = data['hourly_rate']
+    if 'annual_leave_days' in data:
+        profile.annual_leave_days = data['annual_leave_days']
 
     # Update display name if name fields changed
     if 'first_name' in data or 'last_name' in data:
@@ -1096,3 +1107,231 @@ def payroll_summary(request):
         'staff_summaries': sorted(staff_totals.values(), key=lambda s: s['staff_name']),
         'project_breakdown': sorted(project_totals.values(), key=lambda p: p['code']),
     })
+
+
+# ═══════════════════════════════════════════════════════════
+#  HOURS TALLY — contracted vs actual, credit / deficit
+# ═══════════════════════════════════════════════════════════
+
+def _week_bounds(ref_date):
+    """Return (Monday, Sunday) for the week containing ref_date."""
+    from datetime import timedelta
+    monday = ref_date - timedelta(days=ref_date.weekday())
+    sunday = monday + timedelta(days=6)
+    return monday, sunday
+
+
+def _compute_tally(staff_profile, period_start, period_end):
+    """Compute contracted vs actual hours for a staff member over a date range."""
+    contracted_weekly = float(staff_profile.contracted_hours_per_week or 0)
+    total_days = (period_end - period_start).days + 1
+    contracted_total = round(contracted_weekly * total_days / 7, 2)
+
+    entries = TimesheetEntry.objects.filter(
+        staff=staff_profile,
+        date__gte=period_start,
+        date__lte=period_end,
+    )
+    actual_total = 0.0
+    for e in entries:
+        ah = e.actual_hours
+        if ah:
+            actual_total += ah
+
+    variance = round(actual_total - contracted_total, 2)
+    return {
+        'contracted_hours': contracted_total,
+        'actual_hours': round(actual_total, 2),
+        'variance': variance,
+        'status': 'credit' if variance > 0.25 else ('deficit' if variance < -0.25 else 'on_track'),
+    }
+
+
+@api_view(['GET'])
+@permission_classes([IsStaffOrAbove])
+def hours_tally(request):
+    """GET /api/staff-module/hours-tally/?staff_id=X&period=week|month|custom&date=YYYY-MM-DD&date_from=&date_to=
+    Returns per-staff hours tally: contracted vs actual, credit/deficit.
+    If no staff_id, returns tally for ALL active staff (overview).
+    """
+    from datetime import date, timedelta
+    tenant = getattr(request, 'tenant', None)
+    staff_id = request.query_params.get('staff_id')
+    period = request.query_params.get('period', 'week')
+    ref_str = request.query_params.get('date')
+
+    try:
+        ref = date.fromisoformat(ref_str) if ref_str else date.today()
+    except ValueError:
+        ref = date.today()
+
+    if period == 'week':
+        start, end = _week_bounds(ref)
+    elif period == 'month':
+        start = ref.replace(day=1)
+        next_m = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        end = next_m - timedelta(days=1)
+    elif period == 'custom':
+        try:
+            start = date.fromisoformat(request.query_params.get('date_from', ''))
+            end = date.fromisoformat(request.query_params.get('date_to', ''))
+        except ValueError:
+            start, end = _week_bounds(ref)
+    else:
+        start, end = _week_bounds(ref)
+
+    if staff_id:
+        try:
+            s = StaffProfile.objects.get(id=staff_id, tenant=tenant)
+        except StaffProfile.DoesNotExist:
+            return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+        tally = _compute_tally(s, start, end)
+        tally['staff_id'] = s.id
+        tally['staff_name'] = s.display_name
+        tally['pay_type'] = s.pay_type
+        tally['overtime_eligible'] = s.overtime_eligible
+        tally['contracted_hours_per_week'] = float(s.contracted_hours_per_week or 0)
+        return Response({
+            'period': period, 'start': start.isoformat(), 'end': end.isoformat(),
+            'tally': [tally],
+        })
+    else:
+        staff_qs = StaffProfile.objects.filter(tenant=tenant, is_active=True)
+        tallies = []
+        for s in staff_qs:
+            t = _compute_tally(s, start, end)
+            t['staff_id'] = s.id
+            t['staff_name'] = s.display_name
+            t['pay_type'] = s.pay_type
+            t['overtime_eligible'] = s.overtime_eligible
+            t['contracted_hours_per_week'] = float(s.contracted_hours_per_week or 0)
+            tallies.append(t)
+        return Response({
+            'period': period, 'start': start.isoformat(), 'end': end.isoformat(),
+            'tally': tallies,
+        })
+
+
+# ═══════════════════════════════════════════════════════════
+#  LEAVE BALANCE — allowance, taken, remaining per staff
+# ═══════════════════════════════════════════════════════════
+
+@api_view(['GET'])
+@permission_classes([IsStaffOrAbove])
+def leave_balance(request):
+    """GET /api/staff-module/leave-balance/?staff_id=X&year=2026
+    Returns leave allowance, taken, remaining for each staff member.
+    Counts APPROVED leave requests where leave_type=ANNUAL for the given year.
+    """
+    from datetime import date, timedelta
+    tenant = getattr(request, 'tenant', None)
+    staff_id = request.query_params.get('staff_id')
+    year = int(request.query_params.get('year', date.today().year))
+
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+
+    if staff_id:
+        staff_qs = StaffProfile.objects.filter(id=staff_id, tenant=tenant)
+    else:
+        staff_qs = StaffProfile.objects.filter(tenant=tenant, is_active=True)
+
+    result = []
+    for s in staff_qs:
+        allowance = float(s.annual_leave_days or 28)
+        approved = LeaveRequest.objects.filter(
+            staff=s,
+            leave_type='ANNUAL',
+            status='APPROVED',
+            start_date__lte=year_end,
+            end_date__gte=year_start,
+        )
+        taken_days = 0.0
+        for lr in approved:
+            lr_start = max(lr.start_date, year_start)
+            lr_end = min(lr.end_date, year_end)
+            d = lr_start
+            while d <= lr_end:
+                if d.weekday() < 5:
+                    taken_days += 1
+                d += timedelta(days=1)
+
+        remaining = round(allowance - taken_days, 1)
+        result.append({
+            'staff_id': s.id,
+            'staff_name': s.display_name,
+            'year': year,
+            'allowance': allowance,
+            'taken': taken_days,
+            'remaining': remaining,
+            'pay_type': s.pay_type,
+        })
+
+    return Response({'year': year, 'balances': result})
+
+
+# ═══════════════════════════════════════════════════════════
+#  QUICK TIME LOG — easy actual hours entry per day
+# ═══════════════════════════════════════════════════════════
+
+@api_view(['POST'])
+@permission_classes([IsManagerOrAbove])
+def quick_time_log(request):
+    """POST /api/staff-module/timesheets/quick-log/
+    Body: { staff_id, date, actual_start (HH:MM), actual_end (HH:MM), actual_break_minutes?, notes? }
+    Creates or updates a timesheet entry for the given staff+date.
+    """
+    from datetime import date, datetime
+    d = request.data
+    staff_id = d.get('staff_id')
+    log_date_str = d.get('date')
+    actual_start_str = d.get('actual_start')
+    actual_end_str = d.get('actual_end')
+    break_mins = int(d.get('actual_break_minutes', 0))
+    notes = d.get('notes', '')
+
+    if not staff_id or not log_date_str or not actual_start_str or not actual_end_str:
+        return Response({'error': 'staff_id, date, actual_start, actual_end are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    tenant = getattr(request, 'tenant', None)
+    try:
+        staff_member = StaffProfile.objects.get(id=staff_id, tenant=tenant)
+    except StaffProfile.DoesNotExist:
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        log_date = date.fromisoformat(log_date_str)
+    except ValueError:
+        return Response({'error': 'Invalid date format'}, status=status.HTTP_400_BAD_REQUEST)
+
+    actual_start = datetime.strptime(actual_start_str, '%H:%M').time()
+    actual_end = datetime.strptime(actual_end_str, '%H:%M').time()
+
+    entry, created = TimesheetEntry.objects.get_or_create(
+        staff=staff_member,
+        date=log_date,
+        defaults={
+            'actual_start': actual_start,
+            'actual_end': actual_end,
+            'actual_break_minutes': break_mins,
+            'notes': notes,
+            'status': 'WORKED',
+        }
+    )
+
+    if not created:
+        entry.actual_start = actual_start
+        entry.actual_end = actual_end
+        entry.actual_break_minutes = break_mins
+        if notes:
+            entry.notes = notes
+        if entry.status == 'SCHEDULED':
+            entry.status = 'WORKED'
+        entry.save()
+
+    serializer = TimesheetEntrySerializer(entry)
+    return Response({
+        'entry': serializer.data,
+        'created': created,
+        'message': f'Hours logged for {staff_member.display_name} on {log_date}',
+    }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)

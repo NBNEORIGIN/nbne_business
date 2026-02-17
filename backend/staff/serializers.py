@@ -11,7 +11,10 @@ class StaffProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'display_name', 'role', 'email', 'phone',
             'emergency_contact_name', 'emergency_contact_phone',
-            'hire_date', 'is_active', 'notes', 'created_at',
+            'hire_date', 'is_active', 'notes',
+            'pay_type', 'overtime_eligible', 'contracted_hours_per_week',
+            'hourly_rate', 'annual_leave_days',
+            'created_at',
         ]
         read_only_fields = ['id', 'created_at']
 

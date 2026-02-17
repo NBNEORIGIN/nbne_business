@@ -12,7 +12,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets, getProjectCodes, createProjectCode, updateProjectCode, deleteProjectCode, downloadTimesheetCsv, getMe } from '@/lib/api'
+import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets, getProjectCodes, createProjectCode, updateProjectCode, deleteProjectCode, downloadTimesheetCsv, getMe, getHoursTally, getLeaveBalance, quickTimeLog } from '@/lib/api'
 import LeaveCalendar from './LeaveCalendar'
 import TrainingTab from './TrainingTab'
 
@@ -22,9 +22,14 @@ interface StaffForm {
   email: string
   phone: string
   role: string
+  pay_type: string
+  overtime_eligible: boolean
+  contracted_hours_per_week: string
+  hourly_rate: string
+  annual_leave_days: string
 }
 
-const emptyForm: StaffForm = { first_name: '', last_name: '', email: '', phone: '', role: 'staff' }
+const emptyForm: StaffForm = { first_name: '', last_name: '', email: '', phone: '', role: 'staff', pay_type: 'hourly', overtime_eligible: false, contracted_hours_per_week: '0', hourly_rate: '0', annual_leave_days: '28' }
 
 export default function AdminStaffPage() {
   const searchParams = useSearchParams()
@@ -91,6 +96,21 @@ export default function AdminStaffPage() {
   const [pcSaving, setPcSaving] = useState(false)
   const [pcError, setPcError] = useState('')
 
+  // Hours tally state
+  const [hoursTally, setHoursTally] = useState<any[]>([])
+  const [tallyPeriod, setTallyPeriod] = useState<'week' | 'month'>('week')
+  const [tallyLoading, setTallyLoading] = useState(false)
+
+  // Leave balance state
+  const [leaveBalances, setLeaveBalances] = useState<any[]>([])
+  const [leaveBalYear, setLeaveBalYear] = useState(new Date().getFullYear())
+
+  // Quick time log state
+  const [showQuickLog, setShowQuickLog] = useState(false)
+  const [qlForm, setQlForm] = useState({ staff_id: '', date: new Date().toISOString().split('T')[0], actual_start: '09:00', actual_end: '17:00', actual_break_minutes: 0, notes: '' })
+  const [qlSaving, setQlSaving] = useState(false)
+  const [qlMessage, setQlMessage] = useState('')
+
   const loadData = () => {
     setLoading(true)
     Promise.all([getStaffList(), getShifts(), getLeaveRequests(), getTrainingRecords()]).then(([s, sh, lv, tr]) => {
@@ -135,6 +155,11 @@ export default function AdminStaffPage() {
       email: s.email || '',
       phone: s.phone || '',
       role: s.role || 'staff',
+      pay_type: s.pay_type || 'hourly',
+      overtime_eligible: s.overtime_eligible || false,
+      contracted_hours_per_week: s.contracted_hours_per_week ? String(s.contracted_hours_per_week) : '0',
+      hourly_rate: s.hourly_rate ? String(s.hourly_rate) : '0',
+      annual_leave_days: s.annual_leave_days ? String(s.annual_leave_days) : '28',
     })
     setError('')
     setEditingStaff(s)
@@ -489,6 +514,45 @@ export default function AdminStaffPage() {
     loadProjectCodes()
   }
 
+  // --- Hours Tally handlers ---
+  const loadHoursTally = async (period?: 'week' | 'month') => {
+    const p = period || tallyPeriod
+    setTallyLoading(true)
+    const res = await getHoursTally({ period: p })
+    setHoursTally(res.data?.tally || [])
+    setTallyLoading(false)
+  }
+
+  // --- Leave Balance handlers ---
+  const loadLeaveBalances = async (year?: number) => {
+    const y = year || leaveBalYear
+    const res = await getLeaveBalance({ year: y })
+    setLeaveBalances(res.data?.balances || [])
+  }
+
+  // --- Quick Time Log handler ---
+  const handleQuickLog = async () => {
+    setQlMessage('')
+    if (!qlForm.staff_id || !qlForm.date || !qlForm.actual_start || !qlForm.actual_end) {
+      setQlMessage('All fields are required.')
+      return
+    }
+    setQlSaving(true)
+    const res = await quickTimeLog({
+      staff_id: Number(qlForm.staff_id),
+      date: qlForm.date,
+      actual_start: qlForm.actual_start,
+      actual_end: qlForm.actual_end,
+      actual_break_minutes: qlForm.actual_break_minutes,
+      notes: qlForm.notes,
+    })
+    setQlSaving(false)
+    if (res.error) { setQlMessage(res.error); return }
+    setQlMessage(res.data?.message || 'Hours logged.')
+    loadTimesheets()
+    loadHoursTally()
+  }
+
   if (loading) return <div className="empty-state">Loading staff…</div>
 
   const tabLabels: Record<string, string> = { profiles: 'Team', hours: 'Hours', timesheets: 'Timesheets', shifts: 'Rota', leave: 'Leave', training: 'Training', projects: 'Projects' }
@@ -510,7 +574,7 @@ export default function AdminStaffPage() {
       {/* ── Tabs ── */}
       <div className="tabs">
         {(['profiles', 'hours', 'timesheets', 'shifts', 'leave', 'training', 'projects'] as const).map(t => (
-          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); if (t === 'timesheets' && timesheets.length === 0) loadTimesheets(); if (t === 'projects' && projectCodes.length === 0) loadProjectCodes() }}>
+          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); if (t === 'timesheets') { if (timesheets.length === 0) loadTimesheets(); if (hoursTally.length === 0) loadHoursTally(); } if (t === 'leave' && leaveBalances.length === 0) loadLeaveBalances(); if (t === 'projects' && projectCodes.length === 0) loadProjectCodes() }}>
             {tabLabels[t]}
             {t === 'leave' && pendingLeaveCount > 0 && <span style={{ marginLeft: 6, background: 'var(--color-danger)', color: '#fff', borderRadius: 999, padding: '1px 6px', fontSize: '0.7rem', fontWeight: 700 }}>{pendingLeaveCount}</span>}
           </button>
@@ -536,22 +600,42 @@ export default function AdminStaffPage() {
           </div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Role</th><th>Pay</th><th>Contracted</th><th>Leave</th><th>Actions</th></tr></thead>
               <tbody>
-                {(teamFilter === 'active' ? activeStaff : inactiveStaff).map((s: any) => (
-                  <tr key={s.id}>
-                    <td style={{ fontWeight: 600 }}>{s.display_name}</td>
-                    <td><span style={{ textTransform: 'capitalize' }}>{s.role}</span></td>
-                    <td>{s.email}</td>
-                    <td>{s.phone || '—'}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      <button className="btn btn-sm btn-primary" onClick={() => openEdit(s)} style={{ marginRight: 6 }}>View</button>
-                      {s.is_active && <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s)}>Deactivate</button>}
-                    </td>
-                  </tr>
-                ))}
+                {(teamFilter === 'active' ? activeStaff : inactiveStaff).map((s: any) => {
+                  const contracted = Number(s.contracted_hours_per_week) || 0
+                  const leaveAllowance = Number(s.annual_leave_days) || 28
+                  return (
+                    <tr key={s.id}>
+                      <td style={{ fontWeight: 600 }}>{s.display_name}<br /><span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>{s.email}</span></td>
+                      <td><span style={{ textTransform: 'capitalize' }}>{s.role}</span></td>
+                      <td>
+                        <span className={`badge ${s.pay_type === 'salaried' ? 'badge-info' : 'badge-success'}`} style={{ fontSize: '0.72rem' }}>
+                          {s.pay_type === 'salaried' ? 'Salaried' : 'Hourly'}
+                        </span>
+                        {s.pay_type === 'salaried' && s.overtime_eligible && (
+                          <span style={{ display: 'block', fontSize: '0.68rem', color: 'var(--color-text-muted)', marginTop: 2 }}>+OT</span>
+                        )}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {contracted > 0 ? `${contracted}h/wk` : <span style={{ color: 'var(--color-text-muted)' }}>Not set</span>}
+                        {s.pay_type === 'hourly' && Number(s.hourly_rate) > 0 && (
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>£{Number(s.hourly_rate).toFixed(2)}/hr</span>
+                        )}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '0.85rem' }}>{leaveAllowance}d</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', display: 'block' }}>allowance</span>
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <button className="btn btn-sm btn-primary" onClick={() => openEdit(s)} style={{ marginRight: 6 }}>Edit</button>
+                        {s.is_active && <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s)}>Deactivate</button>}
+                      </td>
+                    </tr>
+                  )
+                })}
                 {(teamFilter === 'active' ? activeStaff : inactiveStaff).length === 0 && (
-                  <tr><td colSpan={5} className="empty-state">{teamFilter === 'active' ? 'No active staff' : 'No inactive staff'}</td></tr>
+                  <tr><td colSpan={6} className="empty-state">{teamFilter === 'active' ? 'No active staff' : 'No inactive staff'}</td></tr>
                 )}
               </tbody>
             </table>
@@ -647,6 +731,94 @@ export default function AdminStaffPage() {
          ═══════════════════════════════════════════════════════════ */}
       {tab === 'timesheets' && (
         <>
+          {/* ── Hours Tally Overview ── */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Hours Tally</h3>
+                <div className="filter-pills">
+                  <button className={`filter-pill ${tallyPeriod === 'week' ? 'active' : ''}`} onClick={() => { setTallyPeriod('week'); loadHoursTally('week') }}>This Week</button>
+                  <button className={`filter-pill ${tallyPeriod === 'month' ? 'active' : ''}`} onClick={() => { setTallyPeriod('month'); loadHoursTally('month') }}>This Month</button>
+                </div>
+              </div>
+              <button className="btn btn-sm btn-primary" onClick={() => { setShowQuickLog(!showQuickLog); setQlMessage('') }}>
+                {showQuickLog ? 'Hide Quick Log' : '+ Quick Log Hours'}
+              </button>
+            </div>
+            {hoursTally.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+                {hoursTally.map((t: any) => (
+                  <div key={t.staff_id} style={{ background: 'var(--color-bg-card, #fff)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{t.staff_name}</span>
+                      <span className={`badge ${t.pay_type === 'salaried' ? 'badge-info' : 'badge-success'}`} style={{ fontSize: '0.65rem' }}>
+                        {t.pay_type === 'salaried' ? 'SAL' : 'HRL'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
+                      <span>Contracted: {t.contracted_hours}h</span>
+                      <span>Actual: {t.actual_hours}h</span>
+                    </div>
+                    <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{
+                        fontWeight: 700,
+                        fontSize: '0.9rem',
+                        color: t.status === 'credit' ? 'var(--color-success)' : t.status === 'deficit' ? 'var(--color-danger)' : 'var(--color-text-muted)',
+                      }}>
+                        {t.variance >= 0 ? '+' : ''}{t.variance}h
+                      </span>
+                      <span className={`badge ${t.status === 'credit' ? 'badge-success' : t.status === 'deficit' ? 'badge-danger' : 'badge-neutral'}`} style={{ fontSize: '0.68rem' }}>
+                        {t.status === 'credit' ? 'Credit' : t.status === 'deficit' ? 'Deficit' : 'On Track'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {hoursTally.length === 0 && !tallyLoading && (
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>No tally data yet. Set contracted hours on staff profiles first.</p>
+            )}
+            {tallyLoading && <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Loading tally…</p>}
+          </div>
+
+          {/* ── Quick Log Panel ── */}
+          {showQuickLog && (
+            <div style={{ background: 'var(--color-primary-light)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 8, fontSize: '0.95rem' }}>Quick Log — Record actual hours</h3>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div>
+                  <label className="form-label">Staff</label>
+                  <select className="form-input" value={qlForm.staff_id} onChange={e => setQlForm({ ...qlForm, staff_id: e.target.value })} style={{ minWidth: 160 }}>
+                    <option value="">Select…</option>
+                    {staff.map((s: any) => <option key={s.id} value={s.id}>{s.display_name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Date</label>
+                  <input className="form-input" type="date" value={qlForm.date} onChange={e => setQlForm({ ...qlForm, date: e.target.value })} />
+                </div>
+                <div>
+                  <label className="form-label">Start</label>
+                  <input className="form-input" type="time" value={qlForm.actual_start} onChange={e => setQlForm({ ...qlForm, actual_start: e.target.value })} style={{ width: 110 }} />
+                </div>
+                <div>
+                  <label className="form-label">End</label>
+                  <input className="form-input" type="time" value={qlForm.actual_end} onChange={e => setQlForm({ ...qlForm, actual_end: e.target.value })} style={{ width: 110 }} />
+                </div>
+                <div>
+                  <label className="form-label">Break (min)</label>
+                  <input className="form-input" type="number" value={qlForm.actual_break_minutes} onChange={e => setQlForm({ ...qlForm, actual_break_minutes: Number(e.target.value) })} min={0} style={{ width: 80 }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 120 }}>
+                  <label className="form-label">Notes</label>
+                  <input className="form-input" value={qlForm.notes} onChange={e => setQlForm({ ...qlForm, notes: e.target.value })} placeholder="e.g. Stayed late for stocktake" />
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={handleQuickLog} disabled={qlSaving}>{qlSaving ? 'Saving…' : 'Log Hours'}</button>
+              </div>
+              {qlMessage && <p style={{ marginTop: 8, fontSize: '0.85rem', color: qlMessage.includes('required') ? 'var(--color-danger)' : 'var(--color-success)' }}>{qlMessage}</p>}
+            </div>
+          )}
+
           {/* Subheader: presets left, primary action right */}
           <div className="tab-subheader">
             <div className="tab-subheader-left">
@@ -850,12 +1022,53 @@ export default function AdminStaffPage() {
           Goal: "Approve/decline quickly without breaking bookings."
          ═══════════════════════════════════════════════════════════ */}
       {tab === 'leave' && (
-        <LeaveCalendar
-          staff={staff}
-          currentUserRole={userRole}
-          currentUserStaffId={userStaffId}
-          onRefresh={loadData}
-        />
+        <>
+          {/* ── Leave Balance Overview ── */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Leave Balances — {leaveBalYear}</h3>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button className="btn btn-sm" onClick={() => { const y = leaveBalYear - 1; setLeaveBalYear(y); loadLeaveBalances(y) }}>&larr;</button>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, minWidth: 40, textAlign: 'center' }}>{leaveBalYear}</span>
+                <button className="btn btn-sm" onClick={() => { const y = leaveBalYear + 1; setLeaveBalYear(y); loadLeaveBalances(y) }}>&rarr;</button>
+              </div>
+            </div>
+            {leaveBalances.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+                {leaveBalances.map((b: any) => {
+                  const pct = b.allowance > 0 ? Math.round((b.taken / b.allowance) * 100) : 0
+                  return (
+                    <div key={b.staff_id} style={{ background: 'var(--color-bg-card, #fff)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.75rem' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: 4 }}>{b.staff_name}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: 'var(--color-text-muted)', marginBottom: 6 }}>
+                        <span>Allowance: {b.allowance}d</span>
+                        <span>Taken: {b.taken}d</span>
+                      </div>
+                      {/* Progress bar */}
+                      <div style={{ background: 'var(--color-border)', borderRadius: 4, height: 6, overflow: 'hidden', marginBottom: 6 }}>
+                        <div style={{ width: `${Math.min(pct, 100)}%`, height: '100%', borderRadius: 4, background: pct > 90 ? 'var(--color-danger)' : pct > 70 ? 'var(--color-warning)' : 'var(--color-success)' }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: b.remaining <= 2 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                          {b.remaining}d remaining
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>{pct}% used</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>No leave balance data. Set annual leave allowance on staff profiles.</p>
+            )}
+          </div>
+          <LeaveCalendar
+            staff={staff}
+            currentUserRole={userRole}
+            currentUserStaffId={userStaffId}
+            onRefresh={loadData}
+          />
+        </>
       )}
 
       {/* ═══════════════════════════════════════════════════════════
@@ -969,7 +1182,7 @@ export default function AdminStaffPage() {
       {/* Add / Edit Staff Modal */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
             <h2 style={{ marginBottom: 16 }}>{editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}</h2>
             {error && <div className="alert alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
             <div style={{ display: 'grid', gap: 12 }}>
@@ -987,17 +1200,51 @@ export default function AdminStaffPage() {
                 <label className="form-label">Email *</label>
                 <input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="e.g. sam.kim@company.com" />
               </div>
-              <div>
-                <label className="form-label">Phone</label>
-                <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="e.g. 07700 900000" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="form-label">Phone</label>
+                  <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="e.g. 07700 900000" />
+                </div>
+                <div>
+                  <label className="form-label">Role</label>
+                  <select className="form-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                    <option value="staff">Staff</option>
+                    <option value="manager">Manager</option>
+                    <option value="owner">Owner</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="form-label">Role</label>
-                <select className="form-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
-                  <option value="staff">Staff</option>
-                  <option value="manager">Manager</option>
-                  <option value="owner">Owner</option>
-                </select>
+
+              {/* ── Payroll & Hours Section ── */}
+              <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, marginTop: 4 }}>
+                <h3 style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: 8, color: 'var(--color-text-muted)' }}>Payroll &amp; Hours</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label className="form-label">Pay Type</label>
+                    <select className="form-input" value={form.pay_type} onChange={e => setForm({ ...form, pay_type: e.target.value })}>
+                      <option value="hourly">Hourly</option>
+                      <option value="salaried">Salaried</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">Contracted Hours/Week</label>
+                    <input className="form-input" type="number" value={form.contracted_hours_per_week} onChange={e => setForm({ ...form, contracted_hours_per_week: e.target.value })} min={0} step={0.5} placeholder="e.g. 37.5" />
+                  </div>
+                  <div>
+                    <label className="form-label">Hourly Rate (£)</label>
+                    <input className="form-input" type="number" value={form.hourly_rate} onChange={e => setForm({ ...form, hourly_rate: e.target.value })} min={0} step={0.01} placeholder="e.g. 12.50" />
+                  </div>
+                  <div>
+                    <label className="form-label">Annual Leave (days)</label>
+                    <input className="form-input" type="number" value={form.annual_leave_days} onChange={e => setForm({ ...form, annual_leave_days: e.target.value })} min={0} step={0.5} placeholder="e.g. 28" />
+                  </div>
+                </div>
+                {form.pay_type === 'salaried' && (
+                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" id="overtime-eligible" checked={form.overtime_eligible} onChange={e => setForm({ ...form, overtime_eligible: e.target.checked })} />
+                    <label htmlFor="overtime-eligible" style={{ fontSize: '0.88rem', cursor: 'pointer' }}>Overtime eligible (hours beyond contract are paid)</label>
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>

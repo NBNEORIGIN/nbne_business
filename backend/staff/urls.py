@@ -48,4 +48,8 @@ urlpatterns = [
     path('project-codes/<int:pc_id>/delete/', views.project_code_delete, name='project_code_delete'),
     # Payroll
     path('payroll/summary/', views.payroll_summary, name='payroll_summary'),
+    # Hours tally & leave balance
+    path('hours-tally/', views.hours_tally, name='hours_tally'),
+    path('leave-balance/', views.leave_balance, name='leave_balance'),
+    path('timesheets/quick-log/', views.quick_time_log, name='quick_time_log'),
 ]

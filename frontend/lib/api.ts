@@ -463,6 +463,32 @@ export async function getPayrollSummary(params?: { month?: string }) {
   return apiFetch<any>(`/staff-module/payroll/summary/${q ? '?' + q : ''}`)
 }
 
+// --- Hours Tally (credit / deficit) ---
+export async function getHoursTally(params?: { staff_id?: number; period?: string; date?: string; date_from?: string; date_to?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  if (params?.period) qs.set('period', params.period)
+  if (params?.date) qs.set('date', params.date)
+  if (params?.date_from) qs.set('date_from', params.date_from)
+  if (params?.date_to) qs.set('date_to', params.date_to)
+  const q = qs.toString()
+  return apiFetch<any>(`/staff-module/hours-tally/${q ? '?' + q : ''}`)
+}
+
+// --- Leave Balance ---
+export async function getLeaveBalance(params?: { staff_id?: number; year?: number }) {
+  const qs = new URLSearchParams()
+  if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  if (params?.year) qs.set('year', String(params.year))
+  const q = qs.toString()
+  return apiFetch<any>(`/staff-module/leave-balance/${q ? '?' + q : ''}`)
+}
+
+// --- Quick Time Log ---
+export async function quickTimeLog(data: { staff_id: number; date: string; actual_start: string; actual_end: string; actual_break_minutes?: number; notes?: string }) {
+  return apiFetch<any>('/staff-module/timesheets/quick-log/', { method: 'POST', body: JSON.stringify(data) })
+}
+
 export function getTimesheetExportUrl(params: { date_from: string; date_to: string; staff_id?: number }) {
   const qs = new URLSearchParams()
   qs.set('date_from', params.date_from)

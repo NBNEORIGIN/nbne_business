@@ -4,6 +4,10 @@ from django.db import models
 
 class StaffProfile(models.Model):
     """Extended profile for a staff member, linked to custom User."""
+    PAY_TYPE_CHOICES = [
+        ('salaried', 'Salaried'),
+        ('hourly', 'Hourly'),
+    ]
     tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, related_name='staff_profiles')
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_profile')
     display_name = models.CharField(max_length=255)
@@ -13,6 +17,12 @@ class StaffProfile(models.Model):
     hire_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
     notes = models.TextField(blank=True, default='')
+    # Payroll & hours
+    pay_type = models.CharField(max_length=10, choices=PAY_TYPE_CHOICES, default='hourly')
+    overtime_eligible = models.BooleanField(default=False, help_text='If salaried, can they claim overtime?')
+    contracted_hours_per_week = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text='Contracted weekly hours (e.g. 37.5)')
+    hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, default=0, help_text='£/hour for hourly staff or overtime rate')
+    annual_leave_days = models.DecimalField(max_digits=5, decimal_places=1, default=28, help_text='Annual leave allowance in days (UK default 28 inc bank hols)')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
