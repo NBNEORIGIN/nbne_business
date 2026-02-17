@@ -17,6 +17,7 @@ urlpatterns = [
     path('leave/calendar/', views.leave_calendar, name='leave_calendar'),
     path('leave/create/', views.leave_create, name='leave_create'),
     path('leave/<int:leave_id>/review/', views.leave_review, name='leave_review'),
+    path('leave/<int:leave_id>/delete/', views.leave_delete, name='leave_delete'),
     path('training/', views.training_list, name='training_list'),
     path('training/create/', views.training_create, name='training_create'),
     path('absence/', views.absence_list, name='absence_list'),

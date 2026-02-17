@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
-import { getLeaveCalendar, getLeaveRequests, createLeaveRequest, reviewLeave } from '@/lib/api'
+import { getLeaveCalendar, getLeaveRequests, createLeaveRequest, reviewLeave, deleteLeaveRequest } from '@/lib/api'
 
 interface LeaveCalendarProps {
   staff: any[]
@@ -90,6 +90,22 @@ export default function LeaveCalendar({ staff, currentUserRole, currentUserStaff
   // Hover tooltip
   const [hoverDay, setHoverDay] = useState<string | null>(null)
   const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 })
+
+  // Delete handler
+  const handleDelete = async (leaveId: number) => {
+    if (!confirm('Delete this leave request?')) return
+    const res = await deleteLeaveRequest(leaveId)
+    if (res.error) { alert(res.error); return }
+    const from = fmtDate(viewStart)
+    const to = fmtDate(viewEnd)
+    const [calRes, allRes] = await Promise.all([
+      getLeaveCalendar({ date_from: from, date_to: to }),
+      getLeaveRequests(),
+    ])
+    setCalLeave(calRes.data || [])
+    setAllLeave(allRes.data || [])
+    if (onRefresh) onRefresh()
+  }
 
   const isManager = currentUserRole === 'owner' || currentUserRole === 'manager'
 
@@ -470,7 +486,7 @@ export default function LeaveCalendar({ staff, currentUserRole, currentUserStaff
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Staff</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th></tr>
+              <tr><th>Staff</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th>{isManager && <th>Actions</th>}</tr>
             </thead>
             <tbody>
               {allLeave.map((l: any) => (
@@ -486,9 +502,14 @@ export default function LeaveCalendar({ staff, currentUserRole, currentUserStaff
                       {l.status}
                     </span>
                   </td>
+                  {isManager && (
+                    <td>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(l.id)}>Delete</button>
+                    </td>
+                  )}
                 </tr>
               ))}
-              {allLeave.length === 0 && <tr><td colSpan={7} className="empty-state">No leave requests yet</td></tr>}
+              {allLeave.length === 0 && <tr><td colSpan={isManager ? 8 : 7} className="empty-state">No leave requests yet</td></tr>}
             </tbody>
           </table>
         </div>

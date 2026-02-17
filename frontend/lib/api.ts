@@ -345,6 +345,10 @@ export async function reviewLeave(id: number, status: string) {
   return apiFetch<any>(`/staff-module/leave/${id}/review/`, { method: 'POST', body: JSON.stringify({ status }) })
 }
 
+export async function deleteLeaveRequest(id: number) {
+  return apiFetch<any>(`/staff-module/leave/${id}/delete/`, { method: 'DELETE' })
+}
+
 export async function getTrainingRecords() {
   return apiFetch<any[]>('/staff-module/training/')
 }

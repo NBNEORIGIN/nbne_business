@@ -360,6 +360,19 @@ def leave_review(request, leave_id):
     return Response(LeaveRequestSerializer(leave).data)
 
 
+@api_view(['DELETE'])
+@permission_classes([IsManagerOrAbove])
+def leave_delete(request, leave_id):
+    """Delete a leave request (manager+)."""
+    try:
+        tenant = getattr(request, 'tenant', None)
+        leave = LeaveRequest.objects.get(id=leave_id, staff__tenant=tenant)
+    except LeaveRequest.DoesNotExist:
+        return Response({'error': 'Leave request not found'}, status=status.HTTP_404_NOT_FOUND)
+    leave.delete()
+    return Response({'detail': 'Leave request deleted.'}, status=status.HTTP_200_OK)
+
+
 @api_view(['GET'])
 @permission_classes([IsStaffOrAbove])
 def training_list(request):
