@@ -656,8 +656,28 @@ export async function updateIncidentStatus(id: number, status: string, notes = '
   })
 }
 
+export async function deleteComplianceItem(id: number) {
+  return apiFetch<any>(`/compliance/items/${id}/delete/`, { method: 'DELETE' })
+}
+
 export async function getRams() {
   return apiFetch<any[]>('/compliance/rams/')
+}
+
+export async function getAccidents() {
+  return apiFetch<any[]>('/compliance/accidents/')
+}
+
+export async function createAccident(data: any) {
+  return apiFetch<any>('/compliance/accidents/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateAccident(id: number, data: any) {
+  return apiFetch<any>(`/compliance/accidents/${id}/update/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteAccident(id: number) {
+  return apiFetch<any>(`/compliance/accidents/${id}/delete/`, { method: 'DELETE' })
 }
 
 // --- Documents ---
