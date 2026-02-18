@@ -43,14 +43,14 @@ def create_checkout_session(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
     
-    # Extract booking data
-    service_id = request.data.get('service_id')
-    staff_id = request.data.get('staff_id')
-    date_str = request.data.get('date')
-    time_str = request.data.get('time')
-    client_name = request.data.get('client_name', '')
-    client_email = request.data.get('client_email', '')
-    client_phone = request.data.get('client_phone', '')
+    # Extract booking data (accept both naming conventions)
+    service_id = request.data.get('service_id') or request.data.get('service')
+    staff_id = request.data.get('staff_id') or request.data.get('staff')
+    date_str = request.data.get('date') or request.data.get('booking_date')
+    time_str = request.data.get('time') or request.data.get('booking_time')
+    client_name = request.data.get('client_name') or request.data.get('customer_name', '')
+    client_email = request.data.get('client_email') or request.data.get('customer_email', '')
+    client_phone = request.data.get('client_phone') or request.data.get('customer_phone', '')
     notes = request.data.get('notes', '')
     
     if not all([service_id, staff_id, date_str, time_str, client_name, client_email]):
@@ -68,9 +68,10 @@ def create_checkout_session(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Get or create client
+    # Get or create client (scoped to tenant)
+    tenant = getattr(request, 'tenant', None)
     client, _ = Client.objects.get_or_create(
-        email=client_email,
+        tenant=tenant, email=client_email,
         defaults={'name': client_name, 'phone': client_phone}
     )
     
@@ -79,18 +80,31 @@ def create_checkout_session(request):
     from datetime import datetime
     start_dt = timezone.make_aware(datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M"))
     
+    from datetime import timedelta
+    end_dt = start_dt + timedelta(minutes=service.duration_minutes)
     booking = Booking.objects.create(
+        tenant=tenant,
         client=client,
         service=service,
         staff=staff_member,
         start_time=start_dt,
+        end_time=end_dt,
         status='pending',
         payment_status='pending',
         notes=notes,
     )
     
-    # Calculate amount in pence
-    amount_pence = int(service.price * 100)
+    # Calculate amount — use deposit if configured, otherwise full price
+    full_pence = int(service.price * 100)
+    if service.deposit_percentage and service.deposit_percentage > 0:
+        amount_pence = int(full_pence * service.deposit_percentage / 100)
+        payment_label = f'{service.name} — Deposit ({service.deposit_percentage}%)'
+    elif service.deposit_pence and service.deposit_pence > 0:
+        amount_pence = service.deposit_pence
+        payment_label = f'{service.name} — Deposit'
+    else:
+        amount_pence = full_pence
+        payment_label = service.name
     
     if amount_pence == 0:
         # Free service — confirm immediately
@@ -105,7 +119,7 @@ def create_checkout_session(request):
         })
     
     # Create Stripe Checkout session
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://theminddepartmentwebsite.vercel.app')
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
     
     try:
         checkout_session = stripe.checkout.Session.create(
@@ -114,8 +128,8 @@ def create_checkout_session(request):
                 'price_data': {
                     'currency': 'gbp',
                     'product_data': {
-                        'name': service.name,
-                        'description': f'{service.duration_minutes} min session with {staff_member.name} on {date_str} at {time_str}',
+                        'name': payment_label,
+                        'description': f'{service.duration_minutes} min with {staff_member.name} on {date_str} at {time_str}',
                     },
                     'unit_amount': amount_pence,
                 },
@@ -123,8 +137,8 @@ def create_checkout_session(request):
             }],
             mode='payment',
             customer_email=client_email,
-            success_url=f'{frontend_url}/booking?payment=success&booking_id={booking.id}',
-            cancel_url=f'{frontend_url}/booking?payment=cancelled&booking_id={booking.id}',
+            success_url=f'{frontend_url}/book?payment=success&booking_id={booking.id}',
+            cancel_url=f'{frontend_url}/book?payment=cancelled&booking_id={booking.id}',
             metadata={
                 'booking_id': str(booking.id),
                 'service_name': service.name,

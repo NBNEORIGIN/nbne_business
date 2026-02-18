@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { getServices, getBookableStaff, getStaffSlots, getSlots, checkDisclaimer, signDisclaimer, createBooking } from '@/lib/api'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { getServices, getBookableStaff, getStaffSlots, getSlots, checkDisclaimer, signDisclaimer, createBooking, createCheckoutSession } from '@/lib/api'
 import { useTenant } from '@/lib/tenant'
 
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
@@ -92,9 +93,10 @@ function Calendar({ selectedDate, onSelect, availableDates }: {
   )
 }
 
-export default function BookPage() {
+function BookPageInner() {
   const tenant = useTenant()
   const bizName = tenant.business_name || 'Salon-X'
+  const searchParams = useSearchParams()
 
   const [services, setServices] = useState<any[]>([])
   const [staffList, setStaffList] = useState<any[]>([])
@@ -123,7 +125,15 @@ export default function BookPage() {
 
   useEffect(() => {
     getServices().then(r => { setServices(r.data || []); setLoadingServices(false) })
-  }, [])
+    // Handle Stripe payment return
+    const payment = searchParams.get('payment')
+    const bookingId = searchParams.get('booking_id')
+    if (payment === 'success' && bookingId) {
+      setConfirmed({ id: bookingId, payment_success: true })
+    } else if (payment === 'cancelled' && bookingId) {
+      setError('Payment was cancelled. Your booking has not been confirmed. Please try again.')
+    }
+  }, [searchParams])
 
   // Available dates for calendar (next 60 days)
   const availableDates: string[] = []
@@ -229,6 +239,25 @@ export default function BookPage() {
         bookingData.staff_id = selectedStaff.id
       }
     }
+
+    // If service has a price, use Stripe Checkout
+    const hasCost = selectedService.price_pence > 0 || selectedService.deposit_pence > 0
+    if (hasCost) {
+      const res = await createCheckoutSession(bookingData)
+      setSubmitting(false)
+      if (res.data?.checkout_url) {
+        window.location.href = res.data.checkout_url
+        return
+      } else if (res.data?.free) {
+        setConfirmed(res.data)
+        return
+      } else {
+        setError(res.error || 'Payment setup failed. Please try again.')
+        return
+      }
+    }
+
+    // Free service — book directly
     const res = await createBooking(bookingData)
     setSubmitting(false)
     if (res.data) {
@@ -273,17 +302,21 @@ export default function BookPage() {
           }}>✓</div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#111827', marginBottom: '0.5rem' }}>Booking Confirmed!</h1>
           <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>Reference: <strong>#{confirmed.id}</strong></p>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', border: '1px solid #e5e7eb', textAlign: 'left', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.9rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Service</span><strong>{selectedService?.name}</strong></div>
-              {selectedStaff && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Stylist</span><strong>{staffName(selectedStaff)}</strong></div>}
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Date</span><strong>{selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</strong></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Time</span><strong>{selectedTime}</strong></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Price</span><strong>{selectedService && formatPrice(selectedService.price_pence)}</strong></div>
+          {confirmed.payment_success && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: '#166534' }}>
+              ✓ Payment received — your booking is confirmed.
             </div>
-          </div>
-          {confirmed.checkout_url && (
-            <a href={confirmed.checkout_url} style={{ display: 'inline-block', background: '#111827', color: '#fff', padding: '0.75rem 2rem', borderRadius: 8, textDecoration: 'none', fontWeight: 700, marginBottom: '0.75rem' }}>Pay Deposit Now</a>
+          )}
+          {selectedService && (
+            <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', border: '1px solid #e5e7eb', textAlign: 'left', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.9rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Service</span><strong>{selectedService?.name}</strong></div>
+                {selectedStaff && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Stylist</span><strong>{staffName(selectedStaff)}</strong></div>}
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Date</span><strong>{selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Time</span><strong>{selectedTime}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Price</span><strong>{formatPrice(selectedService.price_pence)}</strong></div>
+              </div>
+            </div>
           )}
           <div><button onClick={resetBooking} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600, marginTop: '0.5rem' }}>Book Another Appointment</button></div>
         </div>
@@ -536,10 +569,10 @@ export default function BookPage() {
                         cursor: submitting ? 'wait' : 'pointer',
                         opacity: submitting || !name.trim() || !email.trim() || !phone.trim() ? 0.5 : 1,
                       }}
-                    >{submitting ? 'Booking…' : 'Confirm Booking'}</button>
+                    >{submitting ? 'Processing…' : (selectedService?.price_pence > 0 ? (selectedService.deposit_percentage > 0 || selectedService.deposit_pence > 0 ? 'Pay Deposit & Confirm' : 'Pay & Confirm') : 'Confirm Booking')}</button>
                     {selectedService && (selectedService.deposit_percentage > 0 || selectedService.deposit_pence > 0) && (
                       <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#6b7280', margin: '0.5rem 0 0' }}>
-                        A deposit of {selectedService.deposit_percentage > 0 ? `${selectedService.deposit_percentage}%` : formatPrice(selectedService.deposit_pence)} will be requested after booking.
+                        A deposit of {selectedService.deposit_percentage > 0 ? `${selectedService.deposit_percentage}% (${formatPrice(Math.round(selectedService.price_pence * selectedService.deposit_percentage / 100))})` : formatPrice(selectedService.deposit_pence)} will be taken securely via Stripe.
                       </p>
                     )}
                   </div>
@@ -554,5 +587,13 @@ export default function BookPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function BookPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>}>
+      <BookPageInner />
+    </Suspense>
   )
 }

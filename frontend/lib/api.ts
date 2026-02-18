@@ -245,6 +245,10 @@ export async function createBooking(data: any) {
   return apiFetch<any>('/bookings/create/', { method: 'POST', body: JSON.stringify(data) })
 }
 
+export async function createCheckoutSession(data: any) {
+  return apiFetch<any>('/checkout/create/', { method: 'POST', body: JSON.stringify(data) })
+}
+
 export async function getBookings(params?: { status?: string; email?: string }) {
   const qs = new URLSearchParams()
   if (params?.status) qs.set('status', params.status)
