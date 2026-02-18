@@ -28,9 +28,9 @@ TENANTS = {
             ('Gents Cut', 'Cuts', 30, '20.00', 0),
         ],
         'booking_staff': [
-            ('chloe@salonx.demo', 'Chloe Williams', 'staff', ['Cut & Style', 'Colour Full', 'Balayage', 'Blow Dry', 'Bridal Package']),
-            ('jordan@salonx.demo', 'Jordan Taylor', 'staff', ['Cut & Style', 'Blow Dry', 'Gents Cut']),
-            ('Mia@salonx.demo', 'Mia Patel', 'staff', ['Colour Full', 'Balayage', 'Blow Dry', 'Bridal Package']),
+            ('chloe@salonx.demo', 'Chloe Williams', 'staff', ['Cut & Style', 'Colour Full', 'Balayage', 'Blow Dry', 'Bridal Package'], '12:00', '12:30'),
+            ('jordan@salonx.demo', 'Jordan Taylor', 'staff', ['Cut & Style', 'Blow Dry', 'Gents Cut'], '12:00', '12:30'),
+            ('Mia@salonx.demo', 'Mia Patel', 'staff', ['Colour Full', 'Balayage', 'Blow Dry', 'Bridal Package'], '13:00', '13:30'),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Stylists', 'TEAM')],
     },
@@ -357,16 +357,40 @@ class Command(BaseCommand):
         all_services = list(Service.objects.filter(tenant=self.tenant))
         svc_by_name = {s.name: s for s in all_services}
         booking_staff = []
+        from datetime import time as dt_time
         for entry in staff_configs:
             s_email, s_name, s_role = entry[0], entry[1], entry[2]
             svc_names = entry[3] if len(entry) > 3 else []
-            bs, _ = BookingStaff.objects.get_or_create(
+            break_start_str = entry[4] if len(entry) > 4 else None
+            break_end_str = entry[5] if len(entry) > 5 else None
+            defaults = {'name': s_name, 'role': s_role}
+            if break_start_str:
+                h, m = map(int, break_start_str.split(':'))
+                defaults['break_start'] = dt_time(h, m)
+            if break_end_str:
+                h, m = map(int, break_end_str.split(':'))
+                defaults['break_end'] = dt_time(h, m)
+            bs, created = BookingStaff.objects.get_or_create(
                 tenant=self.tenant, email=s_email,
-                defaults={'name': s_name, 'role': s_role}
+                defaults=defaults
             )
-            if bs.name != s_name:
-                bs.name = s_name
-                bs.save(update_fields=['name'])
+            if not created:
+                changed = False
+                if bs.name != s_name:
+                    bs.name = s_name
+                    changed = True
+                if break_start_str:
+                    h, m = map(int, break_start_str.split(':'))
+                    if bs.break_start != dt_time(h, m):
+                        bs.break_start = dt_time(h, m)
+                        changed = True
+                if break_end_str:
+                    h, m = map(int, break_end_str.split(':'))
+                    if bs.break_end != dt_time(h, m):
+                        bs.break_end = dt_time(h, m)
+                        changed = True
+                if changed:
+                    bs.save()
             if svc_names:
                 bs.services.set([svc_by_name[n] for n in svc_names if n in svc_by_name])
             else:

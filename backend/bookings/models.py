@@ -140,6 +140,8 @@ class Staff(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='staff')
     photo_url = models.URLField(blank=True, help_text='URL to staff member photo')
     services = models.ManyToManyField(Service, related_name='staff_members', blank=True)
+    break_start = models.TimeField(null=True, blank=True, help_text='Daily break start (e.g. lunch)')
+    break_end = models.TimeField(null=True, blank=True, help_text='Daily break end')
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

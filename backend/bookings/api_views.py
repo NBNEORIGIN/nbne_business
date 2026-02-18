@@ -24,16 +24,22 @@ class ServiceViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None)
         price_pence = self.request.data.get('price_pence')
         if price_pence is not None:
-            serializer.save(price=int(price_pence) / 100, tenant=tenant)
+            instance = serializer.save(price=int(price_pence) / 100, tenant=tenant)
         else:
-            serializer.save(tenant=tenant)
+            instance = serializer.save(tenant=tenant)
+        staff_ids = self.request.data.get('staff_ids')
+        if staff_ids is not None:
+            instance.staff_members.set(Staff.objects.filter(id__in=staff_ids))
 
     def perform_update(self, serializer):
         price_pence = self.request.data.get('price_pence')
         if price_pence is not None:
-            serializer.save(price=int(price_pence) / 100)
+            instance = serializer.save(price=int(price_pence) / 100)
         else:
-            serializer.save()
+            instance = serializer.save()
+        staff_ids = self.request.data.get('staff_ids')
+        if staff_ids is not None:
+            instance.staff_members.set(Staff.objects.filter(id__in=staff_ids))
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

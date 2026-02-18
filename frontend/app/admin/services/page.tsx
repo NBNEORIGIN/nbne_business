@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getServices, createService, updateService, deleteService } from '@/lib/api'
+import { getServices, createService, updateService, deleteService, getBookableStaff } from '@/lib/api'
 
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
 function penceToPounds(pence: number) { return (pence / 100).toFixed(2) }
@@ -30,12 +30,17 @@ export default function AdminServicesPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'active' | 'inactive' | 'all'>('active')
+  const [allStaff, setAllStaff] = useState<any[]>([])
+  const [selectedStaffIds, setSelectedStaffIds] = useState<number[]>([])
 
   const loadServices = () => {
     getServices({ all: true }).then(r => { setServices(r.data || []); setLoading(false) })
   }
 
-  useEffect(() => { loadServices() }, [])
+  useEffect(() => {
+    loadServices()
+    getBookableStaff().then(r => setAllStaff(r.data || []))
+  }, [])
 
   const activeServices = services.filter(s => s.is_active)
   const inactiveServices = services.filter(s => !s.is_active)
@@ -46,6 +51,7 @@ export default function AdminServicesPage() {
     setPriceInput('')
     setDepositInput('')
     setDepositMode('fixed')
+    setSelectedStaffIds([])
     setEditingId(null)
     setError('')
     setShowModal(true)
@@ -69,6 +75,7 @@ export default function AdminServicesPage() {
       setDepositMode('fixed')
       setDepositInput(penceToPounds(s.deposit_pence || 0))
     }
+    setSelectedStaffIds(s.staff_ids || [])
     setEditingId(s.id)
     setError('')
     setShowModal(true)
@@ -97,6 +104,7 @@ export default function AdminServicesPage() {
       payload.deposit_pence = poundsToPence(depositInput)
       payload.deposit_percentage = 0
     }
+    payload.staff_ids = selectedStaffIds
 
     let res
     if (editingId) {
@@ -161,7 +169,7 @@ export default function AdminServicesPage() {
       ) : (
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Service</th><th>Category</th><th>Duration</th><th>Price</th><th>Deposit</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Service</th><th>Category</th><th>Duration</th><th>Price</th><th>Deposit</th><th>Staff</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
               {filteredServices.map(s => (
                 <tr key={s.id} style={!s.is_active ? { opacity: 0.55 } : undefined}>
@@ -178,6 +186,11 @@ export default function AdminServicesPage() {
                   <td>{s.duration_minutes} min</td>
                   <td style={{ fontWeight: 600 }}>{formatPrice(s.price_pence)}</td>
                   <td>{depositDisplay(s)}</td>
+                  <td style={{ maxWidth: 180 }}>
+                    {(s.staff_ids || []).length > 0
+                      ? allStaff.filter((st: any) => s.staff_ids?.includes(st.id)).map((st: any) => st.name).join(', ') || `${s.staff_ids.length} assigned`
+                      : <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>None</span>}
+                  </td>
                   <td><span className={`badge ${s.is_active ? 'badge-success' : 'badge-neutral'}`}>{s.is_active ? 'Active' : 'Inactive'}</span></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn btn-sm" onClick={() => openEdit(s)} style={{ marginRight: 6 }}>Edit</button>
@@ -256,6 +269,21 @@ export default function AdminServicesPage() {
                     = {Math.round(poundsToPence(depositInput) / poundsToPence(priceInput) * 100)}% of price
                   </div>
                 )}
+              </div>
+              <div>
+                <label className="form-label">Assigned Staff</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '8px 0' }}>
+                  {allStaff.length === 0 && <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>No staff found</span>}
+                  {allStaff.map((st: any) => (
+                    <label key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem', cursor: 'pointer', padding: '4px 10px', borderRadius: 6, border: '1px solid var(--color-border)', background: selectedStaffIds.includes(st.id) ? 'var(--color-primary-light, #e0e7ff)' : 'transparent' }}>
+                      <input type="checkbox" checked={selectedStaffIds.includes(st.id)} onChange={e => {
+                        if (e.target.checked) setSelectedStaffIds(prev => [...prev, st.id])
+                        else setSelectedStaffIds(prev => prev.filter(id => id !== st.id))
+                      }} />
+                      {st.name}
+                    </label>
+                  ))}
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>

@@ -65,6 +65,13 @@ def generate_time_slots(staff_id, service_id, date, business_hours_start=9, busi
                     is_available = False
                     break
         
+        # Check if this slot conflicts with staff's recurring daily break
+        if is_available and staff.break_start and staff.break_end:
+            slot_start_time = current_time.time()
+            slot_end_time = slot_end.time()
+            if slot_start_time < staff.break_end and slot_end_time > staff.break_start:
+                is_available = False
+        
         if is_available:
             slots.append({
                 'start_time': current_time.strftime('%H:%M'),
