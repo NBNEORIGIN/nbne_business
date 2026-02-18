@@ -29,17 +29,26 @@ class Command(BaseCommand):
             User.objects.create_user('staff1', 'staff1@demo.local', 'admin123')
             self.stdout.write(self.style.SUCCESS('✓ Demo staff1 created'))
 
-        # Create default Service
-        service, created = Service.objects.get_or_create(
-            name='Consultation',
-            defaults={
-                'description': '60-minute consultation session',
-                'duration_minutes': 60,
-                'price': Decimal('50.00'),
-                'active': True
-            }
-        )
-        self.stdout.write(self.style.SUCCESS(f'✓ {"Created" if created else "Found"} service: {service.name}'))
+        # Create default Service (requires tenant)
+        from tenants.models import TenantSettings
+        default_tenant = TenantSettings.objects.first()
+        if default_tenant:
+            service, created = Service.objects.get_or_create(
+                name='Consultation', tenant=default_tenant,
+                defaults={
+                    'description': '60-minute consultation session',
+                    'duration_minutes': 60,
+                    'price': Decimal('50.00'),
+                    'active': True
+                }
+            )
+        else:
+            created = False
+            service = None
+        if service:
+            self.stdout.write(self.style.SUCCESS(f'✓ {"Created" if created else "Found"} service: {service.name}'))
+        else:
+            self.stdout.write('⚠ No tenant found — skipped default service creation')
 
         # Staff members should be created manually via admin interface
         self.stdout.write(self.style.SUCCESS('✓ Staff members managed via admin interface'))
