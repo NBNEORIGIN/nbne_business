@@ -7,10 +7,6 @@ python manage.py migrate --noinput || { echo "FATAL: migrations failed"; exit 1;
 echo "Collecting static files..."
 python manage.py collectstatic --noinput || echo "WARNING: collectstatic failed"
 
-# Wipe stale demo data from pre-tenant-isolation era, then reseed properly
-echo "Cleaning stale demo data..."
-(python manage.py seed_demo --delete-demo) || echo "WARNING: delete-demo failed"
-
 # Seed demo tenants (Salon X, Restaurant X, Health Club X, Mind Department, NBNE)
 echo "Seeding demo data..."
 (python manage.py seed_demo) || echo "WARNING: seed_demo failed"
