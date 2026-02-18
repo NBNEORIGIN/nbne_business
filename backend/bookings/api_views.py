@@ -241,143 +241,130 @@ class BookingViewSet(viewsets.ModelViewSet):
             )
         
         try:
-            with transaction.atomic():
-                # Find or create client by email (scoped to tenant)
-                tenant = getattr(request, 'tenant', None)
-                client, created = Client.objects.get_or_create(
-                    tenant=tenant, email=client_email,
-                    defaults={
-                        'name': client_name,
-                        'phone': client_phone,
-                    }
-                )
-                
-                # If client exists but name/phone changed, update them
-                if not created:
-                    if client.name != client_name or client.phone != client_phone:
-                        client.name = client_name
-                        client.phone = client_phone
-                        client.save()
-                
-                # Get staff and service
-                staff = Staff.objects.get(id=staff_id, active=True)
-                service = Service.objects.get(id=service_id, active=True)
-                
-                # Parse date and time into datetime
-                from django.utils import timezone as tz
-                datetime_str = f"{date_str} {time_str}"
-                start_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M')
-                start_datetime = tz.make_aware(start_datetime)
-                
-                # Calculate end time based on service duration
-                from datetime import timedelta
-                end_datetime = start_datetime + timedelta(minutes=service.duration_minutes)
-                
-                # Check for overlapping bookings with this staff member
-                overlapping_bookings = Booking.objects.filter(
-                    staff=staff,
-                    status__in=['pending', 'confirmed'],
-                    start_time__lt=end_datetime,
-                    end_time__gt=start_datetime
-                )
-                
-                if overlapping_bookings.exists():
-                    return Response(
-                        {'error': 'This time slot is no longer available. Please select a different time.'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                # Create booking
-                booking = Booking.objects.create(
-                    tenant=tenant,
-                    client=client,
-                    staff=staff,
-                    service=service,
-                    start_time=start_datetime,
-                    end_time=end_datetime,
-                    status='confirmed',
-                    notes=notes
-                )
-                
-                # Smart Booking Engine — run full pipeline
-                try:
-                    from .smart_engine import process_booking
-                    process_booking(booking)
-                except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning(f'[SBE] Engine error on booking {booking.id}: {e}')
-
-                # Auto-create CRM lead if not exists
-                try:
-                    from crm.models import Lead
-                    if not Lead.objects.filter(client_id=client.id).exists():
-                        Lead.objects.create(
-                            name=client.name,
-                            email=client.email,
-                            phone=client.phone,
-                            source='booking',
-                            status='QUALIFIED',
-                            value_pence=service.price_pence,
-                            notes=f'Auto-created from booking #{booking.id}',
-                            client_id=client.id,
-                        )
-                except Exception:
-                    pass  # CRM is optional, don't break bookings
-
-                # Refresh from DB to get SBE-updated fields
-                booking.refresh_from_db()
-
-                # Prepare response data first
-                response_data = {
-                    'id': booking.id,
-                    'client': booking.client.id,
-                    'client_name': booking.client.name,
-                    'service': booking.service.id,
-                    'service_name': booking.service.name,
-                    'staff': booking.staff.id,
-                    'staff_name': booking.staff.name,
-                    'start_time': booking.start_time.isoformat(),
-                    'end_time': booking.end_time.isoformat(),
-                    'status': booking.status,
-                    'notes': booking.notes,
-                    'risk_score': booking.risk_score,
-                    'risk_level': booking.risk_level,
-                    'revenue_at_risk': float(booking.revenue_at_risk) if booking.revenue_at_risk else None,
-                    'recommended_payment_type': booking.recommended_payment_type,
-                    'recommended_deposit_percent': booking.recommended_deposit_percent,
-                    'recommended_price_adjustment': float(booking.recommended_price_adjustment) if booking.recommended_price_adjustment else None,
-                    'recommended_incentive': booking.recommended_incentive,
-                    'recommendation_reason': booking.recommendation_reason,
-                    'override_applied': booking.override_applied,
-                    'created_at': booking.created_at.isoformat(),
-                    'updated_at': booking.updated_at.isoformat(),
+            # Find or create client by email (scoped to tenant)
+            tenant = getattr(request, 'tenant', None)
+            client, created = Client.objects.get_or_create(
+                tenant=tenant, email=client_email,
+                defaults={
+                    'name': client_name,
+                    'phone': client_phone,
                 }
+            )
+            
+            # If client exists but name/phone changed, update them
+            if not created:
+                if client.name != client_name or client.phone != client_phone:
+                    client.name = client_name
+                    client.phone = client_phone
+                    client.save()
+            
+            # Get staff and service
+            staff = Staff.objects.get(id=staff_id, active=True)
+            service = Service.objects.get(id=service_id, active=True)
+            
+            # Parse date and time into datetime
+            from django.utils import timezone as tz
+            datetime_str = f"{date_str} {time_str}"
+            start_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M')
+            start_datetime = tz.make_aware(start_datetime)
+            
+            # Calculate end time based on service duration
+            from datetime import timedelta
+            end_datetime = start_datetime + timedelta(minutes=service.duration_minutes)
+            
+            # Check for overlapping bookings with this staff member
+            overlapping_bookings = Booking.objects.filter(
+                staff=staff,
+                status__in=['pending', 'confirmed'],
+                start_time__lt=end_datetime,
+                end_time__gt=start_datetime
+            )
+            
+            if overlapping_bookings.exists():
+                return Response(
+                    {'error': 'This time slot is no longer available. Please select a different time.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create booking
+            booking = Booking.objects.create(
+                tenant=tenant,
+                client=client,
+                staff=staff,
+                service=service,
+                start_time=start_datetime,
+                end_time=end_datetime,
+                status='confirmed',
+                notes=notes
+            )
+            
+            # Smart Booking Engine — run full pipeline
+            try:
+                from .smart_engine import process_booking
+                process_booking(booking)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f'[SBE] Engine error on booking {booking.id}: {e}')
+
+            # Auto-create CRM lead if not exists
+            try:
+                from crm.models import Lead
+                if not Lead.objects.filter(client_id=client.id).exists():
+                    Lead.objects.create(
+                        name=client.name,
+                        email=client.email,
+                        phone=client.phone,
+                        source='booking',
+                        status='QUALIFIED',
+                        value_pence=service.price_pence,
+                        notes=f'Auto-created from booking #{booking.id}',
+                        client_id=client.id,
+                    )
+            except Exception:
+                pass  # CRM is optional, don't break bookings
+
+            # Refresh from DB to get SBE-updated fields
+            booking.refresh_from_db()
+
+            # Prepare response data
+            response_data = {
+                'id': booking.id,
+                'client': booking.client.id,
+                'client_name': booking.client.name,
+                'service': booking.service.id,
+                'service_name': booking.service.name,
+                'staff': booking.staff.id,
+                'staff_name': booking.staff.name,
+                'start_time': booking.start_time.isoformat(),
+                'end_time': booking.end_time.isoformat(),
+                'status': booking.status,
+                'notes': booking.notes,
+                'risk_score': booking.risk_score,
+                'risk_level': booking.risk_level,
+                'revenue_at_risk': float(booking.revenue_at_risk) if booking.revenue_at_risk else None,
+                'recommended_payment_type': booking.recommended_payment_type,
+                'recommended_deposit_percent': booking.recommended_deposit_percent,
+                'recommended_price_adjustment': float(booking.recommended_price_adjustment) if booking.recommended_price_adjustment else None,
+                'recommended_incentive': booking.recommended_incentive,
+                'recommendation_reason': booking.recommendation_reason,
+                'override_applied': booking.override_applied,
+                'created_at': booking.created_at.isoformat(),
+                'updated_at': booking.updated_at.isoformat(),
+            }
+            
+            # Send confirmation email asynchronously (don't block response)
+            try:
+                from django.conf import settings
+                import threading
                 
-                # Send confirmation email asynchronously (don't block response)
-                try:
-                    from django.core.mail import send_mail
-                    from django.conf import settings
-                    import threading
-                    
-                    def send_email_async():
-                        try:
-                            print(f"[EMAIL] Starting email send to {client.email}")
-                            
-                            # Try Resend first, fallback to SMTP
-                            from django.conf import settings
-                            resend_api_key = getattr(settings, 'RESEND_API_KEY', None)
-                            
-                            use_resend = resend_api_key and resend_api_key.strip()
-                            
-                            if use_resend:
-                                print(f"[EMAIL] Using Resend API")
-                                import resend
-                                resend.api_key = resend_api_key
-                            else:
-                                print(f"[EMAIL] Resend not configured, using SMTP")
-                            
-                            subject = f'Booking Confirmation - {service.name}'
-                            message = f"""Dear {client.name},
+                def send_email_async():
+                    try:
+                        print(f"[EMAIL] Starting email send to {client.email}")
+                        resend_api_key = getattr(settings, 'RESEND_API_KEY', None)
+                        use_resend = resend_api_key and resend_api_key.strip()
+                        
+                        subject = f'Booking Confirmation - {service.name}'
+                        message = f"""Dear {client.name},
 
 Your appointment has been confirmed!
 
@@ -395,43 +382,40 @@ If you need to cancel or reschedule, please contact us.
 
 Thank you,
 {getattr(settings, 'EMAIL_BRAND_NAME', 'NBNE Business Platform')}"""
-                            
-                            if use_resend:
-                                # Use Resend API
-                                from_email = getattr(settings, 'RESEND_FROM_EMAIL', 'onboarding@resend.dev')
-                                params = {
-                                    "from": f"{getattr(settings, 'EMAIL_BRAND_NAME', 'NBNE Business Platform')} <{from_email}>",
-                                    "to": [client.email],
-                                    "subject": subject,
-                                    "text": message
-                                }
-                                email = resend.Emails.send(params)
-                                print(f"[EMAIL] Successfully sent via Resend to {client.email}, ID: {email.get('id')}")
-                            else:
-                                # Use Django SMTP
-                                from django.core.mail import send_mail
-                                send_mail(
-                                    subject=subject,
-                                    message=message,
-                                    from_email=settings.DEFAULT_FROM_EMAIL,
-                                    recipient_list=[client.email],
-                                    fail_silently=False,
-                                )
-                                print(f"[EMAIL] Successfully sent via SMTP to {client.email}")
-                        except Exception as e:
-                            print(f"[EMAIL] ERROR: {type(e).__name__}: {str(e)}")
-                            import traceback
-                            print(f"[EMAIL] Traceback: {traceback.format_exc()}")
-                    
-                    # Start email sending in background thread
-                    email_thread = threading.Thread(target=send_email_async)
-                    email_thread.daemon = True
-                    email_thread.start()
-                except Exception as e:
-                    print(f"Failed to start email thread: {e}")
+                        
+                        if use_resend:
+                            import resend
+                            resend.api_key = resend_api_key
+                            from_email = getattr(settings, 'RESEND_FROM_EMAIL', 'onboarding@resend.dev')
+                            params = {
+                                "from": f"{getattr(settings, 'EMAIL_BRAND_NAME', 'NBNE Business Platform')} <{from_email}>",
+                                "to": [client.email],
+                                "subject": subject,
+                                "text": message
+                            }
+                            resend.Emails.send(params)
+                            print(f"[EMAIL] Sent via Resend to {client.email}")
+                        else:
+                            from django.core.mail import send_mail
+                            send_mail(
+                                subject=subject,
+                                message=message,
+                                from_email=settings.DEFAULT_FROM_EMAIL,
+                                recipient_list=[client.email],
+                                fail_silently=False,
+                            )
+                            print(f"[EMAIL] Sent via SMTP to {client.email}")
+                    except Exception as e:
+                        print(f"[EMAIL] ERROR: {type(e).__name__}: {e}")
                 
-                # Return booking data immediately
-                return Response(response_data, status=status.HTTP_201_CREATED)
+                email_thread = threading.Thread(target=send_email_async)
+                email_thread.daemon = True
+                email_thread.start()
+            except Exception as e:
+                print(f"Failed to start email thread: {e}")
+            
+            # Return booking data immediately
+            return Response(response_data, status=status.HTTP_201_CREATED)
             
         except (Staff.DoesNotExist, Service.DoesNotExist):
             return Response(
