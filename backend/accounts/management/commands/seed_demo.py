@@ -507,20 +507,36 @@ class Command(BaseCommand):
         """Seed staff profiles for tenants with custom staff_users config."""
         from staff.models import StaffProfile, WorkingHours
         for uname, uemail, ufirst, ulast, urole in cfg['staff_users']:
-            user = User.objects.get(username=uname)
-            p, _ = StaffProfile.objects.get_or_create(
+            try:
+                user = User.objects.get(username=uname)
+            except User.DoesNotExist:
+                self.stdout.write(self.style.WARNING(f'  User {uname} not found — skipping StaffProfile'))
+                continue
+            p, created = StaffProfile.objects.get_or_create(
                 user=user,
                 defaults={'tenant': self.tenant, 'display_name': f'{ufirst} {ulast}', 'phone': cfg.get('phone', '')}
             )
-            if not p.tenant:
+            # Always ensure correct tenant and display name
+            changed = False
+            if p.tenant != self.tenant:
                 p.tenant = self.tenant
-                p.save(update_fields=['tenant'])
+                changed = True
+            if p.display_name != f'{ufirst} {ulast}':
+                p.display_name = f'{ufirst} {ulast}'
+                changed = True
+            if not p.is_active:
+                p.is_active = True
+                changed = True
+            if changed:
+                p.save()
             for day in range(5):
                 WorkingHours.objects.get_or_create(
                     staff=p, day_of_week=day,
                     defaults={'start_time': time(9, 0), 'end_time': time(17, 0), 'is_active': True}
                 )
-        self.stdout.write(f'  Custom staff profiles seeded')
+            self.stdout.write(f'  StaffProfile: {ufirst} {ulast} ({"created" if created else "exists"})')
+        sp_count = StaffProfile.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Custom staff profiles: {sp_count}')
 
     def _seed_disclaimer(self, dcfg):
         """Seed a disclaimer using the IntakeWellbeingDisclaimer model."""
