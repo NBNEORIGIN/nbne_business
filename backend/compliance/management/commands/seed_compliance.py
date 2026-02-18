@@ -256,10 +256,14 @@ UK_BASELINE = [
 
 
 class Command(BaseCommand):
-    help = 'Seed UK baseline compliance items with legal references'
+    help = 'Seed UK baseline compliance items with legal references (per tenant)'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--tenant', type=str, help='Seed only a specific tenant slug')
 
     def handle(self, *args, **options):
-        self.stdout.write('Seeding UK compliance baseline...')
+        from tenants.models import TenantSettings
+        from compliance.models import PeaceOfMindScore
 
         # Disconnect signal to avoid recalculate during bulk creation
         from django.db.models.signals import post_save, post_delete
@@ -267,62 +271,74 @@ class Command(BaseCommand):
         post_save.disconnect(recalculate_score_on_save)
         post_delete.disconnect(recalculate_score_on_delete)
 
+        target_slug = options.get('tenant')
+        if target_slug:
+            tenants = TenantSettings.objects.filter(slug=target_slug)
+        else:
+            tenants = TenantSettings.objects.all()
+
+        if not tenants.exists():
+            self.stderr.write('No tenants found. Run seed_demo first.')
+            return
+
         today = timezone.now().date()
-        created_count = 0
 
-        for cat_data in UK_BASELINE:
+        for tenant in tenants:
+            self.stdout.write(f'\nSeeding UK compliance baseline for {tenant.business_name or tenant.slug}...')
+            created_count = 0
+
+            for cat_data in UK_BASELINE:
+                try:
+                    cat, _ = ComplianceCategory.objects.get_or_create(
+                        tenant=tenant, name=cat_data['category'],
+                        defaults={'max_score': 10}
+                    )
+                    self.stdout.write(f'  Category: {cat.name}')
+
+                    for item_data in cat_data['items']:
+                        try:
+                            obj, created = ComplianceItem.objects.get_or_create(
+                                title=item_data['title'],
+                                category=cat,
+                                defaults={
+                                    'description': item_data['description'],
+                                    'item_type': item_data['item_type'],
+                                    'frequency_type': item_data['frequency_type'],
+                                    'evidence_required': item_data['evidence_required'],
+                                    'regulatory_ref': item_data['regulatory_ref'],
+                                    'legal_reference': item_data['legal_reference'],
+                                    'plain_english_why': item_data.get('plain_english_why', ''),
+                                    'primary_action': item_data.get('primary_action', ''),
+                                    'next_due_date': today + timedelta(days=30),
+                                    'due_date': today + timedelta(days=30),
+                                    'status': 'DUE_SOON',
+                                }
+                            )
+                            # Always update Wiggum fields on existing items
+                            if not created:
+                                obj.plain_english_why = item_data.get('plain_english_why', '')
+                                obj.primary_action = item_data.get('primary_action', '')
+                                obj.description = item_data['description']
+                                obj.legal_reference = item_data['legal_reference']
+                                obj.save(update_fields=['plain_english_why', 'primary_action', 'description', 'legal_reference'])
+                            if created:
+                                created_count += 1
+                                self.stdout.write(f'    + {item_data["title"]}')
+                            else:
+                                self.stdout.write(f'    = {item_data["title"]} (updated)')
+                        except Exception as e:
+                            self.stderr.write(f'    ERROR creating {item_data["title"]}: {e}')
+                except Exception as e:
+                    self.stderr.write(f'  ERROR with category {cat_data["category"]}: {e}')
+
+            self.stdout.write(self.style.SUCCESS(f'  Seeded {created_count} new items for {tenant.slug}.'))
+
+            # Recalculate score for this tenant
             try:
-                cat, _ = ComplianceCategory.objects.get_or_create(
-                    name=cat_data['category'],
-                    defaults={'max_score': 10}
-                )
-                self.stdout.write(f'  Category: {cat.name}')
-
-                for item_data in cat_data['items']:
-                    try:
-                        obj, created = ComplianceItem.objects.get_or_create(
-                            title=item_data['title'],
-                            category=cat,
-                            defaults={
-                                'description': item_data['description'],
-                                'item_type': item_data['item_type'],
-                                'frequency_type': item_data['frequency_type'],
-                                'evidence_required': item_data['evidence_required'],
-                                'regulatory_ref': item_data['regulatory_ref'],
-                                'legal_reference': item_data['legal_reference'],
-                                'plain_english_why': item_data.get('plain_english_why', ''),
-                                'primary_action': item_data.get('primary_action', ''),
-                                'next_due_date': today + timedelta(days=30),
-                                'due_date': today + timedelta(days=30),
-                                'status': 'DUE_SOON',
-                            }
-                        )
-                        # Always update Wiggum fields on existing items
-                        if not created:
-                            obj.plain_english_why = item_data.get('plain_english_why', '')
-                            obj.primary_action = item_data.get('primary_action', '')
-                            obj.description = item_data['description']
-                            obj.legal_reference = item_data['legal_reference']
-                            obj.save(update_fields=['plain_english_why', 'primary_action', 'description', 'legal_reference'])
-                        if created:
-                            created_count += 1
-                            self.stdout.write(f'    + {item_data["title"]}')
-                        else:
-                            self.stdout.write(f'    = {item_data["title"]} (updated)')
-                    except Exception as e:
-                        self.stderr.write(f'    ERROR creating {item_data["title"]}: {e}')
+                PeaceOfMindScore.recalculate(tenant=tenant)
+                self.stdout.write(self.style.SUCCESS(f'  Peace of Mind Score recalculated for {tenant.slug}.'))
             except Exception as e:
-                self.stderr.write(f'  ERROR with category {cat_data["category"]}: {e}')
-
-        self.stdout.write(self.style.SUCCESS(f'\nSeeded {created_count} compliance items.'))
-
-        # Recalculate score (keep signals disconnected to avoid recursion)
-        try:
-            from compliance.models import PeaceOfMindScore
-            PeaceOfMindScore.recalculate()
-            self.stdout.write(self.style.SUCCESS('Peace of Mind Score recalculated.'))
-        except Exception as e:
-            self.stderr.write(f'Score recalculation error: {e}')
+                self.stderr.write(f'  Score recalculation error for {tenant.slug}: {e}')
 
         # Reconnect signals after all seeding + recalculation is done
         post_save.connect(recalculate_score_on_save)
