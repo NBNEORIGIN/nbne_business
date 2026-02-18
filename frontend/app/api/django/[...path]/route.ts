@@ -5,7 +5,14 @@ const API_BASE = process.env.DJANGO_BACKEND_URL || process.env.NEXT_PUBLIC_API_B
 async function proxyRequest(req: NextRequest) {
   const url = new URL(req.url)
   const path = url.pathname.replace(/^\/api\/django/, '')
-  const target = `${API_BASE}/api${path}${url.search}`
+  const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || req.headers.get('x-tenant-slug') || ''
+
+  // Build target URL, injecting tenant as query param for reliable resolution
+  let target = `${API_BASE}/api${path}${url.search}`
+  if (tenantSlug) {
+    const sep = target.includes('?') ? '&' : '?'
+    target = `${target}${sep}tenant=${tenantSlug}`
+  }
 
   try {
     const headers: Record<string, string> = {}
@@ -13,7 +20,6 @@ async function proxyRequest(req: NextRequest) {
     if (contentType) headers['Content-Type'] = contentType
     const auth = req.headers.get('authorization')
     if (auth) headers['Authorization'] = auth
-    const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || req.headers.get('x-tenant-slug') || ''
     if (tenantSlug) headers['X-Tenant-Slug'] = tenantSlug
 
     const init: RequestInit = {
