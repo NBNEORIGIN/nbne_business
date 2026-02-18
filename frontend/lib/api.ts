@@ -230,7 +230,7 @@ export async function getBookableStaff(serviceId?: number) {
 }
 
 export async function getStaffSlots(staffId: number, serviceId: number, date: string) {
-  return apiFetch<any>(`/bookings/staff-slots/?staff_id=${staffId}&service_id=${serviceId}&date=${date}`)
+  return apiFetch<any>(`/bookings/slots/?staff_id=${staffId}&service_id=${serviceId}&date=${date}`)
 }
 
 export async function checkDisclaimer(email: string) {

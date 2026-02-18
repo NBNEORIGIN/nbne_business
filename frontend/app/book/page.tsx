@@ -5,15 +5,16 @@ import { getServices, getBookableStaff, getStaffSlots, getSlots, checkDisclaimer
 import { useTenant } from '@/lib/tenant'
 
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
+function fmtTime(iso: string) { try { return iso.includes('T') ? iso.split('T')[1].slice(0, 5) : iso.slice(0, 5) } catch { return iso } }
 
 /* ── Reusable section card ── */
 function Section({ num, title, children }: { num: number; title: string; children: React.ReactNode }) {
   return (
     <div style={{
       background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb',
-      padding: '1.25rem 1.5rem', height: '100%',
+      padding: '0.85rem 1rem', height: '100%',
     }}>
-      <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: '0 0 1rem' }}>
+      <h2 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827', margin: '0 0 0.6rem' }}>
         {num}. {title}
       </h2>
       {children}
@@ -323,12 +324,12 @@ export default function BookPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f5f0eb' }}>
       {/* Header */}
-      <header style={{ background: '#111827', color: '#fff', padding: '2rem 2rem 2.5rem', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 0.25rem', color: '#fff' }}>{bizName}</h1>
-        <p style={{ color: '#9ca3af', fontSize: '0.9rem', margin: 0 }}>
-          Professional Hair Salon &middot; Book Your Appointment
+      <header style={{ background: '#111827', color: '#fff', padding: '1rem 2rem 1.25rem', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.15rem', color: '#fff' }}>{bizName}</h1>
+        <p style={{ color: '#9ca3af', fontSize: '0.8rem', margin: 0 }}>
+          {tenant.tagline || 'Book Your Appointment'}
         </p>
-        <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginTop: '0.75rem', fontSize: '0.82rem' }}>
+        <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginTop: '0.5rem', fontSize: '0.78rem' }}>
           <a href="/" style={{ color: '#d1d5db', textDecoration: 'none' }}>Home</a>
           <a href="/pricing" style={{ color: '#d1d5db', textDecoration: 'none' }}>Pricing</a>
           <a href="/login" style={{ color: '#d1d5db', textDecoration: 'none' }}>Login</a>
@@ -344,10 +345,10 @@ export default function BookPage() {
         </div>
       )}
 
-      <main style={{ maxWidth: 960, margin: '0 auto', padding: '1.5rem 1rem 3rem' }}>
+      <main style={{ maxWidth: 960, margin: '0 auto', padding: '1rem 1rem 2rem' }}>
 
         {/* ── Row 1: Service + Stylist ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
 
           {/* 1. Choose Service — grid cards */}
           <Section num={1} title="Choose Service">
@@ -425,7 +426,7 @@ export default function BookPage() {
         </div>
 
         {/* ── Row 2: Date + Time ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
 
           {/* 3. Choose Date — calendar */}
           <Section num={3} title="Choose Date">
@@ -447,21 +448,22 @@ export default function BookPage() {
             ) : allSlots.length === 0 ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>No slots available. Try another date.</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
                 {timeSlots.map((slot: any) => {
-                  const isSel = selectedTime === slot.start_time && !selectedLegacySlot
+                  const timeStr = fmtTime(slot.start_time)
+                  const isSel = selectedTime === timeStr && !selectedLegacySlot
                   return (
                     <button
                       key={slot.start_time}
-                      onClick={() => selectTime(slot.start_time)}
+                      onClick={() => selectTime(timeStr)}
                       style={{
-                        padding: '0.55rem 0.25rem', borderRadius: 8,
+                        padding: '0.45rem 0.25rem', borderRadius: 8,
                         border: isSel ? '2px solid #111827' : '1px solid #d1d5db',
                         background: isSel ? '#111827' : '#fff',
                         color: isSel ? '#fff' : '#374151',
-                        fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
+                        fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer',
                       }}
-                    >{slot.start_time}</button>
+                    >{timeStr}</button>
                   )
                 })}
                 {legacySlots.filter((s: any) => s.has_capacity).map((slot: any) => {
@@ -487,7 +489,7 @@ export default function BookPage() {
         </div>
 
         {/* ── Row 3: Your Details ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
           <Section num={5} title="Your Details">
             {!selectedTime ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>Complete the steps above first</div>
