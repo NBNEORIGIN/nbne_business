@@ -128,6 +128,14 @@ TENANTS = {
             ('Strategy Review', 'Consulting', 60, '300.00', 10000),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Dev Team', 'TEAM'), ('Client Projects', 'TEAM')],
+        'staff_users': [
+            ('toby', 'toby@nbnesigns.com', 'Toby', 'Fletcher', 'owner'),
+            ('jo', 'jo@nbnesigns.com', 'Jo', 'Tompkins', 'manager'),
+            ('gabby', 'gabby@nbnesigns.com', 'Gabby', 'Bassett', 'staff'),
+            ('ben', 'ben@nbnesigns.com', 'Ben', 'Randall', 'staff'),
+            ('ivan', 'ivan@nbnesigns.com', 'Ivan', 'Fillippov', 'staff'),
+            ('sanna', 'sanna@nbnesigns.com', 'Sanna', 'Mager-Brink', 'staff'),
+        ],
     },
 }
 
