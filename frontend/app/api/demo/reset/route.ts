@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://nbnebusiness-production.up.railway.app'
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://nbneplatform-production.up.railway.app'
   const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'salon-x'
 
   try {
