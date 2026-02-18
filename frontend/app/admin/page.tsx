@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { getDashboardToday, logBusinessEvent, getTodayResolved, parseAssistantCommand, getPayrollSummary, getLeaveRequests, reviewLeave, getTrainingReminders, getWiggumDashboard } from '@/lib/api'
+import { getDashboardToday, logBusinessEvent, getTodayResolved, getPayrollSummary, getLeaveRequests, reviewLeave, getTrainingReminders, getWiggumDashboard } from '@/lib/api'
 
 interface DashboardAction {
   label: string
@@ -127,12 +127,6 @@ export default function AdminDashboard() {
   const [resolvedEvents, setResolvedEvents] = useState<ResolvedEvent[]>([])
   const [view, setView] = useState<'active' | 'sorted'>('active')
 
-  // Command bar state
-  const [cmdText, setCmdText] = useState('')
-  const [cmdResult, setCmdResult] = useState<any>(null)
-  const [cmdLoading, setCmdLoading] = useState(false)
-  const [cmdFeedback, setCmdFeedback] = useState<string | null>(null)
-
   // Toast
   const [toast, setToast] = useState<string | null>(null)
 
@@ -233,60 +227,6 @@ export default function AdminDashboard() {
     }, 800)
   }
 
-  const handleCommand = async () => {
-    if (!cmdText.trim()) return
-    setCmdLoading(true)
-    setCmdResult(null)
-    setCmdFeedback(null)
-    const res = await parseAssistantCommand(cmdText)
-    setCmdLoading(false)
-    if (!res.error && res.data) {
-      setCmdResult(res.data)
-    } else {
-      setCmdResult({ parsed: false, message: 'Could not process command.' })
-    }
-  }
-
-  // Staff command → tab navigation map
-  const STAFF_CMD_NAV: Record<string, string> = {
-    'add_shift': '/admin/staff?tab=shifts',
-    'generate_timesheets': '/admin/staff?tab=timesheets',
-    'export_timesheets': '/admin/staff?tab=timesheets',
-    'add_staff': '/admin/staff?tab=profiles',
-    'check_training': '/admin/staff?tab=training',
-    'set_hours': '/admin/staff?tab=hours',
-    'log_late': '/admin/staff?tab=timesheets',
-    'log_sick': '/admin/staff?tab=leave',
-    'request_cover': '/admin/staff?tab=shifts',
-    'approve_leave': '/admin/staff?tab=leave',
-    'decline_leave': '/admin/staff?tab=leave',
-  }
-
-  const handleCommandConfirm = async () => {
-    if (!cmdResult?.intent) return
-    const intent = cmdResult.intent
-    await logBusinessEvent({
-      event_type: intent.event_type,
-      action_label: intent.original_text,
-      action_detail: intent.description,
-      payload: { ...intent.entities, source: 'assistant_command' },
-    })
-    const feedback = intent.description || 'Action confirmed.'
-    setCmdResult(null)
-    setCmdText('')
-    setCmdFeedback(feedback)
-    setTimeout(() => setCmdFeedback(null), 3000)
-    const res = await getTodayResolved()
-    if (!res.error && res.data) {
-      setResolvedEvents(res.data.events || [])
-    }
-    // Navigate to relevant Staff tab if this is a staff command
-    const navTarget = STAFF_CMD_NAV[intent.action]
-    if (navTarget) {
-      setTimeout(() => router.push(navTarget), 800)
-    }
-  }
-
   if (loading) return (
     <div style={{ padding: '3rem 0', textAlign: 'center', color: '#9ca3af', fontSize: '0.95rem' }}>
       Loading\u2026
@@ -330,85 +270,6 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', position: 'relative' }}>
-
-      {/* ── Command area ── */}
-      <div style={{ marginBottom: '1rem' }}>
-        <div style={{
-          display: 'flex', gap: '0.5rem',
-          padding: '0.6rem 0.75rem', borderRadius: 8,
-          border: '1px solid #e5e7eb', backgroundColor: '#fff',
-        }}>
-          <input
-            type="text"
-            value={cmdText}
-            onChange={(e) => setCmdText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleCommand()}
-            placeholder="Type what happened or what you want to do\u2026"
-            style={{
-              flex: 1, border: 'none', outline: 'none', fontSize: '0.9rem',
-              color: '#111827', backgroundColor: 'transparent',
-            }}
-          />
-          <button
-            onClick={handleCommand}
-            disabled={cmdLoading || !cmdText.trim()}
-            style={{
-              padding: '0.35rem 0.75rem', borderRadius: 5, border: 'none',
-              backgroundColor: '#111827', color: '#fff',
-              fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer',
-              opacity: cmdLoading || !cmdText.trim() ? 0.4 : 1,
-            }}
-          >
-            {cmdLoading ? '\u2026' : 'Go'}
-          </button>
-        </div>
-
-        {/* Compact assistant strip */}
-        {cmdResult && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '0.6rem',
-            padding: '0.4rem 0.75rem', marginTop: '0.35rem',
-            fontSize: '0.85rem', color: '#374151',
-          }}>
-            <span style={{ flex: 1 }}>
-              {cmdResult.parsed ? cmdResult.confirmation_message : cmdResult.message}
-            </span>
-            {cmdResult.parsed && (
-              <>
-                <button
-                  onClick={handleCommandConfirm}
-                  style={{
-                    padding: '0.25rem 0.65rem', borderRadius: 4, border: 'none',
-                    backgroundColor: '#111827', color: '#fff',
-                    fontSize: '0.78rem', fontWeight: 500, cursor: 'pointer',
-                  }}
-                >
-                  {cmdResult.intent?.event_type === 'STAFF_SICK' ? 'Confirm absence' : 'Confirm'}
-                </button>
-                <button
-                  onClick={() => { setCmdResult(null); setCmdText('') }}
-                  style={{
-                    fontSize: '0.78rem', color: '#9ca3af', cursor: 'pointer',
-                    border: 'none', background: 'none',
-                  }}
-                >
-                  Cancel
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Post-confirm feedback */}
-        {cmdFeedback && (
-          <div style={{
-            padding: '0.4rem 0.75rem', marginTop: '0.35rem',
-            fontSize: '0.85rem', color: '#059669', fontWeight: 500,
-          }}>
-            {cmdFeedback}
-          </div>
-        )}
-      </div>
 
       {/* ── Operational Snapshot ── */}
       <div style={{
