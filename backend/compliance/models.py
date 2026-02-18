@@ -480,16 +480,20 @@ class PeaceOfMindScore(models.Model):
         return 'red'
 
     @classmethod
-    def recalculate(cls):
+    def recalculate(cls, tenant=None):
         """
-        Core scoring algorithm:
+        Core scoring algorithm (tenant-scoped):
         Total possible weight = sum(all item weights)
         Achieved weight = sum(weight * status_factor)
         Score = (achieved / total) * 100, rounded to nearest int
         """
         from django.utils import timezone
 
-        items = ComplianceItem.objects.all()
+        qs = ComplianceItem.objects.all()
+        if tenant:
+            qs = qs.filter(category__tenant=tenant)
+
+        items = list(qs)
         total_possible = 0
         achieved = 0
         compliant = 0
@@ -516,21 +520,25 @@ class PeaceOfMindScore(models.Model):
 
         new_score = round((achieved / total_possible) * 100) if total_possible > 0 else 100
 
-        obj, created = cls.objects.get_or_create(pk=1, defaults={
+        lookup = {'tenant': tenant} if tenant else {'pk': 1}
+        defaults = {
             'score': new_score,
             'previous_score': 0,
-            'total_items': items.count(),
+            'total_items': len(items),
             'compliant_count': compliant,
             'due_soon_count': due_soon,
             'overdue_count': overdue,
             'legal_items': legal,
             'best_practice_items': best_practice,
-        })
+        }
+        if tenant:
+            defaults['tenant'] = tenant
+        obj, created = cls.objects.get_or_create(**lookup, defaults=defaults)
 
         if not created:
             obj.previous_score = obj.score
             obj.score = new_score
-            obj.total_items = items.count()
+            obj.total_items = len(items)
             obj.compliant_count = compliant
             obj.due_soon_count = due_soon
             obj.overdue_count = overdue
@@ -542,7 +550,7 @@ class PeaceOfMindScore(models.Model):
         ScoreAuditLog.objects.create(
             score=new_score,
             previous_score=obj.previous_score if not created else 0,
-            total_items=items.count(),
+            total_items=len(items),
             compliant_count=compliant,
             due_soon_count=due_soon,
             overdue_count=overdue,
@@ -550,7 +558,10 @@ class PeaceOfMindScore(models.Model):
         )
 
         # Update ComplianceCategory scores based on their items
-        for cat in ComplianceCategory.objects.all():
+        cat_qs = ComplianceCategory.objects.all()
+        if tenant:
+            cat_qs = cat_qs.filter(tenant=tenant)
+        for cat in cat_qs:
             cat_items = cat.items.all()
             cat_total = sum(i.weight for i in cat_items)
             cat_achieved = sum(i.achieved_weight for i in cat_items)

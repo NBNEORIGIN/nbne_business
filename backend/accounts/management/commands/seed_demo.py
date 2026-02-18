@@ -527,8 +527,66 @@ class Command(BaseCommand):
         self.stdout.write(f'  Channels: {ch_count}')
 
     def _seed_compliance(self, owner, staff1):
-        from compliance.models import IncidentReport, RAMSDocument
+        from compliance.models import (
+            IncidentReport, RAMSDocument, ComplianceCategory, ComplianceItem, PeaceOfMindScore,
+        )
 
+        # --- Seed UK baseline compliance items per tenant ---
+        from compliance.management.commands.seed_compliance import UK_BASELINE
+
+        # Disconnect signals during bulk seed to avoid N recalculations
+        from django.db.models.signals import post_save, post_delete
+        from compliance.signals import recalculate_score_on_save, recalculate_score_on_delete
+        post_save.disconnect(recalculate_score_on_save)
+        post_delete.disconnect(recalculate_score_on_delete)
+
+        today = date.today()
+        item_count = 0
+        # Vary due dates for realistic demo: some overdue, some due soon, some compliant
+        due_offsets = [-15, -5, 10, 25, 45, 90, 120, 180, 200, 250, 300, 330, 14, 60, 7, 21, 35, 150, 270, 365]
+        idx = 0
+        for cat_data in UK_BASELINE:
+            cat, _ = ComplianceCategory.objects.get_or_create(
+                tenant=self.tenant, name=cat_data['category'],
+                defaults={'max_score': 10}
+            )
+            for item_data in cat_data['items']:
+                offset = due_offsets[idx % len(due_offsets)]
+                idx += 1
+                due = today + timedelta(days=offset)
+                obj, created = ComplianceItem.objects.get_or_create(
+                    title=item_data['title'], category=cat,
+                    defaults={
+                        'description': item_data['description'],
+                        'item_type': item_data['item_type'],
+                        'frequency_type': item_data['frequency_type'],
+                        'evidence_required': item_data['evidence_required'],
+                        'regulatory_ref': item_data['regulatory_ref'],
+                        'legal_reference': item_data['legal_reference'],
+                        'plain_english_why': item_data.get('plain_english_why', ''),
+                        'primary_action': item_data.get('primary_action', ''),
+                        'next_due_date': due,
+                        'due_date': due,
+                    }
+                )
+                if not created:
+                    obj.plain_english_why = item_data.get('plain_english_why', '')
+                    obj.primary_action = item_data.get('primary_action', '')
+                    obj.description = item_data['description']
+                    obj.legal_reference = item_data['legal_reference']
+                    obj.save(update_fields=['plain_english_why', 'primary_action', 'description', 'legal_reference'])
+                else:
+                    item_count += 1
+        self.stdout.write(f'  Compliance items: {item_count} new, {ComplianceItem.objects.filter(category__tenant=self.tenant).count()} total')
+
+        # Reconnect signals
+        post_save.connect(recalculate_score_on_save)
+        post_delete.connect(recalculate_score_on_delete)
+
+        # Recalculate score for this tenant
+        PeaceOfMindScore.recalculate(tenant=self.tenant)
+
+        # --- Seed incidents ---
         IncidentReport.objects.get_or_create(
             tenant=self.tenant, title='Wet floor slip hazard',
             defaults={

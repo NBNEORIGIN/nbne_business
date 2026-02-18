@@ -27,4 +27,11 @@ urlpatterns = [
     path('accidents/create/', views.accidents_create, name='accidents-create'),
     path('accidents/<int:accident_id>/update/', views.accidents_update, name='accidents-update'),
     path('accidents/<int:accident_id>/delete/', views.accidents_delete, name='accidents-delete'),
+    # Incidents
+    path('incidents/', views.incidents_list, name='incidents-list'),
+    path('incidents/create/', views.incidents_create, name='incidents-create'),
+    path('incidents/<int:incident_id>/status/', views.incidents_status, name='incidents-status'),
+    # RAMS & Documents
+    path('rams/', views.rams_list, name='rams-list'),
+    path('documents/', views.compliance_documents_list, name='compliance-documents'),
 ]

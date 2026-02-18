@@ -15,6 +15,7 @@ import calendar as cal_mod
 from .models import (
     ComplianceItem, ComplianceCategory, PeaceOfMindScore,
     ScoreAuditLog, IncidentReport, Equipment, AccidentReport,
+    RAMSDocument,
 )
 
 
@@ -93,7 +94,7 @@ def dashboard(request):
     tenant = getattr(request, 'tenant', None)
     score_obj = PeaceOfMindScore.objects.filter(tenant=tenant).first()
     if not score_obj:
-        score_obj = PeaceOfMindScore.recalculate()
+        score_obj = PeaceOfMindScore.recalculate(tenant=tenant)
 
     change_message = None
     change = score_obj.score_change
@@ -504,7 +505,8 @@ def audit_log(request):
 @permission_classes([AllowAny])
 def recalculate(request):
     """POST /api/compliance/recalculate/"""
-    result = PeaceOfMindScore.recalculate()
+    tenant = getattr(request, 'tenant', None)
+    result = PeaceOfMindScore.recalculate(tenant=tenant)
     latest_log = ScoreAuditLog.objects.order_by('-calculated_at').first()
     if latest_log:
         latest_log.trigger = 'manual'
@@ -528,7 +530,7 @@ def dashboard_v2(request):
     tenant = getattr(request, 'tenant', None)
     score_obj = PeaceOfMindScore.objects.filter(tenant=tenant).first()
     if not score_obj:
-        score_obj = PeaceOfMindScore.recalculate()
+        score_obj = PeaceOfMindScore.recalculate(tenant=tenant)
 
     today = timezone.now().date()
 
@@ -846,3 +848,121 @@ def parse_command(request):
         'action': 'unknown',
         'message': f'Could not match "{text}" to a compliance item. Try being more specific.',
     })
+
+
+# ========== INCIDENTS (IncidentReport) ==========
+
+def _serialize_incident(inc):
+    return {
+        'id': inc.id,
+        'title': inc.title,
+        'description': inc.description,
+        'severity': inc.severity,
+        'status': inc.status,
+        'location': inc.location,
+        'incident_date': inc.incident_date.isoformat() if inc.incident_date else None,
+        'reported_by': inc.reported_by.get_full_name() if inc.reported_by else '',
+        'assigned_to': inc.assigned_to.get_full_name() if inc.assigned_to else '',
+        'resolution_notes': inc.resolution_notes,
+        'resolved_at': inc.resolved_at.isoformat() if inc.resolved_at else None,
+        'riddor_reportable': getattr(inc, 'riddor_reportable', False),
+        'created_at': inc.created_at.isoformat(),
+    }
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def incidents_list(request):
+    """GET /api/compliance/incidents/"""
+    tenant = getattr(request, 'tenant', None)
+    qs = IncidentReport.objects.filter(tenant=tenant)
+    if request.query_params.get('status'):
+        qs = qs.filter(status=request.query_params['status'])
+    return Response([_serialize_incident(i) for i in qs])
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def incidents_create(request):
+    """POST /api/compliance/incidents/create/"""
+    d = request.data
+    tenant = getattr(request, 'tenant', None)
+    inc = IncidentReport.objects.create(
+        tenant=tenant,
+        title=d.get('title', ''),
+        description=d.get('description', ''),
+        severity=d.get('severity', 'MEDIUM'),
+        location=d.get('location', ''),
+        incident_date=d.get('incident_date') or timezone.now(),
+        reported_by=request.user if request.user.is_authenticated else None,
+    )
+    return Response(_serialize_incident(inc), status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def incidents_status(request, incident_id):
+    """POST /api/compliance/incidents/<id>/status/"""
+    try:
+        tenant = getattr(request, 'tenant', None)
+        inc = IncidentReport.objects.get(id=incident_id, tenant=tenant)
+    except IncidentReport.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    new_status = request.data.get('status', '')
+    if new_status:
+        inc.status = new_status
+    if request.data.get('resolution_notes'):
+        inc.resolution_notes = request.data['resolution_notes']
+    if new_status in ('RESOLVED', 'CLOSED'):
+        inc.resolved_at = timezone.now()
+    inc.save()
+    return Response(_serialize_incident(inc))
+
+
+# ========== RAMS ==========
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def rams_list(request):
+    """GET /api/compliance/rams/"""
+    tenant = getattr(request, 'tenant', None)
+    qs = RAMSDocument.objects.filter(tenant=tenant)
+    return Response([{
+        'id': r.id,
+        'title': r.title,
+        'reference_number': r.reference_number,
+        'description': r.description,
+        'document': r.document.url if r.document else None,
+        'status': r.status,
+        'issue_date': _safe_date(r.issue_date),
+        'expiry_date': _safe_date(r.expiry_date),
+        'is_expired': r.is_expired,
+        'created_at': r.created_at.isoformat(),
+    } for r in qs])
+
+
+# ========== COMPLIANCE DOCUMENTS ==========
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def compliance_documents_list(request):
+    """GET /api/compliance/documents/"""
+    tenant = getattr(request, 'tenant', None)
+    try:
+        from documents.models import Document
+        qs = Document.objects.filter(tenant=tenant)
+        doc_type = request.query_params.get('type')
+        if doc_type:
+            qs = qs.filter(category=doc_type)
+        # Filter to H&S related categories
+        qs = qs.filter(category__in=['HEALTH_SAFETY', 'COMPLIANCE', 'POLICY', 'INSURANCE'])
+        return Response([{
+            'id': d.id,
+            'title': d.title,
+            'document_type': d.category,
+            'is_current': not d.is_expired if hasattr(d, 'is_expired') else True,
+            'is_expired': d.is_expired if hasattr(d, 'is_expired') else False,
+            'expiry_date': _safe_date(d.expiry_date) if hasattr(d, 'expiry_date') else None,
+        } for d in qs])
+    except Exception:
+        return Response([])
