@@ -1,40 +1,76 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getServices, getBookableStaff, getStaffSlots, getSlots, checkDisclaimer, signDisclaimer, createBooking } from '@/lib/api'
 import { useTenant } from '@/lib/tenant'
 
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
 
-type Step = 'service' | 'staff' | 'datetime' | 'details' | 'disclaimer' | 'confirm'
+function SectionHeader({ num, title, done, active }: { num: number; title: string; done: boolean; active: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '0.85rem', fontWeight: 700,
+        background: done ? '#111827' : active ? '#2563eb' : '#e5e7eb',
+        color: done || active ? '#fff' : '#9ca3af',
+      }}>
+        {done ? '✓' : num}
+      </div>
+      <h2 style={{
+        fontSize: '1.1rem', fontWeight: 700, margin: 0,
+        color: active || done ? '#111827' : '#9ca3af',
+      }}>{title}</h2>
+    </div>
+  )
+}
 
 export default function BookPage() {
   const tenant = useTenant()
-  const [step, setStep] = useState<Step>('service')
+  const bizName = tenant.business_name || 'Salon-X'
+
+  // Data
   const [services, setServices] = useState<any[]>([])
   const [staffList, setStaffList] = useState<any[]>([])
+  const [timeSlots, setTimeSlots] = useState<any[]>([])
+  const [legacySlots, setLegacySlots] = useState<any[]>([])
+
+  // Selections
   const [selectedService, setSelectedService] = useState<any>(null)
   const [selectedStaff, setSelectedStaff] = useState<any>(null)
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
-  const [timeSlots, setTimeSlots] = useState<any[]>([])
+  const [selectedLegacySlot, setSelectedLegacySlot] = useState<any>(null)
+
+  // Customer details
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [notes, setNotes] = useState('')
-  const [disclaimerData, setDisclaimerData] = useState<any>(null)
-  const [confirmed, setConfirmed] = useState<any>(null)
+
+  // UI state
   const [loadingServices, setLoadingServices] = useState(true)
   const [loadingStaff, setLoadingStaff] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [legacySlots, setLegacySlots] = useState<any[]>([])
-  const [selectedLegacySlot, setSelectedLegacySlot] = useState<any>(null)
+  const [disclaimerData, setDisclaimerData] = useState<any>(null)
+  const [showDisclaimer, setShowDisclaimer] = useState(false)
+  const [confirmed, setConfirmed] = useState<any>(null)
+
+  // Refs for smooth scrolling
+  const staffRef = useRef<HTMLDivElement>(null)
+  const dateRef = useRef<HTMLDivElement>(null)
+  const detailsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     getServices().then(r => { setServices(r.data || []); setLoadingServices(false) })
   }, [])
+
+  function scrollTo(ref: React.RefObject<HTMLDivElement | null>) {
+    setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
+  }
 
   async function selectService(svc: any) {
     setSelectedService(svc)
@@ -42,29 +78,34 @@ export default function BookPage() {
     setSelectedDate('')
     setSelectedTime('')
     setTimeSlots([])
+    setLegacySlots([])
+    setSelectedLegacySlot(null)
     setLoadingStaff(true)
     const res = await getBookableStaff(svc.id)
     const staff = res.data || []
     setStaffList(staff)
     setLoadingStaff(false)
     if (staff.length > 0) {
-      setStep('staff')
+      scrollTo(staffRef)
     } else {
-      setStep('datetime')
+      scrollTo(dateRef)
     }
   }
 
-  function selectStaffMember(s: any) {
+  async function selectStaffMember(s: any) {
     setSelectedStaff(s)
     setSelectedDate('')
     setSelectedTime('')
     setTimeSlots([])
-    setStep('datetime')
+    setLegacySlots([])
+    setSelectedLegacySlot(null)
+    scrollTo(dateRef)
   }
 
   async function selectDate(dateStr: string) {
     setSelectedDate(dateStr)
     setSelectedTime('')
+    setSelectedLegacySlot(null)
     setError('')
     setLoadingSlots(true)
     if (selectedStaff) {
@@ -81,24 +122,25 @@ export default function BookPage() {
 
   function selectTime(time: string) {
     setSelectedTime(time)
+    setSelectedLegacySlot(null)
     setError('')
-    setStep('details')
+    scrollTo(detailsRef)
   }
 
   function selectLegacySlot(slot: any) {
     setSelectedLegacySlot(slot)
     setSelectedTime(slot.start_time.slice(0, 5))
     setError('')
-    setStep('details')
+    scrollTo(detailsRef)
   }
 
-  async function handleDetailsSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     const res = await checkDisclaimer(email)
     if (res.data?.required && !res.data?.valid) {
       setDisclaimerData(res.data.disclaimer)
-      setStep('disclaimer')
+      setShowDisclaimer(true)
       return
     }
     await submitBooking()
@@ -110,6 +152,7 @@ export default function BookPage() {
     const res = await signDisclaimer({ email, name, disclaimer_id: disclaimerData.id })
     setSubmitting(false)
     if (res.data?.signed) {
+      setShowDisclaimer(false)
       await submitBooking()
     } else {
       setError('Failed to sign disclaimer. Please try again.')
@@ -139,14 +182,12 @@ export default function BookPage() {
     setSubmitting(false)
     if (res.data) {
       setConfirmed(res.data)
-      setStep('confirm')
     } else {
       setError(res.error || 'Booking failed. Please try again.')
     }
   }
 
   function resetBooking() {
-    setStep('service')
     setSelectedService(null)
     setSelectedStaff(null)
     setSelectedDate('')
@@ -156,192 +197,439 @@ export default function BookPage() {
     setSelectedLegacySlot(null)
     setName(''); setEmail(''); setPhone(''); setNotes('')
     setDisclaimerData(null)
+    setShowDisclaimer(false)
     setConfirmed(null)
     setError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // Generate next 14 days
   const dates: string[] = []
   for (let i = 0; i < 14; i++) {
     const d = new Date(); d.setDate(d.getDate() + i)
     dates.push(d.toISOString().split('T')[0])
   }
 
+  const hasStaff = staffList.length > 0
+  const canShowDate = selectedService && (!hasStaff || selectedStaff)
+  const canShowDetails = selectedService && selectedTime
+  const allSlots = [...timeSlots, ...legacySlots.filter((s: any) => s.has_capacity)]
+
+  // ── Confirmation overlay ──
+  if (confirmed) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+        <header style={{ background: '#111827', color: '#fff', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <a href="/" style={{ color: '#fff', textDecoration: 'none', fontWeight: 800, fontSize: '1.3rem' }}>{bizName}</a>
+        </header>
+        <div style={{ maxWidth: 480, margin: '0 auto', padding: '4rem 1.5rem', textAlign: 'center' }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: '50%', background: '#dcfce7',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 1.5rem', fontSize: '1.75rem',
+          }}>✓</div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#111827', marginBottom: '0.5rem' }}>Booking Confirmed!</h1>
+          <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
+            Reference: <strong>#{confirmed.id}</strong>
+          </p>
+          <div style={{
+            background: '#fff', borderRadius: 12, padding: '1.5rem', border: '1px solid #e5e7eb',
+            textAlign: 'left', marginBottom: '1.5rem',
+          }}>
+            <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.9rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#6b7280' }}>Service</span>
+                <strong>{selectedService?.name}</strong>
+              </div>
+              {selectedStaff && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280' }}>Stylist</span>
+                  <strong>{selectedStaff.display_name}</strong>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#6b7280' }}>Date</span>
+                <strong>{selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#6b7280' }}>Time</span>
+                <strong>{selectedTime}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#6b7280' }}>Price</span>
+                <strong>{selectedService && formatPrice(selectedService.price_pence)}</strong>
+              </div>
+            </div>
+          </div>
+          {confirmed.checkout_url && (
+            <a href={confirmed.checkout_url} style={{
+              display: 'inline-block', background: '#111827', color: '#fff',
+              padding: '0.75rem 2rem', borderRadius: 8, textDecoration: 'none',
+              fontWeight: 700, fontSize: '1rem', marginBottom: '0.75rem',
+            }}>Pay Deposit Now</a>
+          )}
+          <div>
+            <button onClick={resetBooking} style={{
+              background: 'none', border: 'none', color: '#2563eb',
+              fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600, marginTop: '0.5rem',
+            }}>Book Another Appointment</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Disclaimer overlay ──
+  if (showDisclaimer && disclaimerData) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+        <header style={{ background: '#111827', color: '#fff', padding: '1rem 2rem' }}>
+          <a href="/" style={{ color: '#fff', textDecoration: 'none', fontWeight: 800, fontSize: '1.3rem' }}>{bizName}</a>
+        </header>
+        <div style={{ maxWidth: 560, margin: '0 auto', padding: '2rem 1.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>{disclaimerData.title}</h2>
+          <div style={{
+            background: '#fff', borderRadius: 10, padding: '1.5rem', border: '1px solid #e5e7eb',
+            maxHeight: 320, overflowY: 'auto', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.25rem',
+          }}>
+            {disclaimerData.body.split('\n').map((line: string, i: number) => (
+              <p key={i} style={{ marginBottom: '0.5rem' }}>{line}</p>
+            ))}
+          </div>
+          <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '1rem', marginBottom: '1.25rem' }}>
+            <p style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.9rem' }}>By clicking below, you confirm:</p>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
+              <li>You have read and understood the above terms</li>
+              <li>You agree to be bound by these terms</li>
+              <li>This agreement is valid for 12 months</li>
+            </ul>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button onClick={handleDisclaimerSign} disabled={submitting} style={{
+              flex: 1, padding: '0.75rem', borderRadius: 8, border: 'none',
+              background: '#111827', color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer',
+            }}>{submitting ? 'Signing…' : 'I Agree — Continue'}</button>
+            <button onClick={() => setShowDisclaimer(false)} style={{
+              padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #e5e7eb',
+              background: '#fff', color: '#6b7280', cursor: 'pointer', fontSize: '0.9rem',
+            }}>Back</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Main single-page booking ──
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
-      <header style={{ background: 'var(--color-primary-dark)', color: '#fff', padding: '1.25rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <a href="/" style={{ color: '#fff', textDecoration: 'none' }}>
-          <h1 style={{ color: '#fff', fontSize: '1.4rem', margin: 0 }}>{tenant.business_name}</h1>
-        </a>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <a href="/" style={{ color: '#fff', opacity: 0.8, fontSize: '0.85rem' }}>Home</a>
-          <a href="/login" style={{ color: '#fff', opacity: 0.8, fontSize: '0.85rem' }}>Staff Login</a>
+    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+      {/* Header */}
+      <header style={{
+        background: '#111827', color: '#fff', padding: '1rem 2rem',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <a href="/" style={{ color: '#fff', textDecoration: 'none', fontWeight: 800, fontSize: '1.3rem' }}>{bizName}</a>
+        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', fontSize: '0.85rem' }}>
+          <a href="/" style={{ color: '#d1d5db', textDecoration: 'none' }}>Home</a>
+          <a href="/pricing" style={{ color: '#d1d5db', textDecoration: 'none' }}>Pricing</a>
+          <a href="/login" style={{ color: '#d1d5db', textDecoration: 'none' }}>Login</a>
         </div>
       </header>
 
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1rem' }}>
+      {/* Title bar */}
+      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '1.5rem 2rem' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#111827', margin: 0 }}>Book an Appointment</h1>
+          <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: '0.25rem 0 0' }}>
+            Choose your service, pick a time, and you&rsquo;re sorted.
+          </p>
+        </div>
+      </div>
+
+      <main style={{ maxWidth: 720, margin: '0 auto', padding: '1.5rem 1rem 4rem' }}>
         {error && (
-          <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1rem', color: '#991b1b' }}>
+          <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1rem', color: '#991b1b', fontSize: '0.9rem' }}>
             {error}
-            <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
           </div>
         )}
 
-        {/* Step 1: Service */}
-        {step === 'service' && (
-          <div>
-            <h2 style={{ marginBottom: '1rem' }}>Choose a Service</h2>
-            {loadingServices ? <div className="empty-state">Loading services…</div> : (
-              <div style={{ display: 'grid', gap: '0.75rem' }}>
-                {services.filter((s: any) => s.is_active !== false).map((svc: any) => (
-                  <div key={svc.id} className="card" style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => selectService(svc)}>
+        {/* ── 1. Service ── */}
+        <section style={{ marginBottom: '2rem' }}>
+          <SectionHeader num={1} title="Choose a Service" done={!!selectedService} active={!selectedService} />
+          {loadingServices ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>Loading services…</div>
+          ) : (
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              {services.filter((s: any) => s.is_active !== false).map((svc: any) => {
+                const isSelected = selectedService?.id === svc.id
+                return (
+                  <div
+                    key={svc.id}
+                    onClick={() => selectService(svc)}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '0.85rem 1rem', borderRadius: 10, cursor: 'pointer',
+                      background: isSelected ? '#111827' : '#fff',
+                      color: isSelected ? '#fff' : '#111827',
+                      border: isSelected ? '2px solid #111827' : '1px solid #e5e7eb',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
                     <div>
-                      <strong>{svc.name}</strong>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{svc.description}</div>
-                      <div style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>{svc.duration_minutes} min</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{svc.name}</div>
+                      {svc.description && (
+                        <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '0.15rem' }}>{svc.description}</div>
+                      )}
+                      <div style={{ fontSize: '0.78rem', opacity: 0.6, marginTop: '0.15rem' }}>{svc.duration_minutes} min</div>
                     </div>
-                    <div style={{ textAlign: 'right', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
-                      <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--color-primary-dark)' }}>{svc.price_pence > 0 ? formatPrice(svc.price_pence) : 'Contact for pricing'}</div>
+                    <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '1rem' }}>
+                      <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>
+                        {svc.price_pence > 0 ? formatPrice(svc.price_pence) : 'POA'}
+                      </div>
                       {(svc.deposit_percentage > 0 || svc.deposit_pence > 0) && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                        <div style={{ fontSize: '0.72rem', opacity: 0.6 }}>
                           Deposit: {svc.deposit_percentage > 0 ? `${svc.deposit_percentage}%` : formatPrice(svc.deposit_pence)}
                         </div>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 2: Staff */}
-        {step === 'staff' && (
-          <div>
-            <button className="btn btn-ghost" onClick={() => setStep('service')}>← Back</button>
-            <h2 style={{ margin: '1rem 0' }}>Choose Your Stylist</h2>
-            {loadingStaff ? <div className="empty-state">Loading…</div> : (
-              <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
-                {staffList.map((s: any) => (
-                  <div key={s.user_id} className="card" style={{ cursor: 'pointer', textAlign: 'center', padding: '1.5rem 1rem' }} onClick={() => selectStaffMember(s)}>
-                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem', fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-primary-dark)' }}>
-                      {s.display_name?.charAt(0) || '?'}
-                    </div>
-                    <strong>{s.display_name}</strong>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 3: Date & Time */}
-        {step === 'datetime' && (
-          <div>
-            <button className="btn btn-ghost" onClick={() => setStep(staffList.length > 0 ? 'staff' : 'service')}>← Back</button>
-            <h2 style={{ margin: '1rem 0' }}>
-              Pick a Date{selectedStaff ? ` with ${selectedStaff.display_name}` : ''} — {selectedService?.name}
-            </h2>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-              {dates.map(d => (
-                <button key={d} className={`btn ${selectedDate === d ? 'btn-primary' : 'btn-outline'}`} style={{ minWidth: 90 }} onClick={() => selectDate(d)}>
-                  {new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                </button>
-              ))}
+                )
+              })}
             </div>
+          )}
+        </section>
+
+        {/* ── 2. Stylist ── */}
+        {selectedService && hasStaff && (
+          <section ref={staffRef} style={{ marginBottom: '2rem' }}>
+            <SectionHeader num={2} title="Choose Your Stylist" done={!!selectedStaff} active={!selectedStaff} />
+            {loadingStaff ? (
+              <div style={{ padding: '1.5rem', textAlign: 'center', color: '#9ca3af' }}>Loading stylists…</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.6rem' }}>
+                {staffList.map((s: any) => {
+                  const isSelected = selectedStaff?.user_id === s.user_id
+                  return (
+                    <div
+                      key={s.user_id}
+                      onClick={() => selectStaffMember(s)}
+                      style={{
+                        textAlign: 'center', padding: '1.25rem 0.75rem', borderRadius: 10,
+                        cursor: 'pointer', transition: 'all 0.15s ease',
+                        background: isSelected ? '#111827' : '#fff',
+                        color: isSelected ? '#fff' : '#111827',
+                        border: isSelected ? '2px solid #111827' : '1px solid #e5e7eb',
+                      }}
+                    >
+                      <div style={{
+                        width: 48, height: 48, borderRadius: '50%',
+                        background: isSelected ? 'rgba(255,255,255,0.2)' : '#f0f9ff',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 0.5rem', fontSize: '1.1rem', fontWeight: 700,
+                        color: isSelected ? '#fff' : '#2563eb',
+                      }}>
+                        {s.display_name?.charAt(0) || '?'}
+                      </div>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{s.display_name}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── 3. Date & Time ── */}
+        {canShowDate && (
+          <section ref={dateRef} style={{ marginBottom: '2rem' }}>
+            <SectionHeader
+              num={hasStaff ? 3 : 2}
+              title={selectedStaff ? `Pick a Date with ${selectedStaff.display_name}` : 'Pick a Date & Time'}
+              done={!!selectedTime}
+              active={!selectedTime}
+            />
+
+            {/* Date pills */}
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {dates.map(d => {
+                  const isSelected = selectedDate === d
+                  const dateObj = new Date(d + 'T00:00:00')
+                  const isToday = d === dates[0]
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => selectDate(d)}
+                      style={{
+                        padding: '0.5rem 0.75rem', borderRadius: 8, border: 'none',
+                        cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                        background: isSelected ? '#111827' : '#fff',
+                        color: isSelected ? '#fff' : '#374151',
+                        boxShadow: isSelected ? 'none' : '0 1px 2px rgba(0,0,0,0.06)',
+                        minWidth: 80, textAlign: 'center',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>
+                        {isToday ? 'Today' : dateObj.toLocaleDateString('en-GB', { weekday: 'short' })}
+                      </div>
+                      <div>{dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Time slots */}
             {selectedDate && (
               <div>
-                <h3 style={{ marginBottom: '0.75rem' }}>Available Times</h3>
-                {loadingSlots ? <div className="empty-state">Loading slots…</div> : (
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {timeSlots.map((slot: any) => (
-                      <button key={slot.start_time} className="btn btn-outline" onClick={() => selectTime(slot.start_time)}>
-                        {slot.start_time}
-                      </button>
-                    ))}
-                    {legacySlots.filter((s: any) => s.has_capacity).map((slot: any) => (
-                      <button key={slot.id} className="btn btn-outline" onClick={() => selectLegacySlot(slot)}>
-                        {slot.start_time.slice(0, 5)}
-                      </button>
-                    ))}
-                    {timeSlots.length === 0 && legacySlots.filter((s: any) => s.has_capacity).length === 0 && (
-                      <p style={{ color: 'var(--color-text-muted)' }}>No slots available on this date.</p>
-                    )}
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Available times</div>
+                {loadingSlots ? (
+                  <div style={{ padding: '1rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>Loading times…</div>
+                ) : allSlots.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.4rem' }}>
+                    {timeSlots.map((slot: any) => {
+                      const isSelected = selectedTime === slot.start_time && !selectedLegacySlot
+                      return (
+                        <button
+                          key={slot.start_time}
+                          onClick={() => selectTime(slot.start_time)}
+                          style={{
+                            padding: '0.55rem 0.5rem', borderRadius: 8, border: 'none',
+                            cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                            background: isSelected ? '#111827' : '#fff',
+                            color: isSelected ? '#fff' : '#374151',
+                            boxShadow: isSelected ? 'none' : '0 1px 2px rgba(0,0,0,0.06)',
+                          }}
+                        >{slot.start_time}</button>
+                      )
+                    })}
+                    {legacySlots.filter((s: any) => s.has_capacity).map((slot: any) => {
+                      const t = slot.start_time.slice(0, 5)
+                      const isSelected = selectedLegacySlot?.id === slot.id
+                      return (
+                        <button
+                          key={slot.id}
+                          onClick={() => selectLegacySlot(slot)}
+                          style={{
+                            padding: '0.55rem 0.5rem', borderRadius: 8, border: 'none',
+                            cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                            background: isSelected ? '#111827' : '#fff',
+                            color: isSelected ? '#fff' : '#374151',
+                            boxShadow: isSelected ? 'none' : '0 1px 2px rgba(0,0,0,0.06)',
+                          }}
+                        >{t}</button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ padding: '1rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem', background: '#fff', borderRadius: 8 }}>
+                    No slots available on this date. Try another day.
                   </div>
                 )}
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {/* Step 4: Customer Details */}
-        {step === 'details' && (
-          <div>
-            <button className="btn btn-ghost" onClick={() => { setStep('datetime'); setSelectedTime('') }}>← Back</button>
-            <h2 style={{ margin: '1rem 0' }}>Your Details</h2>
-            <div className="card" style={{ padding: '1rem', marginBottom: '1.5rem', background: 'var(--color-primary-light)' }}>
-              <strong>{selectedService!.name}</strong>
-              {selectedStaff && <span> with {selectedStaff.display_name}</span>}
-              <span> — {selectedDate} at {selectedTime}</span>
-              <div style={{ fontWeight: 700, marginTop: '0.25rem' }}>{formatPrice(selectedService!.price_pence)}</div>
+        {/* ── 4. Your Details ── */}
+        {canShowDetails && (
+          <section ref={detailsRef} style={{ marginBottom: '2rem' }}>
+            <SectionHeader num={hasStaff ? 4 : 3} title="Your Details" done={false} active={true} />
+
+            {/* Booking summary */}
+            <div style={{
+              background: '#fff', borderRadius: 10, padding: '1rem 1.25rem',
+              border: '1px solid #e5e7eb', marginBottom: '1.25rem',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div style={{ fontSize: '0.88rem' }}>
+                <strong>{selectedService.name}</strong>
+                {selectedStaff && <span style={{ color: '#6b7280' }}> with {selectedStaff.display_name}</span>}
+                <div style={{ color: '#6b7280', fontSize: '0.82rem', marginTop: '0.15rem' }}>
+                  {selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} at {selectedTime}
+                </div>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#111827' }}>
+                {formatPrice(selectedService.price_pence)}
+              </div>
             </div>
-            <form onSubmit={handleDetailsSubmit} style={{ display: 'grid', gap: '1rem' }}>
-              <div><label>Full Name</label><input required value={name} onChange={e => setName(e.target.value)} /></div>
-              <div><label>Email</label><input type="email" required value={email} onChange={e => setEmail(e.target.value)} /></div>
-              <div><label>Phone</label><input type="tel" required value={phone} onChange={e => setPhone(e.target.value)} /></div>
-              <div><label>Notes (optional)</label><textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></div>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}>
-                {submitting ? 'Processing…' : 'Continue'}
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '0.85rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Full Name</label>
+                <input
+                  required value={name} onChange={e => setName(e.target.value)}
+                  placeholder="e.g. Sarah Jones"
+                  style={{
+                    width: '100%', padding: '0.65rem 0.85rem', borderRadius: 8,
+                    border: '1px solid #d1d5db', fontSize: '0.9rem', outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Email</label>
+                <input
+                  type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder="sarah@example.com"
+                  style={{
+                    width: '100%', padding: '0.65rem 0.85rem', borderRadius: 8,
+                    border: '1px solid #d1d5db', fontSize: '0.9rem', outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Phone</label>
+                <input
+                  type="tel" required value={phone} onChange={e => setPhone(e.target.value)}
+                  placeholder="07700 900000"
+                  style={{
+                    width: '100%', padding: '0.65rem 0.85rem', borderRadius: 8,
+                    border: '1px solid #d1d5db', fontSize: '0.9rem', outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>Notes (optional)</label>
+                <textarea
+                  rows={2} value={notes} onChange={e => setNotes(e.target.value)}
+                  placeholder="Anything we should know?"
+                  style={{
+                    width: '100%', padding: '0.65rem 0.85rem', borderRadius: 8,
+                    border: '1px solid #d1d5db', fontSize: '0.9rem', outline: 'none',
+                    resize: 'vertical', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={submitting || !name.trim() || !email.trim() || !phone.trim()}
+                style={{
+                  width: '100%', padding: '0.85rem', borderRadius: 10, border: 'none',
+                  background: '#111827', color: '#fff', fontWeight: 700, fontSize: '1rem',
+                  cursor: submitting ? 'wait' : 'pointer',
+                  opacity: submitting || !name.trim() || !email.trim() || !phone.trim() ? 0.5 : 1,
+                  marginTop: '0.25rem',
+                }}
+              >
+                {submitting ? 'Booking…' : 'Confirm Booking'}
               </button>
+              {selectedService && (selectedService.deposit_percentage > 0 || selectedService.deposit_pence > 0) && (
+                <p style={{ textAlign: 'center', fontSize: '0.78rem', color: '#6b7280', margin: 0 }}>
+                  A deposit of {selectedService.deposit_percentage > 0 ? `${selectedService.deposit_percentage}%` : formatPrice(selectedService.deposit_pence)} will be requested after booking.
+                </p>
+              )}
             </form>
-          </div>
+          </section>
         )}
 
-        {/* Step 5: Disclaimer */}
-        {step === 'disclaimer' && disclaimerData && (
-          <div>
-            <button className="btn btn-ghost" onClick={() => setStep('details')}>← Back</button>
-            <h2 style={{ margin: '1rem 0' }}>{disclaimerData.title}</h2>
-            <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem', maxHeight: 300, overflowY: 'auto', fontSize: '0.9rem', lineHeight: 1.6 }}>
-              {disclaimerData.body.split('\n').map((line: string, i: number) => (
-                <p key={i} style={{ marginBottom: '0.5rem' }}>{line}</p>
-              ))}
-            </div>
-            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '1rem', marginBottom: '1rem' }}>
-              <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>By clicking below, you confirm:</p>
-              <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}>
-                <li>You have read and understood the above terms</li>
-                <li>You agree to be bound by these terms</li>
-                <li>This agreement is valid for 12 months</li>
-              </ul>
-            </div>
-            <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleDisclaimerSign} disabled={submitting}>
-              {submitting ? 'Signing…' : 'I Agree — Sign & Continue'}
-            </button>
-          </div>
-        )}
-
-        {/* Step 6: Confirmation */}
-        {step === 'confirm' && confirmed && (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✓</div>
-            <h2>Booking Confirmed!</h2>
-            <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
-              Reference: <strong>#{confirmed.id}</strong> — {selectedService?.name}
-            </p>
-            {selectedStaff && <p style={{ color: 'var(--color-text-muted)' }}>with {selectedStaff.display_name}</p>}
-            <p style={{ color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
-              {selectedDate} at {selectedTime}
-            </p>
-            {confirmed.checkout_url && (
-              <a href={confirmed.checkout_url} className="btn btn-primary" style={{ display: 'inline-block', marginTop: '1.5rem' }}>
-                Pay Deposit Now
-              </a>
-            )}
-            <button className="btn btn-outline" style={{ marginTop: '1rem', display: 'block', margin: '1rem auto 0' }} onClick={resetBooking}>
-              Book Another
-            </button>
-          </div>
-        )}
+        {/* Powered by footer */}
+        <div style={{ textAlign: 'center', padding: '2rem 0 1rem', fontSize: '0.75rem', color: '#9ca3af' }}>
+          Powered by NBNE Business Platform
+        </div>
       </main>
     </div>
   )
