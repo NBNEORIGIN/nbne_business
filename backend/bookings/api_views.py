@@ -223,14 +223,14 @@ class BookingViewSet(viewsets.ModelViewSet):
         from datetime import datetime
         from django.db import transaction
         
-        # Extract data
-        service_id = request.data.get('service')
-        staff_id = request.data.get('staff')
-        date_str = request.data.get('date')
-        time_str = request.data.get('time')
-        client_name = request.data.get('client_name')
-        client_email = request.data.get('client_email')
-        client_phone = request.data.get('client_phone')
+        # Extract data (accept both old and new field names)
+        service_id = request.data.get('service') or request.data.get('service_id')
+        staff_id = request.data.get('staff') or request.data.get('staff_id')
+        date_str = request.data.get('date') or request.data.get('booking_date')
+        time_str = request.data.get('time') or request.data.get('booking_time')
+        client_name = request.data.get('client_name') or request.data.get('customer_name')
+        client_email = request.data.get('client_email') or request.data.get('customer_email')
+        client_phone = request.data.get('client_phone') or request.data.get('customer_phone')
         notes = request.data.get('notes', '')
         
         # Validate required fields
