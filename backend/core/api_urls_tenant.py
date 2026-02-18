@@ -1,10 +1,10 @@
 """
 Tenant settings endpoint alias — serves /api/tenant/
-Returns config in the format the NBNE-style frontend expects.
+Returns per-tenant settings from TenantSettings model.
 """
 from django.urls import path
-from .tenant_views import tenant_settings_view
+from tenants.views import tenant_settings
 
 urlpatterns = [
-    path('', tenant_settings_view, name='tenant-settings'),
+    path('', tenant_settings, name='tenant-settings'),
 ]
