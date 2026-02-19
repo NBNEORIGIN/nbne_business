@@ -1,61 +1,68 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useTenant } from '@/lib/tenant'
 
 /* ── Design tokens ── */
 const SERIF = "'Playfair Display', Georgia, serif"
 const SANS = "'Inter', -apple-system, sans-serif"
-const ACCENT = '#8B6F47'        // warm gold-brown
-const ACCENT_LIGHT = '#C4A97D'  // lighter gold
-const DARK = '#1a1a1a'
+const DARK = '#0f0f0f'
 const MUTED = '#6b6b6b'
-const BG_CREAM = '#FAF8F5'
-const BG_WARM = '#F5F0EB'
+const ACCENT = '#2563eb'          // NBNE brand blue
+const ACCENT_DARK = '#1d4ed8'
 
-/* ── Unsplash images (salon-appropriate, free to use) ── */
-const HERO_IMG = 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1920&q=80&auto=format'
-const ABOUT_IMG = 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80&auto=format'
-const GALLERY = [
-  'https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=600&q=80&auto=format',
-  'https://images.unsplash.com/photo-1562322140-8baeececf3df?w=600&q=80&auto=format',
-  'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=600&q=80&auto=format',
-  'https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=600&q=80&auto=format',
-  'https://images.unsplash.com/photo-1559599101-f09722fb4948?w=600&q=80&auto=format',
-  'https://images.unsplash.com/photo-1522338242992-e1a54571a9f7?w=600&q=80&auto=format',
+/* ── Hero images ── */
+const HERO_BG = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&q=80&auto=format'
+
+/* ── Demo site cards ── */
+const DEMOS = [
+  {
+    title: 'Salon X',
+    subtitle: 'Hair & Beauty',
+    description: 'A stunning salon website with online booking, Stripe payments, staff profiles, and a full gallery. Everything a modern salon needs.',
+    img: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&q=80&auto=format',
+    href: '/salon',
+    accent: '#8B6F47',
+    features: ['Online Booking', 'Stripe Deposits', 'Staff Profiles', 'Service Menu'],
+    status: 'live',
+  },
+  {
+    title: 'FitHub',
+    subtitle: 'Gym & Fitness',
+    description: 'A high-energy gym website with class timetables, membership sign-ups, trainer bios, and integrated booking for PT sessions.',
+    img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&auto=format',
+    href: '/gym',
+    accent: '#dc2626',
+    features: ['Class Timetable', 'PT Booking', 'Membership Plans', 'Trainer Profiles'],
+    status: 'coming',
+  },
+  {
+    title: 'Tavola',
+    subtitle: 'Restaurant & Dining',
+    description: 'An elegant restaurant website with table reservations, seasonal menus, chef profiles, and event booking for private dining.',
+    img: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80&auto=format',
+    href: '/restaurant',
+    accent: '#059669',
+    features: ['Table Reservations', 'Menu Display', 'Event Booking', 'Chef Profiles'],
+    status: 'coming',
+  },
 ]
 
-const TEAM = [
-  { name: 'Chloe Williams', role: 'Senior Stylist', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80&auto=format', bio: 'Colour specialist with 8 years experience. Balayage and lived-in colour.' },
-  { name: 'Emma Johnson', role: 'Stylist', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&q=80&auto=format', bio: 'Creative cuts and styling. Passionate about textured, modern looks.' },
-  { name: 'Sophie Taylor', role: 'Junior Stylist', img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80&auto=format', bio: 'Blow-dry queen and up-and-coming talent. Fresh from advanced training.' },
+const PLATFORM_FEATURES = [
+  { icon: '📅', title: 'Online Booking', desc: 'Customers book 24/7. Real-time availability, staff assignment, and instant confirmation.' },
+  { icon: '💳', title: 'Stripe Payments', desc: 'Secure deposits and full payments via Stripe Checkout. No-show protection built in.' },
+  { icon: '👥', title: 'Staff Management', desc: 'Rotas, timesheets, leave tracking, working hours, and performance all in one place.' },
+  { icon: '📊', title: 'CRM & Leads', desc: 'Track every enquiry from first contact to paying customer. Full pipeline visibility.' },
+  { icon: '📋', title: 'Compliance', desc: 'Document vault, PAT certificates, disclaimers, and audit trails. Stay inspection-ready.' },
+  { icon: '🌐', title: 'Beautiful Website', desc: 'A bespoke, mobile-first website that represents your brand. Not a template — built for you.' },
 ]
 
-const SERVICES = [
-  { category: 'Cuts', items: [{ name: 'Ladies\' Cut & Blow Dry', price: '£45' }, { name: 'Restyle', price: '£55' }, { name: 'Men\'s Cut', price: '£22' }, { name: 'Children\'s Cut', price: '£18' }] },
-  { category: 'Colour', items: [{ name: 'Full Head Colour', price: '£75' }, { name: 'Balayage', price: '£140' }, { name: 'Highlights (Half Head)', price: '£85' }, { name: 'Root Touch-Up', price: '£55' }] },
-  { category: 'Styling', items: [{ name: 'Blow Dry', price: '£30' }, { name: 'Occasion Hair', price: '£55' }, { name: 'Bridal Hair', price: 'from £85' }, { name: 'Hair Treatment', price: '£25' }] },
-]
-
-const REVIEWS = [
-  { name: 'Sarah M.', text: 'Absolutely love my balayage! Chloe really listened to what I wanted and the result was even better than I imagined. The salon is gorgeous too.', stars: 5 },
-  { name: 'Rachel K.', text: 'Best salon I\'ve been to in years. The online booking is so easy and the deposit system means no messing about. Highly recommend.', stars: 5 },
-  { name: 'Louise T.', text: 'Emma did an incredible job on my restyle. I\'ve had so many compliments! The whole experience from booking to leaving was perfect.', stars: 5 },
-]
-
-const HOURS = [
-  { day: 'Monday', time: 'Closed' },
-  { day: 'Tuesday', time: '9:00 - 17:30' },
-  { day: 'Wednesday', time: '9:00 - 17:30' },
-  { day: 'Thursday', time: '9:00 - 19:00' },
-  { day: 'Friday', time: '9:00 - 17:30' },
-  { day: 'Saturday', time: '9:00 - 16:00' },
-  { day: 'Sunday', time: 'Closed' },
+const TESTIMONIALS = [
+  { name: 'Sarah M.', biz: 'Salon Owner', text: 'The booking system alone has saved me hours every week. Clients love being able to book online, and the deposit system means no more no-shows.' },
+  { name: 'James R.', biz: 'Gym Manager', text: 'Having everything in one platform — bookings, staff, compliance — is a game changer. We ditched three separate tools.' },
+  { name: 'Maria L.', biz: 'Restaurant Owner', text: 'The website NBNE built us is gorgeous. We get compliments on it constantly, and the reservation system just works.' },
 ]
 
 export default function HomePage() {
-  const tenant = useTenant()
-  const bizName = tenant.business_name || 'Salon X'
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenu, setMobileMenu] = useState(false)
 
@@ -71,7 +78,7 @@ export default function HomePage() {
       {/* ── Navigation ── */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        padding: scrolled ? '0.75rem 2rem' : '1.25rem 2rem',
+        padding: scrolled ? '0.65rem 2rem' : '1.1rem 2rem',
         background: scrolled ? 'rgba(255,255,255,0.97)' : 'transparent',
         backdropFilter: scrolled ? 'blur(12px)' : 'none',
         borderBottom: scrolled ? '1px solid rgba(0,0,0,0.06)' : 'none',
@@ -79,40 +86,39 @@ export default function HomePage() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <a href="/" style={{
-          fontFamily: SERIF, fontWeight: 600, fontSize: '1.5rem',
+          fontWeight: 800, fontSize: '1.3rem',
           color: scrolled ? DARK : '#fff', textDecoration: 'none',
-          letterSpacing: '0.02em',
+          letterSpacing: '-0.02em',
         }}>
-          {bizName}
+          NBNE
         </a>
 
         {/* Desktop nav */}
-        <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }} className="desktop-nav">
+        <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }} className="nbne-desktop-nav">
           {[
-            { label: 'Services', href: '#services' },
-            { label: 'About', href: '#about' },
-            { label: 'Gallery', href: '#gallery' },
-            { label: 'Contact', href: '#contact' },
+            { label: 'Demos', href: '#demos' },
+            { label: 'Platform', href: '#platform' },
+            { label: 'Pricing', href: '/pricing' },
           ].map(link => (
             <a key={link.label} href={link.href} style={{
               color: scrolled ? MUTED : 'rgba(255,255,255,0.85)',
               textDecoration: 'none', fontSize: '0.88rem', fontWeight: 500,
-              letterSpacing: '0.03em', textTransform: 'uppercase',
+              letterSpacing: '0.02em',
               transition: 'color 0.2s',
             }}>{link.label}</a>
           ))}
-          <a href="/book" style={{
-            background: ACCENT, color: '#fff', padding: '0.6rem 1.5rem',
-            borderRadius: 4, textDecoration: 'none', fontWeight: 600,
-            fontSize: '0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase',
-            transition: 'background 0.2s',
-          }}>Book Now</a>
+          <a href="/login?redirect=/admin" style={{
+            background: scrolled ? ACCENT : '#fff', color: scrolled ? '#fff' : DARK,
+            padding: '0.55rem 1.4rem',
+            borderRadius: 6, textDecoration: 'none', fontWeight: 600,
+            fontSize: '0.85rem', transition: 'all 0.2s',
+          }}>Admin Demo</a>
         </div>
 
         {/* Mobile hamburger */}
         <button
           onClick={() => setMobileMenu(!mobileMenu)}
-          className="mobile-menu-btn"
+          className="nbne-mobile-btn"
           style={{
             display: 'none', background: 'none', border: 'none', cursor: 'pointer',
             padding: 8, color: scrolled ? DARK : '#fff', fontSize: '1.5rem',
@@ -130,15 +136,14 @@ export default function HomePage() {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem',
         }}>
           {[
-            { label: 'Services', href: '#services' },
-            { label: 'About', href: '#about' },
-            { label: 'Gallery', href: '#gallery' },
-            { label: 'Contact', href: '#contact' },
-            { label: 'Book Now', href: '/book' },
+            { label: 'Demos', href: '#demos' },
+            { label: 'Platform', href: '#platform' },
+            { label: 'Pricing', href: '/pricing' },
+            { label: 'Admin Demo', href: '/login?redirect=/admin' },
           ].map(link => (
             <a key={link.label} href={link.href} onClick={() => setMobileMenu(false)} style={{
-              color: DARK, textDecoration: 'none', fontSize: '1.25rem', fontWeight: 500,
-              letterSpacing: '0.05em', textTransform: 'uppercase',
+              color: DARK, textDecoration: 'none', fontSize: '1.25rem', fontWeight: 600,
+              letterSpacing: '0.02em',
             }}>{link.label}</a>
           ))}
         </div>
@@ -148,214 +153,204 @@ export default function HomePage() {
       <section style={{
         position: 'relative', minHeight: '100vh', display: 'flex',
         alignItems: 'center', justifyContent: 'center',
-        backgroundImage: `url(${HERO_IMG})`,
+        backgroundImage: `url(${HERO_BG})`,
         backgroundSize: 'cover', backgroundPosition: 'center',
       }}>
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.5) 100%)',
+          background: 'linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.65) 100%)',
         }} />
-        <div style={{ position: 'relative', textAlign: 'center', padding: '2rem', maxWidth: 700 }}>
+        <div style={{ position: 'relative', textAlign: 'center', padding: '2rem', maxWidth: 800 }}>
           <div style={{
-            fontSize: '0.8rem', fontWeight: 500, color: ACCENT_LIGHT,
-            textTransform: 'uppercase', letterSpacing: '0.25em', marginBottom: '1.5rem',
+            display: 'inline-block', background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)',
+            padding: '0.4rem 1.25rem', borderRadius: 20, marginBottom: '2rem',
+            fontSize: '0.82rem', fontWeight: 500, color: 'rgba(255,255,255,0.9)',
+            letterSpacing: '0.05em', border: '1px solid rgba(255,255,255,0.15)',
           }}>
-            Welcome to
+            Websites &middot; Bookings &middot; Business Management
           </div>
           <h1 style={{
             fontFamily: SERIF, fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
-            fontWeight: 500, color: '#fff', lineHeight: 1.1, marginBottom: '1.5rem',
-            letterSpacing: '-0.01em',
+            fontWeight: 600, color: '#fff', lineHeight: 1.08, marginBottom: '1.5rem',
+            letterSpacing: '-0.02em',
           }}>
-            {bizName}
+            Beautiful websites that<br />
+            <span style={{ fontStyle: 'italic', fontWeight: 400 }}>run your business</span>
           </h1>
           <p style={{
-            fontFamily: "'Cormorant Garamond', Georgia, serif",
-            fontSize: 'clamp(1.1rem, 2.5vw, 1.4rem)',
-            color: 'rgba(255,255,255,0.85)', fontWeight: 300,
-            fontStyle: 'italic', marginBottom: '2.5rem', lineHeight: 1.5,
+            fontSize: 'clamp(1rem, 2vw, 1.2rem)',
+            color: 'rgba(255,255,255,0.75)', fontWeight: 400,
+            marginBottom: '2.5rem', lineHeight: 1.6, maxWidth: 600, margin: '0 auto 2.5rem',
           }}>
-            Where style meets confidence
+            We build stunning, bespoke websites for salons, gyms, and restaurants &mdash; with
+            online booking, payments, staff management, and CRM built right in.
           </p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/book" style={{
-              background: ACCENT, color: '#fff', padding: '1rem 2.5rem',
-              textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem',
-              letterSpacing: '0.1em', textTransform: 'uppercase',
-              transition: 'background 0.2s',
-            }}>Book Your Appointment</a>
-            <a href="#services" style={{
-              background: 'transparent', color: '#fff', padding: '1rem 2.5rem',
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="#demos" style={{
+              background: '#fff', color: DARK, padding: '0.9rem 2.25rem',
+              textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem',
+              borderRadius: 6, transition: 'transform 0.2s',
+            }}>View Live Demos</a>
+            <a href="/pricing" style={{
+              background: 'transparent', color: '#fff', padding: '0.9rem 2.25rem',
               textDecoration: 'none', fontWeight: 500, fontSize: '0.9rem',
-              letterSpacing: '0.1em', textTransform: 'uppercase',
-              border: '1px solid rgba(255,255,255,0.4)',
+              border: '1px solid rgba(255,255,255,0.35)', borderRadius: 6,
               transition: 'border-color 0.2s',
-            }}>View Services</a>
+            }}>See Pricing</a>
           </div>
         </div>
         {/* Scroll indicator */}
         <div style={{
           position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
-          color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', textAlign: 'center',
+          color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', textAlign: 'center',
           letterSpacing: '0.15em', textTransform: 'uppercase',
         }}>
-          <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.3)', margin: '0 auto 0.5rem' }} />
-          Scroll
+          <div style={{ width: 1, height: 36, background: 'rgba(255,255,255,0.25)', margin: '0 auto 0.5rem' }} />
+          Explore
         </div>
       </section>
 
-      {/* ── Welcome strip ── */}
-      <section style={{ padding: '5rem 2rem', background: BG_CREAM, textAlign: 'center' }}>
-        <div style={{ maxWidth: 680, margin: '0 auto' }}>
-          <div style={{
-            width: 50, height: 1, background: ACCENT, margin: '0 auto 2rem',
-          }} />
-          <h2 style={{
-            fontFamily: SERIF, fontSize: 'clamp(1.5rem, 3vw, 2rem)',
-            fontWeight: 500, color: DARK, lineHeight: 1.4, marginBottom: '1.5rem',
-          }}>
-            A warm welcome awaits you at {bizName}
-          </h2>
-          <p style={{
-            fontSize: '1rem', color: MUTED, lineHeight: 1.8, maxWidth: 560, margin: '0 auto',
-          }}>
-            Nestled in the heart of town, {bizName} is your destination for exceptional hair care.
-            Our talented team combines years of experience with a genuine passion for making you look
-            and feel your absolute best. From precision cuts to stunning colour transformations,
-            every visit is tailored to you.
+      {/* ── Social proof strip ── */}
+      <section style={{ padding: '3rem 2rem', background: '#fafafa', textAlign: 'center', borderBottom: '1px solid #f0f0f0' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto' }}>
+          <p style={{ fontSize: '1.05rem', color: MUTED, lineHeight: 1.7 }}>
+            <strong style={{ color: DARK }}>One platform, everything you need.</strong>{' '}
+            We don&apos;t just build websites &mdash; we build the entire system behind them.
+            Booking, payments, staff, compliance, CRM. All connected. All beautiful.
           </p>
         </div>
       </section>
 
-      {/* ── Services ── */}
-      <section id="services" style={{ padding: '5rem 2rem', background: '#fff' }}>
-        <div style={{ maxWidth: 960, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-            <div style={{
-              fontSize: '0.75rem', fontWeight: 500, color: ACCENT,
-              textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '0.75rem',
-            }}>What we offer</div>
-            <h2 style={{
-              fontFamily: SERIF, fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)',
-              fontWeight: 500, color: DARK,
-            }}>Our Services</h2>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem' }}>
-            {SERVICES.map(cat => (
-              <div key={cat.category}>
-                <h3 style={{
-                  fontFamily: SERIF, fontSize: '1.35rem', fontWeight: 500,
-                  color: DARK, marginBottom: '1.5rem',
-                  paddingBottom: '0.75rem', borderBottom: `1px solid ${BG_WARM}`,
-                }}>{cat.category}</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {cat.items.map(item => (
-                    <div key={item.name} style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                    }}>
-                      <span style={{ fontSize: '0.95rem', color: DARK }}>{item.name}</span>
-                      <span style={{
-                        fontSize: '0.95rem', fontWeight: 600, color: ACCENT,
-                        flexShrink: 0, marginLeft: '1rem',
-                      }}>{item.price}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: '3rem' }}>
-            <a href="/book" style={{
-              display: 'inline-block', background: DARK, color: '#fff',
-              padding: '0.85rem 2.5rem', textDecoration: 'none',
-              fontWeight: 600, fontSize: '0.85rem', letterSpacing: '0.1em',
-              textTransform: 'uppercase', transition: 'background 0.2s',
-            }}>Book an Appointment</a>
-          </div>
-        </div>
-      </section>
-
-      {/* ── About / Team ── */}
-      <section id="about" style={{ padding: '5rem 2rem', background: BG_CREAM }}>
+      {/* ── Demo Sites ── */}
+      <section id="demos" style={{ padding: '6rem 2rem', background: '#fff' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
             <div style={{
-              fontSize: '0.75rem', fontWeight: 500, color: ACCENT,
-              textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '0.75rem',
-            }}>Get to know us</div>
+              fontSize: '0.75rem', fontWeight: 600, color: ACCENT,
+              textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem',
+            }}>Live Demos</div>
             <h2 style={{
-              fontFamily: SERIF, fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)',
-              fontWeight: 500, color: DARK,
-            }}>Meet the Team</h2>
+              fontFamily: SERIF, fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)',
+              fontWeight: 600, color: DARK, marginBottom: '1rem',
+            }}>See What We Build</h2>
+            <p style={{ fontSize: '1rem', color: MUTED, maxWidth: 560, margin: '0 auto', lineHeight: 1.6 }}>
+              Explore our live demo websites. Each one is a fully functional example of what we deliver to clients &mdash; click through, book an appointment, try the admin panel.
+            </p>
           </div>
 
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '2.5rem',
-          }}>
-            {TEAM.map(member => (
-              <div key={member.name} style={{ textAlign: 'center' }}>
-                <div style={{
-                  width: '100%', aspectRatio: '3/4', borderRadius: 8,
-                  overflow: 'hidden', marginBottom: '1.25rem',
-                }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+            {DEMOS.map(demo => (
+              <a
+                key={demo.title}
+                href={demo.status === 'live' ? demo.href : undefined}
+                style={{
+                  display: 'block', textDecoration: 'none', color: DARK,
+                  borderRadius: 12, overflow: 'hidden',
+                  border: '1px solid #e8e8e8',
+                  transition: 'transform 0.25s, box-shadow 0.25s',
+                  cursor: demo.status === 'live' ? 'pointer' : 'default',
+                  opacity: demo.status === 'live' ? 1 : 0.7,
+                }}
+                onMouseOver={e => { if (demo.status === 'live') { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.1)' }}}
+                onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
+              >
+                {/* Image */}
+                <div style={{ position: 'relative', aspectRatio: '16/10', overflow: 'hidden' }}>
                   <img
-                    src={member.img}
-                    alt={member.name}
+                    src={demo.img}
+                    alt={demo.title}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     loading="lazy"
                   />
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    background: `linear-gradient(transparent 40%, ${demo.accent}cc 100%)`,
+                  }} />
+                  <div style={{
+                    position: 'absolute', bottom: '1rem', left: '1.25rem',
+                    color: '#fff',
+                  }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.8, marginBottom: '0.25rem' }}>
+                      {demo.subtitle}
+                    </div>
+                    <div style={{ fontFamily: SERIF, fontSize: '1.5rem', fontWeight: 600 }}>
+                      {demo.title}
+                    </div>
+                  </div>
+                  {demo.status === 'coming' && (
+                    <div style={{
+                      position: 'absolute', top: '1rem', right: '1rem',
+                      background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '0.3rem 0.75rem',
+                      borderRadius: 20, fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.05em',
+                    }}>Coming Soon</div>
+                  )}
+                  {demo.status === 'live' && (
+                    <div style={{
+                      position: 'absolute', top: '1rem', right: '1rem',
+                      background: 'rgba(255,255,255,0.95)', color: demo.accent, padding: '0.3rem 0.75rem',
+                      borderRadius: 20, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em',
+                    }}>Live Demo</div>
+                  )}
                 </div>
-                <h3 style={{
-                  fontFamily: SERIF, fontSize: '1.2rem', fontWeight: 500,
-                  color: DARK, marginBottom: '0.25rem',
-                }}>{member.name}</h3>
-                <div style={{
-                  fontSize: '0.8rem', fontWeight: 500, color: ACCENT,
-                  textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem',
-                }}>{member.role}</div>
-                <p style={{ fontSize: '0.9rem', color: MUTED, lineHeight: 1.6 }}>{member.bio}</p>
-              </div>
+
+                {/* Content */}
+                <div style={{ padding: '1.5rem 1.25rem' }}>
+                  <p style={{ fontSize: '0.9rem', color: MUTED, lineHeight: 1.6, marginBottom: '1.25rem' }}>
+                    {demo.description}
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    {demo.features.map(f => (
+                      <span key={f} style={{
+                        background: '#f5f5f5', padding: '0.3rem 0.7rem', borderRadius: 4,
+                        fontSize: '0.75rem', fontWeight: 600, color: '#555',
+                      }}>{f}</span>
+                    ))}
+                  </div>
+                  {demo.status === 'live' && (
+                    <div style={{
+                      marginTop: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      fontSize: '0.85rem', fontWeight: 600, color: demo.accent,
+                    }}>
+                      Explore Demo
+                      <span style={{ fontSize: '1rem' }}>&rarr;</span>
+                    </div>
+                  )}
+                </div>
+              </a>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Gallery ── */}
-      <section id="gallery" style={{ padding: '5rem 2rem', background: '#fff' }}>
+      {/* ── Platform Features ── */}
+      <section id="platform" style={{ padding: '6rem 2rem', background: '#fafafa' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
             <div style={{
-              fontSize: '0.75rem', fontWeight: 500, color: ACCENT,
-              textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '0.75rem',
-            }}>Our work</div>
+              fontSize: '0.75rem', fontWeight: 600, color: ACCENT,
+              textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem',
+            }}>The Platform</div>
             <h2 style={{
-              fontFamily: SERIF, fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)',
-              fontWeight: 500, color: DARK,
-            }}>Gallery</h2>
+              fontFamily: SERIF, fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)',
+              fontWeight: 600, color: DARK, marginBottom: '1rem',
+            }}>Everything Under One Roof</h2>
+            <p style={{ fontSize: '1rem', color: MUTED, maxWidth: 560, margin: '0 auto', lineHeight: 1.6 }}>
+              Your website is just the front door. Behind it sits a complete business management platform.
+            </p>
           </div>
 
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-            gap: '0.75rem',
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '1.5rem',
           }}>
-            {GALLERY.map((img, i) => (
-              <div key={i} style={{
-                aspectRatio: i % 3 === 0 ? '4/5' : '1/1',
-                borderRadius: 6, overflow: 'hidden',
-                gridRow: i % 3 === 0 ? 'span 2' : undefined,
+            {PLATFORM_FEATURES.map(f => (
+              <div key={f.title} style={{
+                background: '#fff', borderRadius: 10, padding: '2rem',
+                border: '1px solid #eee', transition: 'box-shadow 0.2s',
               }}>
-                <img
-                  src={img}
-                  alt={`Salon work ${i + 1}`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s' }}
-                  loading="lazy"
-                  onMouseOver={e => (e.currentTarget.style.transform = 'scale(1.05)')}
-                  onMouseOut={e => (e.currentTarget.style.transform = 'scale(1)')}
-                />
+                <div style={{ fontSize: '1.75rem', marginBottom: '1rem' }}>{f.icon}</div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: DARK, marginBottom: '0.5rem' }}>{f.title}</h3>
+                <p style={{ fontSize: '0.9rem', color: MUTED, lineHeight: 1.6 }}>{f.desc}</p>
               </div>
             ))}
           </div>
@@ -363,155 +358,76 @@ export default function HomePage() {
       </section>
 
       {/* ── Testimonials ── */}
-      <section style={{ padding: '5rem 2rem', background: BG_WARM }}>
-        <div style={{ maxWidth: 960, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+      <section style={{ padding: '6rem 2rem', background: '#fff' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
             <div style={{
-              fontSize: '0.75rem', fontWeight: 500, color: ACCENT,
-              textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '0.75rem',
-            }}>Kind words</div>
+              fontSize: '0.75rem', fontWeight: 600, color: ACCENT,
+              textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem',
+            }}>Testimonials</div>
             <h2 style={{
               fontFamily: SERIF, fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)',
-              fontWeight: 500, color: DARK,
-            }}>What Our Clients Say</h2>
+              fontWeight: 600, color: DARK,
+            }}>What Business Owners Say</h2>
           </div>
 
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '2rem',
           }}>
-            {REVIEWS.map((r, i) => (
+            {TESTIMONIALS.map((t, i) => (
               <div key={i} style={{
-                background: '#fff', borderRadius: 8, padding: '2rem',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                background: '#fafafa', borderRadius: 10, padding: '2rem',
+                border: '1px solid #eee',
               }}>
-                <div style={{ color: ACCENT, fontSize: '1.1rem', marginBottom: '1rem', letterSpacing: '0.1em' }}>
-                  {'★'.repeat(r.stars)}
-                </div>
                 <p style={{
                   fontSize: '0.95rem', color: '#4a4a4a', lineHeight: 1.7,
-                  fontStyle: 'italic', marginBottom: '1.25rem',
+                  fontStyle: 'italic', marginBottom: '1.5rem',
                 }}>
-                  &ldquo;{r.text}&rdquo;
+                  &ldquo;{t.text}&rdquo;
                 </p>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: DARK }}>{r.name}</div>
+                <div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: DARK }}>{t.name}</div>
+                  <div style={{ fontSize: '0.8rem', color: MUTED }}>{t.biz}</div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Contact / Hours ── */}
-      <section id="contact" style={{ padding: '5rem 2rem', background: '#fff' }}>
-        <div style={{ maxWidth: 960, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-            <div style={{
-              fontSize: '0.75rem', fontWeight: 500, color: ACCENT,
-              textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '0.75rem',
-            }}>Find us</div>
-            <h2 style={{
-              fontFamily: SERIF, fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)',
-              fontWeight: 500, color: DARK,
-            }}>Visit Us</h2>
-          </div>
-
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '3rem',
-          }}>
-            {/* Address & contact */}
-            <div>
-              <h3 style={{
-                fontFamily: SERIF, fontSize: '1.2rem', fontWeight: 500,
-                color: DARK, marginBottom: '1.25rem',
-              }}>Contact</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.95rem', color: MUTED }}>
-                <div>
-                  <div style={{ fontWeight: 600, color: DARK, marginBottom: '0.25rem' }}>Address</div>
-                  12 High Street, Alnwick<br />Northumberland, NE66 1AB
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, color: DARK, marginBottom: '0.25rem' }}>Phone</div>
-                  <a href="tel:01234567890" style={{ color: ACCENT, textDecoration: 'none' }}>01234 567 890</a>
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, color: DARK, marginBottom: '0.25rem' }}>Email</div>
-                  <a href="mailto:hello@salonx.co.uk" style={{ color: ACCENT, textDecoration: 'none' }}>hello@salonx.co.uk</a>
-                </div>
-              </div>
-            </div>
-
-            {/* Opening hours */}
-            <div>
-              <h3 style={{
-                fontFamily: SERIF, fontSize: '1.2rem', fontWeight: 500,
-                color: DARK, marginBottom: '1.25rem',
-              }}>Opening Hours</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {HOURS.map(h => (
-                  <div key={h.day} style={{
-                    display: 'flex', justifyContent: 'space-between',
-                    fontSize: '0.95rem', paddingBottom: '0.5rem',
-                    borderBottom: '1px solid #f0f0f0',
-                  }}>
-                    <span style={{ color: DARK }}>{h.day}</span>
-                    <span style={{ color: h.time === 'Closed' ? '#ccc' : MUTED, fontWeight: h.time === 'Closed' ? 400 : 500 }}>{h.time}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Book CTA */}
-            <div style={{
-              background: BG_CREAM, borderRadius: 8, padding: '2rem',
-              display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
-              textAlign: 'center',
-            }}>
-              <h3 style={{
-                fontFamily: SERIF, fontSize: '1.3rem', fontWeight: 500,
-                color: DARK, marginBottom: '1rem',
-              }}>Ready to Book?</h3>
-              <p style={{ fontSize: '0.9rem', color: MUTED, lineHeight: 1.6, marginBottom: '1.5rem' }}>
-                Book your appointment online for instant confirmation. Deposits taken securely via Stripe.
-              </p>
-              <a href="/book" style={{
-                display: 'inline-block', background: ACCENT, color: '#fff',
-                padding: '0.85rem 2.5rem', textDecoration: 'none',
-                fontWeight: 600, fontSize: '0.85rem', letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-              }}>Book Now</a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Demo banner (subtle) ── */}
-      <section style={{ padding: '3rem 2rem', background: DARK, textAlign: 'center' }}>
+      {/* ── CTA Section ── */}
+      <section style={{
+        padding: '6rem 2rem',
+        background: `linear-gradient(135deg, ${DARK} 0%, #1e293b 100%)`,
+        textAlign: 'center',
+      }}>
         <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          <p style={{
-            fontFamily: SERIF, fontSize: '1.25rem', fontWeight: 400,
-            color: '#fff', marginBottom: '0.75rem',
+          <h2 style={{
+            fontFamily: SERIF, fontSize: 'clamp(1.75rem, 4vw, 2.75rem)',
+            fontWeight: 600, color: '#fff', marginBottom: '1.25rem', lineHeight: 1.15,
           }}>
-            This is a demo website built by NBNE
-          </p>
-          <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-            We build beautiful booking websites like this for salons, gyms, and restaurants.
-            Log into the admin panel to see the full platform behind it.
+            Ready to transform<br />your business?
+          </h2>
+          <p style={{
+            fontSize: '1.05rem', color: 'rgba(255,255,255,0.6)', marginBottom: '2.5rem', lineHeight: 1.6,
+          }}>
+            Try our live demos, explore the admin panel, and see exactly what you&apos;ll get.
+            No sales calls. No commitment. Just click and explore.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="/salon" style={{
+              background: '#fff', color: DARK, padding: '0.9rem 2.25rem',
+              textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem',
+              borderRadius: 6,
+            }}>Explore Salon Demo</a>
             <a href="/login?redirect=/admin" style={{
-              background: '#fff', color: DARK, padding: '0.7rem 2rem',
-              textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem',
-              letterSpacing: '0.05em',
-            }}>Try the Admin Demo</a>
-            <a href="/pricing" style={{
-              background: 'transparent', color: 'rgba(255,255,255,0.7)',
-              padding: '0.7rem 2rem', textDecoration: 'none', fontWeight: 500,
-              fontSize: '0.85rem', letterSpacing: '0.05em',
-              border: '1px solid rgba(255,255,255,0.2)',
-            }}>See Pricing</a>
+              background: 'transparent', color: '#fff', padding: '0.9rem 2.25rem',
+              textDecoration: 'none', fontWeight: 500, fontSize: '0.9rem',
+              border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6,
+            }}>Try Admin Panel</a>
           </div>
-          <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginTop: '1rem' }}>
+          <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)', marginTop: '1.5rem' }}>
             Demo login: <strong>owner</strong> / <strong>admin123</strong> &mdash; data resets nightly
           </p>
         </div>
@@ -519,26 +435,26 @@ export default function HomePage() {
 
       {/* ── Footer ── */}
       <footer style={{
-        padding: '3rem 2rem', background: '#111', textAlign: 'center',
-        borderTop: `1px solid rgba(255,255,255,0.05)`,
+        padding: '3rem 2rem', background: '#0a0a0a', textAlign: 'center',
+        borderTop: '1px solid rgba(255,255,255,0.05)',
       }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <div style={{
-            fontFamily: SERIF, fontSize: '1.25rem', fontWeight: 500,
-            color: '#fff', marginBottom: '1rem',
-          }}>{bizName}</div>
+            fontWeight: 800, fontSize: '1.2rem',
+            color: '#fff', marginBottom: '1rem', letterSpacing: '-0.02em',
+          }}>NBNE</div>
           <div style={{
             display: 'flex', gap: '2rem', justifyContent: 'center', flexWrap: 'wrap',
             fontSize: '0.8rem', marginBottom: '1.5rem',
           }}>
-            <a href="#services" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Services</a>
-            <a href="#about" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>About</a>
-            <a href="#gallery" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Gallery</a>
-            <a href="#contact" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Contact</a>
-            <a href="/book" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Book Online</a>
+            <a href="/salon" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Salon Demo</a>
+            <a href="/gym" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Gym Demo</a>
+            <a href="/restaurant" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Restaurant Demo</a>
+            <a href="/pricing" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Pricing</a>
+            <a href="/login" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Login</a>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)' }}>
-            &copy; {new Date().getFullYear()} {bizName}. All rights reserved. &nbsp;|&nbsp; Powered by NBNE
+          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.2)' }}>
+            &copy; {new Date().getFullYear()} NBNE. All rights reserved.
           </div>
         </div>
       </footer>
@@ -546,11 +462,11 @@ export default function HomePage() {
       {/* ── Responsive CSS ── */}
       <style>{`
         @media (max-width: 768px) {
-          .desktop-nav { display: none !important; }
-          .mobile-menu-btn { display: block !important; }
+          .nbne-desktop-nav { display: none !important; }
+          .nbne-mobile-btn { display: block !important; }
         }
         @media (min-width: 769px) {
-          .mobile-menu-btn { display: none !important; }
+          .nbne-mobile-btn { display: none !important; }
         }
         html { scroll-behavior: smooth; }
         img { display: block; }
