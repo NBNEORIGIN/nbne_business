@@ -10,7 +10,9 @@ python manage.py collectstatic --noinput || echo "WARNING: collectstatic failed"
 # Seed demo data only if SEED_TENANT is set (e.g. SEED_TENANT=salon-x)
 # This prevents cross-tenant contamination on isolated instances
 if [ -n "$SEED_TENANT" ]; then
-  echo "Seeding demo data for tenant: $SEED_TENANT..."
+  echo "Clearing old demo data for tenant: $SEED_TENANT..."
+  (python manage.py seed_demo --tenant "$SEED_TENANT" --delete-demo) || echo "WARNING: delete-demo failed"
+  echo "Seeding fresh demo data for tenant: $SEED_TENANT..."
   (python manage.py seed_demo --tenant "$SEED_TENANT") || echo "WARNING: seed_demo failed"
 else
   echo "SEED_TENANT not set — skipping demo seed."
