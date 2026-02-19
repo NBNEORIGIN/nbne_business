@@ -33,7 +33,7 @@ const DEMOS = [
     href: '/gym',
     accent: '#dc2626',
     features: ['Class Timetable', 'PT Booking', 'Membership Plans', 'Trainer Profiles'],
-    status: 'coming',
+    status: 'live',
   },
   {
     title: 'Tavola',
@@ -43,7 +43,7 @@ const DEMOS = [
     href: '/restaurant',
     accent: '#059669',
     features: ['Table Reservations', 'Menu Display', 'Event Booking', 'Chef Profiles'],
-    status: 'coming',
+    status: 'live',
   },
 ]
 

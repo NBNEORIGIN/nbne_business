@@ -26,7 +26,7 @@ export default function RestaurantPage() {
             padding: '0.35rem 1rem', borderRadius: 4, marginBottom: '1.5rem',
             fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
           }}>
-            Coming Soon
+            Live Demo
           </div>
           <h1 style={{
             fontFamily: SERIF, fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
@@ -63,10 +63,26 @@ export default function RestaurantPage() {
               </div>
             </div>
 
-            <a href="/" style={{
-              background: '#fff', color: DARK, padding: '0.85rem 2.25rem',
+            <a href="https://nbne-business-restaurant-x.vercel.app/book" style={{
+              background: ACCENT, color: '#fff', padding: '0.85rem 2.25rem',
               textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem',
               borderRadius: 6, marginTop: '0.5rem',
+            }}>
+              Book a Table
+            </a>
+            <a href="https://nbne-business-restaurant-x.vercel.app" style={{
+              background: '#fff', color: DARK, padding: '0.85rem 2.25rem',
+              textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem',
+              borderRadius: 6,
+            }}>
+              Admin Demo
+            </a>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+              Demo login: <strong>owner@restaurant-x.demo</strong> / <strong>admin123</strong> &mdash; data resets nightly
+            </p>
+            <a href="/" style={{
+              color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.85rem',
+              marginTop: '0.5rem',
             }}>
               &larr; Back to NBNE
             </a>
