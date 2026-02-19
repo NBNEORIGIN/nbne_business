@@ -242,6 +242,7 @@ function BookPageInner() {
 
     // If service has a price, use Stripe Checkout
     const hasCost = selectedService.price_pence > 0 || selectedService.deposit_pence > 0
+    console.log('[BOOK] submitBooking v2', { hasCost, price_pence: selectedService.price_pence, deposit_pence: selectedService.deposit_pence })
     if (hasCost) {
       const res = await createCheckoutSession(bookingData)
       setSubmitting(false)
