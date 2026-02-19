@@ -787,6 +787,23 @@ export async function deleteDocument(id: number) {
   return apiFetch<any>(`/documents/${id}/`, { method: 'DELETE' })
 }
 
+export async function downloadDocument(id: number, filename?: string) {
+  const token = getAccessToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(`${API_BASE}/documents/${id}/download/`, { headers })
+  if (!res.ok) return
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename || 'download'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 export async function getDocumentTags() {
   return apiFetch<any[]>('/documents/tags/')
 }

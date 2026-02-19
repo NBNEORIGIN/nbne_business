@@ -172,6 +172,29 @@ def document_detail(request, doc_id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def document_download(request, doc_id):
+    """Download a document file. Serves the file through the API so it works via the frontend proxy."""
+    from django.http import FileResponse, Http404
+    try:
+        tenant = getattr(request, 'tenant', None)
+        doc = Document.objects.filter(tenant=tenant).get(id=doc_id)
+    except Document.DoesNotExist:
+        return Response({'error': 'Document not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not doc.file:
+        return Response({'error': 'No file attached'}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        response = FileResponse(doc.file.open('rb'), content_type=doc.content_type or 'application/octet-stream')
+        filename = doc.filename or doc.file.name.split('/')[-1]
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+    except Exception:
+        raise Http404('File not found on storage')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def document_summary(request):
     """Summary stats for the document vault."""
     tenant = getattr(request, 'tenant', None)

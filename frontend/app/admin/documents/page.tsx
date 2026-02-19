@@ -4,7 +4,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { getDocuments, getDocumentSummary, createDocument, updateDocument, deleteDocument } from '@/lib/api'
+import { getDocuments, getDocumentSummary, createDocument, updateDocument, deleteDocument, downloadDocument } from '@/lib/api'
 
 const CATEGORIES = [
   { key: '', label: 'All' },
@@ -235,7 +235,7 @@ export default function AdminDocumentsPage() {
                                     </td>
                                     <td style={{ whiteSpace: 'nowrap' }}>
                                       {doc.file_url && (
-                                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="btn btn-sm" style={{ marginRight: 4 }} title="Download">Download</a>
+                                        <button className="btn btn-sm" style={{ marginRight: 4 }} onClick={() => downloadDocument(doc.id, doc.filename)}>Download</button>
                                       )}
                                       {doc.is_placeholder && !doc.file_url && (
                                         <button className="btn btn-sm btn-warning" onClick={() => openEdit(doc)} style={{ marginRight: 4 }}>Upload</button>
@@ -306,9 +306,9 @@ export default function AdminDocumentsPage() {
                 {/* File link or upload prompt */}
                 <div style={{ marginTop: 8 }}>
                   {doc.file_url ? (
-                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary" style={{ fontSize: '0.78rem' }}>
+                    <button className="btn btn-sm btn-primary" style={{ fontSize: '0.78rem' }} onClick={() => downloadDocument(doc.id, doc.filename)}>
                       Download
-                    </a>
+                    </button>
                   ) : doc.is_placeholder ? (
                     <button className="btn btn-sm btn-warning" onClick={() => openEdit(doc)} style={{ fontSize: '0.78rem' }}>
                       Upload this document
