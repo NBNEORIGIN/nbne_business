@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import SalonPage from './salon/page'
+import TavolaPage from './restaurant/client-page'
+import FitHubPage from './gym/client-page'
 
 /* ── Design tokens ── */
 const SERIF = "'Playfair Display', Georgia, serif"
@@ -62,17 +65,20 @@ const TESTIMONIALS = [
   { name: 'Maria L.', biz: 'Restaurant Owner', text: 'The website NBNE built us is gorgeous. We get compliments on it constantly, and the reservation system just works.' },
 ]
 
+// Non-NBNE tenants render their own client-facing homepage
+const TENANT_SLUG = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+
 export default function HomePage() {
+  if (TENANT_SLUG === 'salon-x') return <SalonPage />
+  if (TENANT_SLUG === 'restaurant-x') return <TavolaPage />
+  if (TENANT_SLUG === 'health-club-x') return <FitHubPage />
+
+  return <NBNELandingPage />
+}
+
+function NBNELandingPage() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenu, setMobileMenu] = useState(false)
-
-  // Non-NBNE tenants redirect to their own admin panel (self-contained demo sites)
-  useEffect(() => {
-    const slug = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
-    if (slug && slug !== 'nbne') {
-      window.location.href = '/login?redirect=/admin'
-    }
-  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
@@ -115,12 +121,6 @@ export default function HomePage() {
               transition: 'color 0.2s',
             }}>{link.label}</a>
           ))}
-          <a href="/login?redirect=/admin" style={{
-            background: scrolled ? ACCENT : '#fff', color: scrolled ? '#fff' : DARK,
-            padding: '0.55rem 1.4rem',
-            borderRadius: 6, textDecoration: 'none', fontWeight: 600,
-            fontSize: '0.85rem', transition: 'all 0.2s',
-          }}>Admin Demo</a>
         </div>
 
         {/* Mobile hamburger */}
@@ -147,7 +147,6 @@ export default function HomePage() {
             { label: 'Demos', href: '#demos' },
             { label: 'Platform', href: '#platform' },
             { label: 'Pricing', href: '/pricing' },
-            { label: 'Admin Demo', href: '/login?redirect=/admin' },
           ].map(link => (
             <a key={link.label} href={link.href} onClick={() => setMobileMenu(false)} style={{
               color: DARK, textDecoration: 'none', fontSize: '1.25rem', fontWeight: 600,
