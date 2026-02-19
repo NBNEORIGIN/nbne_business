@@ -118,8 +118,14 @@ def create_checkout_session(request):
             'status': 'confirmed',
         })
     
-    # Create Stripe Checkout session
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+    # Determine frontend URL dynamically from request origin (multi-tenant support)
+    origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER', '')
+    if origin:
+        from urllib.parse import urlparse
+        parsed = urlparse(origin)
+        frontend_url = f'{parsed.scheme}://{parsed.netloc}'
+    else:
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
     
     try:
         checkout_session = stripe.checkout.Session.create(
