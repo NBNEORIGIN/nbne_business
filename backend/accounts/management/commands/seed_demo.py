@@ -18,6 +18,8 @@ TENANTS = {
         'phone': '07700 900000',
         'address': '123 High Street, London, E1 1AA',
         'deposit_percentage': 30,
+        'booking_staff_label': 'Stylist',
+        'booking_staff_label_plural': 'Stylists',
         'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
             ('Cut & Style', 'Cuts', 45, '35.00', 1000),
@@ -55,36 +57,28 @@ TENANTS = {
         'phone': '07700 900100',
         'address': '45 Market Square, Manchester, M1 2AB',
         'deposit_percentage': 20,
+        'booking_staff_label': 'Host',
+        'booking_staff_label_plural': 'Hosts',
         'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
-            # Standard table reservations — free to book, deposit to reduce no-shows
-            ('Table for 2', 'Table Reservations', 90, '0.00', 500),
-            ('Table for 4', 'Table Reservations', 120, '0.00', 1000),
-            ('Table for 6', 'Table Reservations', 120, '0.00', 1500),
-            ('Table for 8+', 'Table Reservations', 150, '0.00', 2000),
-            # Experiences
+            ('Book a Table', 'Reservations', 90, '0.00', 500),
+            ('Table for 4-6', 'Reservations', 120, '0.00', 1000),
+            ('Large Party (7+)', 'Reservations', 150, '0.00', 2000),
             ('Afternoon Tea for 2', 'Experiences', 120, '55.00', 1500),
-            ('Afternoon Tea for 4', 'Experiences', 120, '110.00', 3000),
             ('Chef\'s Table (6 Course Tasting)', 'Experiences', 180, '150.00', 5000),
-            ('Sunday Roast (per person)', 'Experiences', 90, '28.00', 0),
-            # Events & corporate
-            ('Private Dining Room (up to 12)', 'Events', 180, '500.00', 15000),
-            ('Corporate Lunch Package', 'Events', 150, '45.00', 2000),
-            ('Corporate Dinner & Drinks', 'Events', 240, '85.00', 5000),
-            ('Wedding Reception', 'Events', 300, '3500.00', 100000),
+            ('Private Dining Room', 'Events', 180, '500.00', 15000),
         ],
         'booking_staff': [
             ('marco@tavola.demo', 'Marco Rossi', 'manager',
-             ['Table for 2', 'Table for 4', 'Table for 6', 'Table for 8+',
-              'Afternoon Tea for 2', 'Afternoon Tea for 4', 'Sunday Roast (per person)'],
+             ['Book a Table', 'Table for 4-6', 'Large Party (7+)',
+              'Afternoon Tea for 2'],
              '15:00', '16:00'),
             ('elena@tavola.demo', 'Elena Marchetti', 'staff',
-             ['Table for 2', 'Table for 4', 'Table for 6', 'Table for 8+',
-              'Afternoon Tea for 2', 'Afternoon Tea for 4', 'Sunday Roast (per person)'],
+             ['Book a Table', 'Table for 4-6', 'Large Party (7+)',
+              'Afternoon Tea for 2'],
              '15:00', '16:00'),
             ('chef.luca@tavola.demo', 'Chef Luca De Luca', 'staff',
-             ['Chef\'s Table (6 Course Tasting)', 'Private Dining Room (up to 12)',
-              'Corporate Lunch Package', 'Corporate Dinner & Drinks', 'Wedding Reception'],
+             ['Chef\'s Table (6 Course Tasting)', 'Private Dining Room'],
              '15:30', '16:00'),
         ],
         'demo_clients': [
@@ -112,6 +106,8 @@ TENANTS = {
         'phone': '07700 900200',
         'address': '8 Riverside Park, Birmingham, B1 3CD',
         'deposit_percentage': 0,
+        'booking_staff_label': 'Trainer',
+        'booking_staff_label_plural': 'Trainers',
         'enabled_modules': ['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'],
         'services': [
             # Memberships
@@ -424,7 +420,8 @@ class Command(BaseCommand):
             'enabled_modules': cfg['enabled_modules'],
         }
         for key in ('colour_background', 'colour_text', 'font_heading', 'font_body',
-                    'font_url', 'website_url', 'social_instagram'):
+                    'font_url', 'website_url', 'social_instagram',
+                    'booking_staff_label', 'booking_staff_label_plural'):
             if key in cfg:
                 defaults[key] = cfg[key]
         ts, created = TenantSettings.objects.update_or_create(slug=slug, defaults=defaults)

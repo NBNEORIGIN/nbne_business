@@ -35,6 +35,8 @@ class TenantSettings(models.Model):
 
     business_hours = models.JSONField(default=dict, blank=True)
 
+    booking_staff_label = models.CharField(max_length=50, blank=True, default='Stylist', help_text='Label for staff picker in booking flow e.g. Stylist, Trainer, Host')
+    booking_staff_label_plural = models.CharField(max_length=50, blank=True, default='Stylists', help_text='Plural form e.g. Stylists, Trainers, Hosts')
     booking_lead_time_hours = models.IntegerField(default=24)
     booking_max_advance_days = models.IntegerField(default=60)
     cancellation_policy = models.TextField(blank=True, default='')

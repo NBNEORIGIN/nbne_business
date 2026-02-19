@@ -4,3 +4,6 @@ node_modules/
 .env.vercel.local
 
 .vercel
+
+.vercel
+.env*.local

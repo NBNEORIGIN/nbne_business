@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NBNE — Beautiful websites that actually run your business</title>
+  <meta name="description" content="One flat price. No per-seat charges. Booking, payments, compliance, CRM — all included. Built in the UK for UK businesses.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    img { display: block; max-width: 100%; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #0f0f0f;
+      background: #fff;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Design Tokens ── */
+    :root {
+      --serif: 'Playfair Display', Georgia, serif;
+      --sans: 'Inter', -apple-system, sans-serif;
+      --dark: #0f0f0f;
+      --muted: #6b6b6b;
+      --accent: #2563eb;
+      --accent-dark: #1d4ed8;
+    }
+
+    /* ── Navigation ── */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 1.1rem 2rem;
+      display: flex; justify-content: space-between; align-items: center;
+      transition: all 0.3s ease;
+    }
+    .nav.scrolled {
+      padding: 0.65rem 2rem;
+      background: rgba(255,255,255,0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .nav-logo {
+      font-weight: 800; font-size: 1.3rem;
+      color: #fff; text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+    .nav.scrolled .nav-logo { color: var(--dark); }
+    .nav-links { display: flex; gap: 2rem; align-items: center; }
+    .nav-links a {
+      color: rgba(255,255,255,0.85); text-decoration: none;
+      font-size: 0.88rem; font-weight: 500;
+      letter-spacing: 0.02em; transition: color 0.2s;
+    }
+    .nav.scrolled .nav-links a { color: var(--muted); }
+    .nav.scrolled .nav-links a:hover { color: var(--dark); }
+    .mobile-btn {
+      display: none; background: none; border: none; cursor: pointer;
+      padding: 8px; color: #fff; font-size: 1.5rem;
+    }
+    .nav.scrolled .mobile-btn { color: var(--dark); }
+    .mobile-menu {
+      display: none; position: fixed; inset: 0; z-index: 99;
+      background: rgba(255,255,255,0.98);
+      flex-direction: column; align-items: center; justify-content: center; gap: 2rem;
+    }
+    .mobile-menu.open { display: flex; }
+    .mobile-menu a {
+      color: var(--dark); text-decoration: none; font-size: 1.25rem;
+      font-weight: 600; letter-spacing: 0.02em;
+    }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none !important; }
+      .mobile-btn { display: block !important; }
+    }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background-image: url('https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&q=80&auto=format');
+      background-size: cover; background-position: center;
+    }
+    .hero-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.65) 100%);
+    }
+    .hero-content {
+      position: relative; text-align: center; padding: 2rem; max-width: 800px;
+    }
+    .hero-badge {
+      display: inline-block; background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(8px); padding: 0.4rem 1.25rem;
+      border-radius: 20px; margin-bottom: 2rem;
+      font-size: 0.82rem; font-weight: 500; color: rgba(255,255,255,0.9);
+      letter-spacing: 0.05em; border: 1px solid rgba(255,255,255,0.15);
+    }
+    .hero h1 {
+      font-family: var(--serif);
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 600; color: #fff; line-height: 1.08;
+      margin-bottom: 1.5rem; letter-spacing: -0.02em;
+    }
+    .hero h1 em { font-style: italic; font-weight: 400; }
+    .hero-sub {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: rgba(255,255,255,0.75); font-weight: 400;
+      margin-bottom: 2.5rem; line-height: 1.6;
+      max-width: 600px; margin-left: auto; margin-right: auto;
+    }
+    .hero-buttons { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: #fff; color: var(--dark); padding: 0.9rem 2.25rem;
+      text-decoration: none; font-weight: 700; font-size: 0.9rem;
+      border-radius: 6px; transition: transform 0.2s; border: none; cursor: pointer;
+    }
+    .btn-primary:hover { transform: translateY(-1px); }
+    .btn-outline {
+      background: transparent; color: #fff; padding: 0.9rem 2.25rem;
+      text-decoration: none; font-weight: 500; font-size: 0.9rem;
+      border: 1px solid rgba(255,255,255,0.35); border-radius: 6px;
+      transition: border-color 0.2s; cursor: pointer;
+    }
+    .btn-outline:hover { border-color: rgba(255,255,255,0.7); }
+    .scroll-indicator {
+      position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,0.4); font-size: 0.7rem; text-align: center;
+      letter-spacing: 0.15em; text-transform: uppercase;
+    }
+    .scroll-indicator .line {
+      width: 1px; height: 36px; background: rgba(255,255,255,0.25);
+      margin: 0 auto 0.5rem;
+    }
+
+    /* ── Social Proof ── */
+    .social-proof {
+      padding: 3rem 2rem; background: #fafafa; text-align: center;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .social-proof p {
+      max-width: 800px; margin: 0 auto;
+      font-size: 1.05rem; color: var(--muted); line-height: 1.7;
+    }
+    .social-proof strong { color: var(--dark); }
+
+    /* ── Demo Cards ── */
+    .demos { padding: 6rem 2rem; background: #fff; }
+    .demos-inner { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: 0.75rem; font-weight: 600; color: var(--accent);
+      text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-family: var(--serif);
+      font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+      font-weight: 600; color: var(--dark); margin-bottom: 1rem;
+    }
+    .section-sub {
+      font-size: 1rem; color: var(--muted); max-width: 560px;
+      margin: 0 auto; line-height: 1.6;
+    }
+    .demo-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem; margin-top: 4rem;
+    }
+    .demo-card {
+      display: block; text-decoration: none; color: var(--dark);
+      border-radius: 12px; overflow: hidden; border: 1px solid #e8e8e8;
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+    .demo-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+    }
+    .demo-card-img {
+      position: relative; aspect-ratio: 16/10; overflow: hidden;
+    }
+    .demo-card-img img {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .demo-card-img .overlay {
+      position: absolute; inset: 0;
+    }
+    .demo-card-img .label {
+      position: absolute; bottom: 1rem; left: 1.25rem; color: #fff;
+    }
+    .demo-card-img .label .subtitle {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.1em; opacity: 0.8; margin-bottom: 0.25rem;
+    }
+    .demo-card-img .label .title {
+      font-family: var(--serif); font-size: 1.5rem; font-weight: 600;
+    }
+    .demo-card-img .badge {
+      position: absolute; top: 1rem; right: 1rem;
+      padding: 0.3rem 0.75rem; border-radius: 20px;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em;
+    }
+    .badge-live { background: rgba(255,255,255,0.95); }
+    .demo-card-body { padding: 1.5rem 1.25rem; }
+    .demo-card-body p {
+      font-size: 0.9rem; color: var(--muted); line-height: 1.6; margin-bottom: 1.25rem;
+    }
+    .demo-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .demo-tag {
+      background: #f5f5f5; padding: 0.3rem 0.7rem; border-radius: 4px;
+      font-size: 0.75rem; font-weight: 600; color: #555;
+    }
+    .demo-link {
+      margin-top: 1.25rem; display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.85rem; font-weight: 600;
+    }
+
+    /* ── Platform Features ── */
+    .platform { padding: 6rem 2rem; background: #fafafa; }
+    .platform-inner { max-width: 1100px; margin: 0 auto; }
+    .feature-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem; margin-top: 4rem;
+    }
+    .feature-card {
+      background: #fff; border-radius: 10px; padding: 2rem;
+      border: 1px solid #eee; transition: box-shadow 0.2s;
+    }
+    .feature-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+    .feature-icon { font-size: 1.75rem; margin-bottom: 1rem; }
+    .feature-card h3 {
+      font-size: 1.05rem; font-weight: 700; color: var(--dark); margin-bottom: 0.5rem;
+    }
+    .feature-card p { font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── Testimonials ── */
+    .testimonials { padding: 6rem 2rem; background: #fff; }
+    .testimonials-inner { max-width: 1000px; margin: 0 auto; }
+    .testimonial-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem; margin-top: 3.5rem;
+    }
+    .testimonial-card {
+      background: #fafafa; border-radius: 10px; padding: 2rem; border: 1px solid #eee;
+    }
+    .testimonial-card blockquote {
+      font-size: 0.95rem; color: #4a4a4a; line-height: 1.7;
+      font-style: italic; margin-bottom: 1.5rem;
+    }
+    .testimonial-card .author { font-size: 0.9rem; font-weight: 700; color: var(--dark); }
+    .testimonial-card .role { font-size: 0.8rem; color: var(--muted); }
+
+    /* ── CTA ── */
+    .cta {
+      padding: 6rem 2rem; text-align: center;
+      background: linear-gradient(135deg, #0f0f0f 0%, #1e293b 100%);
+    }
+    .cta-inner { max-width: 640px; margin: 0 auto; }
+    .cta h2 {
+      font-family: var(--serif);
+      font-size: clamp(1.75rem, 4vw, 2.75rem);
+      font-weight: 600; color: #fff; margin-bottom: 1.25rem; line-height: 1.15;
+    }
+    .cta p { font-size: 1.05rem; color: rgba(255,255,255,0.6); margin-bottom: 2.5rem; line-height: 1.6; }
+    .cta-buttons { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+    .cta .btn-primary { background: #fff; color: var(--dark); }
+    .cta .btn-outline { color: #fff; border-color: rgba(255,255,255,0.3); }
+    .cta .btn-outline:hover { border-color: rgba(255,255,255,0.7); }
+    .cta-note {
+      font-size: 0.78rem; color: rgba(255,255,255,0.35); margin-top: 1.5rem;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 3rem 2rem; background: #0a0a0a; text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .footer-inner { max-width: 800px; margin: 0 auto; }
+    .footer-logo {
+      font-weight: 800; font-size: 1.2rem; color: #fff;
+      margin-bottom: 1rem; letter-spacing: -0.02em;
+    }
+    .footer-links {
+      display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap;
+      font-size: 0.8rem; margin-bottom: 1.5rem;
+    }
+    .footer-links a { color: rgba(255,255,255,0.5); text-decoration: none; }
+    .footer-links a:hover { color: rgba(255,255,255,0.8); }
+    .footer-copy { font-size: 0.75rem; color: rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav" id="nav">
+    <a href="#" class="nav-logo">NBNE</a>
+    <div class="nav-links">
+      <a href="#demos">Demos</a>
+      <a href="#platform">Platform</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+    <button class="mobile-btn" id="mobileBtn" aria-label="Menu">&#9776;</button>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="#demos" onclick="closeMobile()">Demos</a>
+    <a href="#platform" onclick="closeMobile()">Platform</a>
+    <a href="#pricing" onclick="closeMobile()">Pricing</a>
+  </div>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="hero-badge">UK-Built &middot; No Hidden Fees &middot; Unlimited Staff</div>
+      <h1>Beautiful websites that<br><em>actually run your business</em></h1>
+      <p class="hero-sub">
+        One flat price. No per-seat charges. Add as many staff as you want.
+        Booking, payments, compliance, CRM &mdash; all included. We even handle the stuff
+        you keep meaning to sort out, like PAT certs and document audits.
+      </p>
+      <div class="hero-buttons">
+        <a href="#demos" class="btn-primary">View Live Demos</a>
+        <a href="#pricing" class="btn-outline">See Pricing</a>
+      </div>
+    </div>
+    <div class="scroll-indicator">
+      <div class="line"></div>
+      Explore
+    </div>
+  </section>
+
+  <!-- Social Proof -->
+  <section class="social-proof">
+    <p>
+      <strong>Built in the UK for UK businesses.</strong>
+      We're not a Silicon Valley startup. We're a small, straight-talking team that builds
+      the whole system &mdash; website, booking, payments, staff, compliance, CRM &mdash; and actually picks up the phone.
+    </p>
+  </section>
+
+  <!-- Demo Sites -->
+  <section id="demos" class="demos">
+    <div class="demos-inner">
+      <div style="text-align:center; margin-bottom:4rem;">
+        <div class="section-label">Live Demos</div>
+        <h2 class="section-title">See What We Build</h2>
+        <p class="section-sub">
+          Explore our live demo websites. Each one is a fully functional example of what we deliver to clients &mdash; click through, book an appointment, try the admin panel.
+        </p>
+      </div>
+
+      <div class="demo-grid">
+
+        <!-- Salon X -->
+        <!-- TODO: Update href once Salon X Vercel project is created -->
+        <a class="demo-card" href="#" target="_blank" rel="noopener">
+          <div class="demo-card-img">
+            <img src="https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&q=80&auto=format" alt="Salon X" loading="lazy">
+            <div class="overlay" style="background:linear-gradient(transparent 40%, #8B6F47cc 100%);"></div>
+            <div class="label">
+              <div class="subtitle">Hair &amp; Beauty</div>
+              <div class="title">Salon X</div>
+            </div>
+            <div class="badge badge-live" style="color:#8B6F47;">Live Demo</div>
+          </div>
+          <div class="demo-card-body">
+            <p>A stunning salon website with online booking, Stripe payments, staff profiles, and a full gallery. Everything a modern salon needs.</p>
+            <div class="demo-tags">
+              <span class="demo-tag">Online Booking</span>
+              <span class="demo-tag">Stripe Deposits</span>
+              <span class="demo-tag">Staff Profiles</span>
+              <span class="demo-tag">Service Menu</span>
+            </div>
+            <div class="demo-link" style="color:#8B6F47;">Explore Demo <span>&rarr;</span></div>
+          </div>
+        </a>
+
+        <!-- FitHub -->
+        <a class="demo-card" href="https://fithub-lake.vercel.app" target="_blank" rel="noopener">
+          <div class="demo-card-img">
+            <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&auto=format" alt="FitHub" loading="lazy">
+            <div class="overlay" style="background:linear-gradient(transparent 40%, #dc2626cc 100%);"></div>
+            <div class="label">
+              <div class="subtitle">Gym &amp; Fitness</div>
+              <div class="title">FitHub</div>
+            </div>
+            <div class="badge badge-live" style="color:#dc2626;">Live Demo</div>
+          </div>
+          <div class="demo-card-body">
+            <p>A high-energy gym website with class timetables, membership sign-ups, trainer bios, and integrated booking for PT sessions.</p>
+            <div class="demo-tags">
+              <span class="demo-tag">Class Timetable</span>
+              <span class="demo-tag">PT Booking</span>
+              <span class="demo-tag">Membership Plans</span>
+              <span class="demo-tag">Trainer Profiles</span>
+            </div>
+            <div class="demo-link" style="color:#dc2626;">Explore Demo <span>&rarr;</span></div>
+          </div>
+        </a>
+
+        <!-- Tavola -->
+        <a class="demo-card" href="https://tavola-gray.vercel.app" target="_blank" rel="noopener">
+          <div class="demo-card-img">
+            <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80&auto=format" alt="Tavola" loading="lazy">
+            <div class="overlay" style="background:linear-gradient(transparent 40%, #059669cc 100%);"></div>
+            <div class="label">
+              <div class="subtitle">Restaurant &amp; Dining</div>
+              <div class="title">Tavola</div>
+            </div>
+            <div class="badge badge-live" style="color:#059669;">Live Demo</div>
+          </div>
+          <div class="demo-card-body">
+            <p>An elegant restaurant website with table reservations, seasonal menus, chef profiles, and event booking for private dining.</p>
+            <div class="demo-tags">
+              <span class="demo-tag">Table Reservations</span>
+              <span class="demo-tag">Menu Display</span>
+              <span class="demo-tag">Event Booking</span>
+              <span class="demo-tag">Chef Profiles</span>
+            </div>
+            <div class="demo-link" style="color:#059669;">Explore Demo <span>&rarr;</span></div>
+          </div>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Platform Features -->
+  <section id="platform" class="platform">
+    <div class="platform-inner">
+      <div style="text-align:center; margin-bottom:4rem;">
+        <div class="section-label">The Platform</div>
+        <h2 class="section-title">Everything Under One Roof</h2>
+        <p class="section-sub">
+          Your website is just the front door. Behind it sits a complete business management platform.
+        </p>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📅</div>
+          <h3>Online Booking</h3>
+          <p>Customers book 24/7. Real-time availability, staff assignment, and instant confirmation.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💳</div>
+          <h3>Stripe Payments</h3>
+          <p>Secure deposits and full payments via Stripe Checkout. No-show protection built in.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">👥</div>
+          <h3>Staff Management</h3>
+          <p>Rotas, timesheets, leave tracking, working hours, and performance all in one place.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>CRM &amp; Leads</h3>
+          <p>Track every enquiry from first contact to paying customer. Full pipeline visibility.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <h3>Compliance</h3>
+          <p>Document vault, PAT certificates, disclaimers, and audit trails. Stay inspection-ready.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🌐</div>
+          <h3>Beautiful Website</h3>
+          <p>A bespoke, mobile-first website that represents your brand. Not a template &mdash; built for you.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="testimonials">
+    <div class="testimonials-inner">
+      <div style="text-align:center; margin-bottom:3.5rem;">
+        <div class="section-label">Testimonials</div>
+        <h2 class="section-title">What Business Owners Say</h2>
+      </div>
+
+      <div class="testimonial-grid">
+        <div class="testimonial-card">
+          <blockquote>&ldquo;The booking system alone has saved me hours every week. Clients love being able to book online, and the deposit system means no more no-shows.&rdquo;</blockquote>
+          <div class="author">Sarah M.</div>
+          <div class="role">Salon Owner</div>
+        </div>
+        <div class="testimonial-card">
+          <blockquote>&ldquo;Having everything in one platform &mdash; bookings, staff, compliance &mdash; is a game changer. We ditched three separate tools.&rdquo;</blockquote>
+          <div class="author">James R.</div>
+          <div class="role">Gym Manager</div>
+        </div>
+        <div class="testimonial-card">
+          <blockquote>&ldquo;The website NBNE built us is gorgeous. We get compliments on it constantly, and the reservation system just works.&rdquo;</blockquote>
+          <div class="author">Maria L.</div>
+          <div class="role">Restaurant Owner</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section id="pricing" class="cta">
+    <div class="cta-inner">
+      <h2>Ready to transform<br>your business?</h2>
+      <p>
+        Try our live demos, explore the admin panel, and see exactly what you'll get.
+        No sales calls. No commitment. Just click and explore.
+      </p>
+      <div class="cta-buttons">
+        <a href="#demos" class="btn-primary">Explore Demos</a>
+        <a href="mailto:toby@nbnesigns.com" class="btn-outline">Get in Touch</a>
+      </div>
+      <p class="cta-note">
+        Demo login: <strong>owner@health-club-x.demo</strong> / <strong>admin123</strong> &mdash; data resets nightly
+      </p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-logo">NBNE</div>
+      <div class="footer-links">
+        <!-- TODO: Update Salon X link once Vercel project is created -->
+        <a href="#">Salon Demo</a>
+        <a href="https://fithub-lake.vercel.app" target="_blank" rel="noopener">Gym Demo</a>
+        <a href="https://tavola-gray.vercel.app" target="_blank" rel="noopener">Restaurant Demo</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <div class="footer-copy">&copy; 2026 NBNE. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll-based nav styling
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 60);
+    }, { passive: true });
+
+    // Mobile menu
+    const mobileBtn = document.getElementById('mobileBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+    mobileBtn.addEventListener('click', () => {
+      const isOpen = mobileMenu.classList.toggle('open');
+      mobileBtn.innerHTML = isOpen ? '&#10005;' : '&#9776;';
+    });
+    function closeMobile() {
+      mobileMenu.classList.remove('open');
+      mobileBtn.innerHTML = '&#9776;';
+    }
+  </script>
+
+</body>
+</html>

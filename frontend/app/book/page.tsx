@@ -453,14 +453,14 @@ function BookPageInner() {
             )}
           </Section>
 
-          {/* 2. Choose Stylist */}
-          <Section num={2} title="Choose Stylist">
+          {/* 2. Choose Staff */}
+          <Section num={2} title={`Choose ${tenant.booking_staff_label || 'Staff'}`}>
             {!selectedService ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>Select a service first</div>
             ) : loadingStaff ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>Loading…</div>
             ) : !hasStaff ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>Any available stylist</div>
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>Any available {(tenant.booking_staff_label || 'staff').toLowerCase()}</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
                 {staffList.map((s: any) => {
@@ -502,7 +502,7 @@ function BookPageInner() {
           <Section num={3} title="Choose Date">
             {!selectedService || (hasStaff && !selectedStaff) ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>
-                {!selectedService ? 'Select a service first' : 'Select a stylist first'}
+                {!selectedService ? 'Select a service first' : `Select a ${(tenant.booking_staff_label || 'staff').toLowerCase()} first`}
               </div>
             ) : (
               <Calendar selectedDate={selectedDate} onSelect={selectDate} availableDates={availableDates} />

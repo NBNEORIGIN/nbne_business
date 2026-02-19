@@ -20,6 +20,8 @@ export interface TenantConfig {
   font_url: string
   phone: string
   email: string
+  booking_staff_label: string
+  booking_staff_label_plural: string
 }
 
 const DEFAULT_CONFIG: TenantConfig = {
@@ -39,6 +41,8 @@ const DEFAULT_CONFIG: TenantConfig = {
   font_url: '',
   phone: '',
   email: '',
+  booking_staff_label: 'Stylist',
+  booking_staff_label_plural: 'Stylists',
 }
 
 const TenantContext = createContext<TenantConfig>(DEFAULT_CONFIG)
