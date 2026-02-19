@@ -167,7 +167,7 @@ export default function HomePage() {
             fontSize: '0.82rem', fontWeight: 500, color: 'rgba(255,255,255,0.9)',
             letterSpacing: '0.05em', border: '1px solid rgba(255,255,255,0.15)',
           }}>
-            Websites &middot; Bookings &middot; Business Management
+            UK-Built &middot; No Nonsense &middot; Just Results
           </div>
           <h1 style={{
             fontFamily: SERIF, fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
@@ -175,15 +175,15 @@ export default function HomePage() {
             letterSpacing: '-0.02em',
           }}>
             Beautiful websites that<br />
-            <span style={{ fontStyle: 'italic', fontWeight: 400 }}>run your business</span>
+            <span style={{ fontStyle: 'italic', fontWeight: 400 }}>actually run your business</span>
           </h1>
           <p style={{
             fontSize: 'clamp(1rem, 2vw, 1.2rem)',
             color: 'rgba(255,255,255,0.75)', fontWeight: 400,
             marginBottom: '2.5rem', lineHeight: 1.6, maxWidth: 600, margin: '0 auto 2.5rem',
           }}>
-            We build stunning, bespoke websites for salons, gyms, and restaurants &mdash; with
-            online booking, payments, staff management, and CRM built right in.
+            A small UK team that builds proper websites for salons, gyms, and restaurants &mdash;
+            with booking, payments, staff management, and CRM built right in. No jargon. No fluff.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <a href="#demos" style={{
@@ -214,9 +214,9 @@ export default function HomePage() {
       <section style={{ padding: '3rem 2rem', background: '#fafafa', textAlign: 'center', borderBottom: '1px solid #f0f0f0' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <p style={{ fontSize: '1.05rem', color: MUTED, lineHeight: 1.7 }}>
-            <strong style={{ color: DARK }}>One platform, everything you need.</strong>{' '}
-            We don&apos;t just build websites &mdash; we build the entire system behind them.
-            Booking, payments, staff, compliance, CRM. All connected. All beautiful.
+            <strong style={{ color: DARK }}>Built in the UK for UK businesses.</strong>{' '}
+            We&apos;re not a Silicon Valley startup. We&apos;re a small, straight-talking team that builds
+            the whole system &mdash; website, booking, payments, staff, compliance, CRM &mdash; and actually picks up the phone.
           </p>
         </div>
       </section>
