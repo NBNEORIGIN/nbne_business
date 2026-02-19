@@ -5,6 +5,17 @@ import { useSearchParams } from 'next/navigation'
 import { getServices, getBookableStaff, getStaffSlots, getSlots, checkDisclaimer, signDisclaimer, createBooking, createCheckoutSession } from '@/lib/api'
 import { useTenant } from '@/lib/tenant'
 
+/* ── Design tokens (matching homepage) ── */
+const SERIF = "'Playfair Display', Georgia, serif"
+const SANS = "'Inter', -apple-system, sans-serif"
+const ACCENT = '#8B6F47'
+const ACCENT_LIGHT = '#C4A97D'
+const DARK = '#1a1a1a'
+const MUTED = '#6b6b6b'
+const BG_CREAM = '#FAF8F5'
+const BG_WARM = '#F5F0EB'
+const HERO_IMG = 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1920&q=80&auto=format'
+
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
 function fmtTime(iso: string) { try { return iso.includes('T') ? iso.split('T')[1].slice(0, 5) : iso.slice(0, 5) } catch { return iso } }
 
@@ -12,12 +23,20 @@ function fmtTime(iso: string) { try { return iso.includes('T') ? iso.split('T')[
 function Section({ num, title, children }: { num: number; title: string; children: React.ReactNode }) {
   return (
     <div style={{
-      background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb',
-      padding: '0.85rem 1rem', height: '100%',
+      background: '#fff', borderRadius: 10, border: '1px solid rgba(139,111,71,0.12)',
+      padding: '1.25rem 1.25rem', height: '100%',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
     }}>
-      <h2 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827', margin: '0 0 0.6rem' }}>
-        {num}. {title}
-      </h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: '0 0 0.85rem' }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: '50%', background: BG_WARM,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '0.75rem', fontWeight: 700, color: ACCENT, flexShrink: 0,
+        }}>{num}</div>
+        <h2 style={{ fontFamily: SERIF, fontSize: '1.05rem', fontWeight: 500, color: DARK, margin: 0 }}>
+          {title}
+        </h2>
+      </div>
       {children}
     </div>
   )
@@ -54,13 +73,13 @@ function Calendar({ selectedDate, onSelect, availableDates }: {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#6b7280', padding: '0.25rem 0.5rem' }}>&lsaquo;</button>
-        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>{monthName}</span>
-        <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#6b7280', padding: '0.25rem 0.5rem' }}>&rsaquo;</button>
+        <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: MUTED, padding: '0.25rem 0.5rem' }}>&lsaquo;</button>
+        <span style={{ fontFamily: SERIF, fontWeight: 500, fontSize: '0.95rem', color: DARK }}>{monthName}</span>
+        <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: MUTED, padding: '0.25rem 0.5rem' }}>&rsaquo;</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center' }}>
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600, padding: '0.25rem 0' }}>{d}</div>
+          <div key={d} style={{ fontSize: '0.7rem', color: ACCENT_LIGHT, fontWeight: 600, padding: '0.25rem 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{d}</div>
         ))}
         {cells.map((day, i) => {
           if (day === null) return <div key={`e${i}`} />
@@ -80,10 +99,11 @@ function Calendar({ selectedDate, onSelect, availableDates }: {
                 margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.82rem', fontWeight: isSel || isToday ? 700 : 400,
                 cursor: clickable ? 'pointer' : 'default',
-                background: isSel ? '#111827' : 'transparent',
-                color: isSel ? '#fff' : isPast ? '#d1d5db' : isAvail ? '#111827' : '#d1d5db',
-                outline: isToday && !isSel ? '2px solid #2563eb' : 'none',
+                background: isSel ? ACCENT : 'transparent',
+                color: isSel ? '#fff' : isPast ? '#d1d5db' : isAvail ? DARK : '#d1d5db',
+                outline: isToday && !isSel ? `2px solid ${ACCENT_LIGHT}` : 'none',
                 outlineOffset: -2,
+                transition: 'all 0.15s ease',
               }}
             >{day}</button>
           )
@@ -290,35 +310,38 @@ function BookPageInner() {
   // ── Confirmation overlay ──
   if (confirmed) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-        <header style={{ background: '#111827', color: '#fff', padding: '1rem 2rem', textAlign: 'center' }}>
-          <a href="/" style={{ color: '#fff', textDecoration: 'none', fontWeight: 800, fontSize: '1.3rem' }}>{bizName}</a>
+      <div style={{ minHeight: '100vh', background: BG_CREAM, fontFamily: SANS }}>
+        <header style={{
+          background: `linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url(${HERO_IMG}) center/cover`,
+          color: '#fff', padding: '1.25rem 2rem', textAlign: 'center',
+        }}>
+          <a href="/" style={{ fontFamily: SERIF, color: '#fff', textDecoration: 'none', fontWeight: 500, fontSize: '1.4rem', letterSpacing: '0.02em' }}>{bizName}</a>
         </header>
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '4rem 1.5rem', textAlign: 'center' }}>
           <div style={{
-            width: 64, height: 64, borderRadius: '50%', background: '#dcfce7',
+            width: 64, height: 64, borderRadius: '50%', background: BG_WARM,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 1.5rem', fontSize: '1.75rem',
+            margin: '0 auto 1.5rem', fontSize: '1.5rem', color: ACCENT,
           }}>✓</div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#111827', marginBottom: '0.5rem' }}>Booking Confirmed!</h1>
-          <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>Reference: <strong>#{confirmed.id}</strong></p>
+          <h1 style={{ fontFamily: SERIF, fontSize: '1.75rem', fontWeight: 500, color: DARK, marginBottom: '0.5rem' }}>Booking Confirmed</h1>
+          <p style={{ color: MUTED, marginBottom: '1.5rem' }}>Reference: <strong>#{confirmed.id}</strong></p>
           {confirmed.payment_success && (
             <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: '#166534' }}>
               ✓ Payment received — your booking is confirmed.
             </div>
           )}
           {selectedService && (
-            <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', border: '1px solid #e5e7eb', textAlign: 'left', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.9rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Service</span><strong>{selectedService?.name}</strong></div>
-                {selectedStaff && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Stylist</span><strong>{staffName(selectedStaff)}</strong></div>}
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Date</span><strong>{selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</strong></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Time</span><strong>{selectedTime}</strong></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#6b7280' }}>Price</span><strong>{formatPrice(selectedService.price_pence)}</strong></div>
+            <div style={{ background: '#fff', borderRadius: 10, padding: '1.5rem', border: `1px solid rgba(139,111,71,0.12)`, textAlign: 'left', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'grid', gap: '0.6rem', fontSize: '0.9rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: MUTED }}>Service</span><strong style={{ color: DARK }}>{selectedService?.name}</strong></div>
+                {selectedStaff && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: MUTED }}>Stylist</span><strong style={{ color: DARK }}>{staffName(selectedStaff)}</strong></div>}
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: MUTED }}>Date</span><strong style={{ color: DARK }}>{selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: MUTED }}>Time</span><strong style={{ color: DARK }}>{selectedTime}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.4rem', borderTop: `1px solid ${BG_WARM}` }}><span style={{ color: MUTED }}>Price</span><strong style={{ color: ACCENT, fontSize: '1rem' }}>{formatPrice(selectedService.price_pence)}</strong></div>
               </div>
             </div>
           )}
-          <div><button onClick={resetBooking} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600, marginTop: '0.5rem' }}>Book Another Appointment</button></div>
+          <div><button onClick={resetBooking} style={{ background: 'none', border: 'none', color: ACCENT, fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600, marginTop: '0.5rem', letterSpacing: '0.03em' }}>Book Another Appointment</button></div>
         </div>
       </div>
     )
@@ -327,58 +350,64 @@ function BookPageInner() {
   // ── Disclaimer overlay ──
   if (showDisclaimer && disclaimerData) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-        <header style={{ background: '#111827', color: '#fff', padding: '1rem 2rem' }}>
-          <a href="/" style={{ color: '#fff', textDecoration: 'none', fontWeight: 800, fontSize: '1.3rem' }}>{bizName}</a>
+      <div style={{ minHeight: '100vh', background: BG_CREAM, fontFamily: SANS }}>
+        <header style={{
+          background: `linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url(${HERO_IMG}) center/cover`,
+          color: '#fff', padding: '1.25rem 2rem',
+        }}>
+          <a href="/" style={{ fontFamily: SERIF, color: '#fff', textDecoration: 'none', fontWeight: 500, fontSize: '1.4rem', letterSpacing: '0.02em' }}>{bizName}</a>
         </header>
         <div style={{ maxWidth: 560, margin: '0 auto', padding: '2rem 1.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>{disclaimerData.title}</h2>
-          <div style={{ background: '#fff', borderRadius: 10, padding: '1.5rem', border: '1px solid #e5e7eb', maxHeight: 320, overflowY: 'auto', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+          <h2 style={{ fontFamily: SERIF, fontSize: '1.25rem', fontWeight: 500, color: DARK, marginBottom: '1rem' }}>{disclaimerData.title}</h2>
+          <div style={{ background: '#fff', borderRadius: 10, padding: '1.5rem', border: `1px solid rgba(139,111,71,0.12)`, maxHeight: 320, overflowY: 'auto', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.25rem', color: MUTED }}>
             {disclaimerData.body.split('\n').map((line: string, i: number) => (<p key={i} style={{ marginBottom: '0.5rem' }}>{line}</p>))}
           </div>
-          <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '1rem', marginBottom: '1.25rem' }}>
-            <p style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.9rem' }}>By clicking below, you confirm:</p>
-            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
+          <div style={{ background: BG_WARM, border: `1px solid rgba(139,111,71,0.15)`, borderRadius: 8, padding: '1rem', marginBottom: '1.25rem' }}>
+            <p style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.9rem', color: DARK }}>By clicking below, you confirm:</p>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem', color: MUTED }}>
               <li>You have read and understood the above terms</li>
               <li>You agree to be bound by these terms</li>
               <li>This agreement is valid for 12 months</li>
             </ul>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button onClick={handleDisclaimerSign} disabled={submitting} style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: 'none', background: '#111827', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{submitting ? 'Signing…' : 'I Agree — Continue'}</button>
-            <button onClick={() => setShowDisclaimer(false)} style={{ padding: '0.75rem 1.25rem', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer' }}>Back</button>
+            <button onClick={handleDisclaimerSign} disabled={submitting} style={{ flex: 1, padding: '0.75rem', borderRadius: 6, border: 'none', background: ACCENT, color: '#fff', fontWeight: 600, cursor: 'pointer', letterSpacing: '0.03em' }}>{submitting ? 'Signing…' : 'I Agree — Continue'}</button>
+            <button onClick={() => setShowDisclaimer(false)} style={{ padding: '0.75rem 1.25rem', borderRadius: 6, border: `1px solid rgba(139,111,71,0.2)`, background: '#fff', color: MUTED, cursor: 'pointer' }}>Back</button>
           </div>
         </div>
       </div>
     )
   }
 
-  // ── Main booking page — House of Hair layout ──
+  // ── Main booking page ──
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f0eb' }}>
-      {/* Header */}
-      <header style={{ background: '#111827', color: '#fff', padding: '1rem 2rem 1.25rem', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.15rem', color: '#fff' }}>{bizName}</h1>
-        <p style={{ color: '#9ca3af', fontSize: '0.8rem', margin: 0 }}>
+    <div style={{ minHeight: '100vh', background: BG_CREAM, fontFamily: SANS, color: DARK }}>
+      {/* Header with faded hero background */}
+      <header style={{
+        background: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.55)), url(${HERO_IMG}) center/cover`,
+        color: '#fff', padding: '2rem 2rem 2.25rem', textAlign: 'center',
+      }}>
+        <a href="/" style={{ fontFamily: SERIF, color: '#fff', textDecoration: 'none', fontWeight: 500, fontSize: '1.6rem', letterSpacing: '0.02em' }}>{bizName}</a>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', margin: '0.35rem 0 0', fontWeight: 300, letterSpacing: '0.05em' }}>
           {tenant.tagline || 'Book Your Appointment'}
         </p>
-        <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginTop: '0.5rem', fontSize: '0.78rem' }}>
-          <a href="/" style={{ color: '#d1d5db', textDecoration: 'none' }}>Home</a>
-          <a href="/pricing" style={{ color: '#d1d5db', textDecoration: 'none' }}>Pricing</a>
-          <a href="/login" style={{ color: '#d1d5db', textDecoration: 'none' }}>Login</a>
+        <div style={{ display: 'flex', gap: '1.75rem', justifyContent: 'center', marginTop: '0.75rem', fontSize: '0.78rem' }}>
+          <a href="/" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Home</a>
+          <a href="#services" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Services</a>
+          <a href="#contact" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Contact</a>
         </div>
       </header>
 
       {error && (
         <div style={{ maxWidth: 960, margin: '1rem auto 0', padding: '0 1rem' }}>
-          <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.75rem 1rem', color: '#991b1b', fontSize: '0.9rem' }}>
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '0.75rem 1rem', color: '#991b1b', fontSize: '0.9rem' }}>
             {error}
-            <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#991b1b' }}>✕</button>
           </div>
         </div>
       )}
 
-      <main style={{ maxWidth: 960, margin: '0 auto', padding: '1rem 1rem 2rem' }}>
+      <main style={{ maxWidth: 960, margin: '0 auto', padding: '1.25rem 1rem 2rem' }}>
 
         {/* ── Row 1: Service + Stylist ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
@@ -396,19 +425,18 @@ function BookPageInner() {
                       key={svc.id}
                       onClick={() => selectService(svc)}
                       style={{
-                        padding: '1rem 0.75rem', borderRadius: 10, cursor: 'pointer',
+                        padding: '1rem 0.75rem', borderRadius: 8, cursor: 'pointer',
                         textAlign: 'center', transition: 'all 0.15s ease',
-                        background: isSel ? '#111827' : '#fff',
-                        color: isSel ? '#fff' : '#111827',
-                        border: isSel ? '2px solid #111827' : '1px solid #e5e7eb',
+                        background: isSel ? ACCENT : '#fff',
+                        color: isSel ? '#fff' : DARK,
+                        border: isSel ? `2px solid ${ACCENT}` : '1px solid rgba(139,111,71,0.12)',
                       }}
                     >
-                      <div style={{ fontSize: '1.25rem', marginBottom: '0.35rem' }}>✂️</div>
-                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.2rem' }}>{svc.name}</div>
-                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: isSel ? '#93c5fd' : '#2563eb' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.3rem' }}>{svc.name}</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: isSel ? 'rgba(255,255,255,0.9)' : ACCENT }}>
                         {svc.price_pence > 0 ? formatPrice(svc.price_pence) : 'POA'}
                       </div>
-                      <div style={{ fontSize: '0.72rem', opacity: 0.6, marginTop: '0.1rem' }}>{svc.duration_minutes} min</div>
+                      <div style={{ fontSize: '0.72rem', opacity: 0.5, marginTop: '0.15rem' }}>{svc.duration_minutes} min</div>
                     </div>
                   )
                 })}
@@ -435,19 +463,19 @@ function BookPageInner() {
                       onClick={() => selectStaffMember(s)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '0.6rem',
-                        padding: '0.65rem 0.85rem', borderRadius: 10, cursor: 'pointer',
+                        padding: '0.65rem 0.85rem', borderRadius: 8, cursor: 'pointer',
                         transition: 'all 0.15s ease',
-                        background: isSel ? '#111827' : '#fff',
-                        color: isSel ? '#fff' : '#111827',
-                        border: isSel ? '2px solid #111827' : '1px solid #e5e7eb',
+                        background: isSel ? ACCENT : '#fff',
+                        color: isSel ? '#fff' : DARK,
+                        border: isSel ? `2px solid ${ACCENT}` : '1px solid rgba(139,111,71,0.12)',
                       }}
                     >
                       <div style={{
                         width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                        background: isSel ? 'rgba(255,255,255,0.2)' : '#e0e7ff',
+                        background: isSel ? 'rgba(255,255,255,0.2)' : BG_WARM,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '0.85rem', fontWeight: 700,
-                        color: isSel ? '#fff' : '#4338ca',
+                        color: isSel ? '#fff' : ACCENT,
                       }}>{sName.charAt(0)}</div>
                       <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{sName}</div>
                     </div>
@@ -490,11 +518,12 @@ function BookPageInner() {
                       key={slot.start_time}
                       onClick={() => selectTime(timeStr)}
                       style={{
-                        padding: '0.45rem 0.25rem', borderRadius: 8,
-                        border: isSel ? '2px solid #111827' : '1px solid #d1d5db',
-                        background: isSel ? '#111827' : '#fff',
-                        color: isSel ? '#fff' : '#374151',
+                        padding: '0.5rem 0.25rem', borderRadius: 6,
+                        border: isSel ? `2px solid ${ACCENT}` : '1px solid rgba(139,111,71,0.15)',
+                        background: isSel ? ACCENT : '#fff',
+                        color: isSel ? '#fff' : DARK,
                         fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
                     >{timeStr}</button>
                   )
@@ -507,11 +536,12 @@ function BookPageInner() {
                       key={slot.id}
                       onClick={() => selectLegacySlot(slot)}
                       style={{
-                        padding: '0.55rem 0.25rem', borderRadius: 8,
-                        border: isSel ? '2px solid #111827' : '1px solid #d1d5db',
-                        background: isSel ? '#111827' : '#fff',
-                        color: isSel ? '#fff' : '#374151',
+                        padding: '0.5rem 0.25rem', borderRadius: 6,
+                        border: isSel ? `2px solid ${ACCENT}` : '1px solid rgba(139,111,71,0.15)',
+                        background: isSel ? ACCENT : '#fff',
+                        color: isSel ? '#fff' : DARK,
                         fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
                     >{t}</button>
                   )
@@ -530,48 +560,50 @@ function BookPageInner() {
               <>
                 {/* Summary strip */}
                 <div style={{
-                  background: '#f8fafc', borderRadius: 8, padding: '0.75rem 1rem',
-                  marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  border: '1px solid #e5e7eb', fontSize: '0.88rem',
+                  background: BG_WARM, borderRadius: 8, padding: '0.85rem 1rem',
+                  marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  border: `1px solid rgba(139,111,71,0.1)`, fontSize: '0.88rem',
                 }}>
                   <div>
-                    <strong>{selectedService.name}</strong>
-                    {selectedStaff && <span style={{ color: '#6b7280' }}> with {staffName(selectedStaff)}</span>}
-                    <span style={{ color: '#6b7280' }}> &middot; {selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} at {selectedTime}</span>
+                    <strong style={{ color: DARK }}>{selectedService.name}</strong>
+                    {selectedStaff && <span style={{ color: MUTED }}> with {staffName(selectedStaff)}</span>}
+                    <span style={{ color: MUTED }}> &middot; {selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} at {selectedTime}</span>
                   </div>
-                  <strong style={{ color: '#111827', fontSize: '1rem' }}>{formatPrice(selectedService.price_pence)}</strong>
+                  <strong style={{ color: ACCENT, fontSize: '1rem' }}>{formatPrice(selectedService.price_pence)}</strong>
                 </div>
 
                 <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Name *</label>
-                    <input required value={name} onChange={e => setName(e.target.value)} placeholder="Your full name" style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: DARK, marginBottom: '0.3rem', letterSpacing: '0.02em' }}>Name *</label>
+                    <input required value={name} onChange={e => setName(e.target.value)} placeholder="Your full name" style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 6, border: '1px solid rgba(139,111,71,0.2)', fontSize: '0.88rem', boxSizing: 'border-box', fontFamily: SANS, outline: 'none' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Email *</label>
-                    <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: DARK, marginBottom: '0.3rem', letterSpacing: '0.02em' }}>Email *</label>
+                    <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 6, border: '1px solid rgba(139,111,71,0.2)', fontSize: '0.88rem', boxSizing: 'border-box', fontFamily: SANS, outline: 'none' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Phone *</label>
-                    <input type="tel" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="07700 900000" style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: DARK, marginBottom: '0.3rem', letterSpacing: '0.02em' }}>Phone *</label>
+                    <input type="tel" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="07700 900000" style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 6, border: '1px solid rgba(139,111,71,0.2)', fontSize: '0.88rem', boxSizing: 'border-box', fontFamily: SANS, outline: 'none' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>Notes</label>
-                    <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything we should know?" style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: DARK, marginBottom: '0.3rem', letterSpacing: '0.02em' }}>Notes</label>
+                    <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything we should know?" style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: 6, border: '1px solid rgba(139,111,71,0.2)', fontSize: '0.88rem', boxSizing: 'border-box', fontFamily: SANS, outline: 'none' }} />
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <button
                       type="submit"
                       disabled={submitting || !name.trim() || !email.trim() || !phone.trim()}
                       style={{
-                        width: '100%', padding: '0.85rem', borderRadius: 10, border: 'none',
-                        background: '#111827', color: '#fff', fontWeight: 700, fontSize: '1rem',
+                        width: '100%', padding: '0.9rem', borderRadius: 6, border: 'none',
+                        background: ACCENT, color: '#fff', fontWeight: 600, fontSize: '0.95rem',
                         cursor: submitting ? 'wait' : 'pointer',
                         opacity: submitting || !name.trim() || !email.trim() || !phone.trim() ? 0.5 : 1,
+                        letterSpacing: '0.05em', textTransform: 'uppercase',
+                        fontFamily: SANS, transition: 'opacity 0.2s',
                       }}
                     >{submitting ? 'Processing…' : (selectedService?.price_pence > 0 ? (selectedService.deposit_percentage > 0 || selectedService.deposit_pence > 0 ? 'Pay Deposit & Confirm' : 'Pay & Confirm') : 'Confirm Booking')}</button>
                     {selectedService && (selectedService.deposit_percentage > 0 || selectedService.deposit_pence > 0) && (
-                      <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#6b7280', margin: '0.5rem 0 0' }}>
+                      <p style={{ textAlign: 'center', fontSize: '0.75rem', color: MUTED, margin: '0.6rem 0 0' }}>
                         A deposit of {selectedService.deposit_percentage > 0 ? `${selectedService.deposit_percentage}% (${formatPrice(Math.round(selectedService.price_pence * selectedService.deposit_percentage / 100))})` : formatPrice(selectedService.deposit_pence)} will be taken securely via Stripe.
                       </p>
                     )}
@@ -582,8 +614,8 @@ function BookPageInner() {
           </Section>
         </div>
 
-        <div style={{ textAlign: 'center', padding: '2rem 0 0.5rem', fontSize: '0.75rem', color: '#9ca3af' }}>
-          Powered by NBNE Business Platform
+        <div style={{ textAlign: 'center', padding: '2rem 0 0.5rem', fontSize: '0.72rem', color: ACCENT_LIGHT, letterSpacing: '0.03em' }}>
+          Powered by NBNE
         </div>
       </main>
     </div>
