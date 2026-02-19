@@ -99,7 +99,7 @@ export default function SalonPage() {
               transition: 'color 0.2s',
             }}>{link.label}</a>
           ))}
-          <a href="/book" style={{
+          <a href="/book?demo=salon-x" style={{
             background: ACCENT, color: '#fff', padding: '0.6rem 1.5rem',
             borderRadius: 4, textDecoration: 'none', fontWeight: 600,
             fontSize: '0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase',
@@ -132,7 +132,7 @@ export default function SalonPage() {
             { label: 'About', href: '#about' },
             { label: 'Gallery', href: '#gallery' },
             { label: 'Contact', href: '#contact' },
-            { label: 'Book Now', href: '/book' },
+            { label: 'Book Now', href: '/book?demo=salon-x' },
           ].map(link => (
             <a key={link.label} href={link.href} onClick={() => setMobileMenu(false)} style={{
               color: DARK, textDecoration: 'none', fontSize: '1.25rem', fontWeight: 500,
@@ -176,7 +176,7 @@ export default function SalonPage() {
             Where style meets confidence
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/book" style={{
+            <a href="/book?demo=salon-x" style={{
               background: ACCENT, color: '#fff', padding: '1rem 2.5rem',
               textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem',
               letterSpacing: '0.1em', textTransform: 'uppercase',
@@ -265,7 +265,7 @@ export default function SalonPage() {
           </div>
 
           <div style={{ textAlign: 'center', marginTop: '3rem' }}>
-            <a href="/book" style={{
+            <a href="/book?demo=salon-x" style={{
               display: 'inline-block', background: DARK, color: '#fff',
               padding: '0.85rem 2.5rem', textDecoration: 'none',
               fontWeight: 600, fontSize: '0.85rem', letterSpacing: '0.1em',
@@ -472,7 +472,7 @@ export default function SalonPage() {
               <p style={{ fontSize: '0.9rem', color: MUTED, lineHeight: 1.6, marginBottom: '1.5rem' }}>
                 Book your appointment online for instant confirmation. Deposits taken securely via Stripe.
               </p>
-              <a href="/book" style={{
+              <a href="/book?demo=salon-x" style={{
                 display: 'inline-block', background: ACCENT, color: '#fff',
                 padding: '0.85rem 2.5rem', textDecoration: 'none',
                 fontWeight: 600, fontSize: '0.85rem', letterSpacing: '0.1em',
@@ -533,7 +533,7 @@ export default function SalonPage() {
             <a href="#about" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>About</a>
             <a href="#gallery" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Gallery</a>
             <a href="#contact" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Contact</a>
-            <a href="/book" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Book Online</a>
+            <a href="/book?demo=salon-x" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Book Online</a>
           </div>
           <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)' }}>
             &copy; {new Date().getFullYear()} {bizName}. All rights reserved. &nbsp;|&nbsp; Powered by NBNE

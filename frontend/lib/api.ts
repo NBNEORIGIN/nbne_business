@@ -5,6 +5,17 @@
 
 const API_BASE = '/api/django'
 
+// --- Demo tenant override (for /salon, /gym, /restaurant demo pages) ---
+let _demoTenantSlug: string | null = null
+
+export function setDemoTenant(slug: string | null) {
+  _demoTenantSlug = slug
+}
+
+export function getDemoTenant(): string | null {
+  return _demoTenantSlug
+}
+
 // --- Token Management (client-side) ---
 let accessToken: string | null = null
 let refreshToken: string | null = null
@@ -112,6 +123,9 @@ async function apiFetch<T = any>(
   }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
+  }
+  if (_demoTenantSlug) {
+    headers['x-tenant-slug'] = _demoTenantSlug
   }
 
   try {

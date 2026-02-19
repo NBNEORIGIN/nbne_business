@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getServices, getBookableStaff, getStaffSlots, getSlots, checkDisclaimer, signDisclaimer, createBooking, createCheckoutSession } from '@/lib/api'
+import { getServices, getBookableStaff, getStaffSlots, getSlots, checkDisclaimer, signDisclaimer, createBooking, createCheckoutSession, setDemoTenant } from '@/lib/api'
 import { useTenant } from '@/lib/tenant'
 
 /* ── Design tokens (matching homepage) ── */
@@ -115,8 +115,9 @@ function Calendar({ selectedDate, onSelect, availableDates }: {
 
 function BookPageInner() {
   const tenant = useTenant()
-  const bizName = tenant.business_name || 'Salon-X'
   const searchParams = useSearchParams()
+  const demoSlug = searchParams.get('demo') || ''
+  const bizName = demoSlug === 'salon-x' ? 'Salon X' : (tenant.business_name || 'Salon-X')
 
   const [services, setServices] = useState<any[]>([])
   const [staffList, setStaffList] = useState<any[]>([])
@@ -143,7 +144,15 @@ function BookPageInner() {
   const [showDisclaimer, setShowDisclaimer] = useState(false)
   const [confirmed, setConfirmed] = useState<any>(null)
 
+  // Set demo tenant override synchronously so all API calls use the right tenant
   useEffect(() => {
+    if (demoSlug) setDemoTenant(demoSlug)
+    return () => { setDemoTenant(null) }
+  }, [demoSlug])
+
+  useEffect(() => {
+    // Ensure demo tenant is set before fetching
+    if (demoSlug) setDemoTenant(demoSlug)
     getServices().then(r => { setServices(r.data || []); setLoadingServices(false) })
     // Handle Stripe payment return
     const payment = searchParams.get('payment')
@@ -153,7 +162,7 @@ function BookPageInner() {
     } else if (payment === 'cancelled' && bookingId) {
       setError('Payment was cancelled. Your booking has not been confirmed. Please try again.')
     }
-  }, [searchParams])
+  }, [searchParams, demoSlug])
 
   // Available dates for calendar (next 60 days)
   const availableDates: string[] = []
