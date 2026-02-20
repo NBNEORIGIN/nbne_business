@@ -1,10 +1,19 @@
 from django.db import models
 
 
+BUSINESS_TYPE_CHOICES = [
+    ('salon', 'Salon / Beauty'),
+    ('restaurant', 'Restaurant / Hospitality'),
+    ('gym', 'Gym / Fitness'),
+    ('generic', 'Generic / Other'),
+]
+
+
 class TenantSettings(models.Model):
     """Multi-tenant configuration. Each demo site gets its own row."""
 
     slug = models.SlugField(max_length=100, unique=True, default='default', help_text='URL-safe identifier e.g. salon-x')
+    business_type = models.CharField(max_length=20, choices=BUSINESS_TYPE_CHOICES, default='salon', help_text='Controls booking flow variant and admin sidebar')
     business_name = models.CharField(max_length=255)
     enabled_modules = models.JSONField(
         default=list, blank=True,

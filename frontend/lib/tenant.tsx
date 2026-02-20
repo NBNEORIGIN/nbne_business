@@ -6,6 +6,7 @@ import { getTenantBranding } from './api'
 export interface TenantConfig {
   slug: string
   business_name: string
+  business_type: string
   enabled_modules: string[]
   tagline: string
   colour_primary: string
@@ -27,6 +28,7 @@ export interface TenantConfig {
 const DEFAULT_CONFIG: TenantConfig = {
   slug: 'default',
   business_name: 'Business',
+  business_type: 'salon',
   enabled_modules: [],
   tagline: '',
   colour_primary: '#2563eb',

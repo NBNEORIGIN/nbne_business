@@ -10,6 +10,7 @@ User = get_user_model()
 
 TENANTS = {
     'salon-x': {
+        'business_type': 'salon',
         'business_name': 'Salon X',
         'tagline': 'Premium Hair & Beauty',
         'colour_primary': '#2563eb',
@@ -49,6 +50,7 @@ TENANTS = {
         'comms_channels': [('General', 'GENERAL'), ('Stylists', 'TEAM')],
     },
     'restaurant-x': {
+        'business_type': 'restaurant',
         'business_name': 'Tavola',
         'tagline': 'Fine Dining & Events',
         'colour_primary': '#059669',
@@ -98,6 +100,7 @@ TENANTS = {
         'comms_channels': [('General', 'GENERAL'), ('Kitchen', 'TEAM'), ('Front of House', 'TEAM')],
     },
     'health-club-x': {
+        'business_type': 'gym',
         'business_name': 'FitHub',
         'tagline': 'Fitness, Wellness & Recovery',
         'colour_primary': '#dc2626',
@@ -169,6 +172,7 @@ TENANTS = {
         'comms_channels': [('General', 'GENERAL'), ('Trainers', 'TEAM'), ('Front Desk', 'TEAM')],
     },
     'mind-department': {
+        'business_type': 'generic',
         'business_name': 'The Mind Department',
         'tagline': 'Mindfulness for clarity, calm and sustainable performance',
         'colour_primary': '#8D9889',
@@ -204,6 +208,7 @@ TENANTS = {
         },
     },
     'nbne': {
+        'business_type': 'generic',
         'business_name': 'NBNE',
         'tagline': 'Business Technology & Consulting',
         'colour_primary': '#0f172a',
@@ -419,7 +424,7 @@ class Command(BaseCommand):
             'deposit_percentage': cfg['deposit_percentage'],
             'enabled_modules': cfg['enabled_modules'],
         }
-        for key in ('colour_background', 'colour_text', 'font_heading', 'font_body',
+        for key in ('business_type', 'colour_background', 'colour_text', 'font_heading', 'font_body',
                     'font_url', 'website_url', 'social_instagram',
                     'booking_staff_label', 'booking_staff_label_plural'):
             if key in cfg:

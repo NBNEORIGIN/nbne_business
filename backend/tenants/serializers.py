@@ -6,7 +6,7 @@ class TenantSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantSettings
         fields = [
-            'slug', 'business_name', 'enabled_modules',
+            'slug', 'business_name', 'business_type', 'enabled_modules',
             'tagline', 'logo_url', 'favicon_url',
             'colour_primary', 'colour_secondary', 'colour_accent',
             'colour_background', 'colour_text',
@@ -28,7 +28,7 @@ class TenantSettingsUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantSettings
         fields = [
-            'business_name', 'tagline', 'logo_url', 'favicon_url',
+            'business_name', 'business_type', 'tagline', 'logo_url', 'favicon_url',
             'colour_primary', 'colour_secondary', 'colour_accent',
             'colour_background', 'colour_text',
             'font_heading', 'font_body', 'font_url',
@@ -46,7 +46,7 @@ class TenantSettingsCSSVarsSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantSettings
         fields = [
-            'slug', 'business_name', 'enabled_modules',
+            'slug', 'business_name', 'business_type', 'enabled_modules',
             'tagline', 'logo_url', 'favicon_url',
             'colour_primary', 'colour_secondary', 'colour_accent',
             'colour_background', 'colour_text',
