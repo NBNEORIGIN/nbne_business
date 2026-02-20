@@ -334,6 +334,10 @@ TENANTS = {
 }
 
 
+# Live client tenants — NEVER seed/delete unless explicitly targeted with --tenant
+LIVE_TENANTS = {'mind-department'}
+
+
 class Command(BaseCommand):
     help = 'Seed demo tenants with isolated per-tenant data'
 
@@ -344,7 +348,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         from tenants.models import TenantSettings
         target = options.get('tenant')
-        slugs = [target] if target and target in TENANTS else list(TENANTS.keys())
+        if target and target in TENANTS:
+            slugs = [target]
+        else:
+            # Exclude live client tenants from default runs
+            slugs = [s for s in TENANTS.keys() if s not in LIVE_TENANTS]
 
         if options.get('delete_demo'):
             self._delete_demo(slugs)
