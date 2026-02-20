@@ -22,6 +22,9 @@ from .models_availability import (
     LeaveRequest, BlockedTime, Shift, TimesheetEntry,
 )
 
+# Import restaurant models
+from .models_restaurant import Table, ServiceWindow
+
 class Service(models.Model):
     PAYMENT_TYPE_CHOICES = [
         ('full', 'Full Payment'),
@@ -254,6 +257,10 @@ class Booking(models.Model):
     override_reason = models.TextField(blank=True, default='')
     data_origin = models.CharField(max_length=4, choices=DATA_ORIGIN_CHOICES, default='REAL', db_index=True)
     demo_seed_id = models.UUIDField(null=True, blank=True, db_index=True)
+
+    # Restaurant-specific fields
+    party_size = models.IntegerField(null=True, blank=True, help_text='Number of guests (restaurant bookings)')
+    table = models.ForeignKey('Table', on_delete=models.SET_NULL, null=True, blank=True, related_name='bookings', help_text='Assigned table (restaurant bookings)')
 
     # Email reminder tracking
     reminder_sent_24h = models.BooleanField(default=False, help_text='24-hour reminder email sent')

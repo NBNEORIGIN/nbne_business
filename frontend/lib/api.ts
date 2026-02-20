@@ -263,6 +263,47 @@ export async function createCheckoutSession(data: any) {
   return apiFetch<any>('/checkout/create/', { method: 'POST', body: JSON.stringify(data) })
 }
 
+// --- Restaurant ---
+export async function getRestaurantAvailability(date: string, partySize: number) {
+  return apiFetch<any>(`/restaurant-availability/?date=${date}&party_size=${partySize}`)
+}
+
+export async function getRestaurantAvailableDates(partySize: number, weeks = 4) {
+  return apiFetch<any>(`/restaurant-available-dates/?party_size=${partySize}&weeks=${weeks}`)
+}
+
+export async function getTables() {
+  return apiFetch<any[]>('/tables/')
+}
+
+export async function createTable(data: any) {
+  return apiFetch<any>('/tables/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateTable(id: number, data: any) {
+  return apiFetch<any>(`/tables/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteTable(id: number) {
+  return apiFetch<any>(`/tables/${id}/`, { method: 'DELETE' })
+}
+
+export async function getServiceWindows() {
+  return apiFetch<any[]>('/service-windows/')
+}
+
+export async function createServiceWindow(data: any) {
+  return apiFetch<any>('/service-windows/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateServiceWindow(id: number, data: any) {
+  return apiFetch<any>(`/service-windows/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteServiceWindow(id: number) {
+  return apiFetch<any>(`/service-windows/${id}/`, { method: 'DELETE' })
+}
+
 export async function getBookings(params?: { status?: string; email?: string }) {
   const qs = new URLSearchParams()
   if (params?.status) qs.set('status', params.status)

@@ -98,6 +98,26 @@ TENANTS = {
             ('Daniel Craig', 'daniel.c@example.com', '07700 800012'),
         ],
         'comms_channels': [('General', 'GENERAL'), ('Kitchen', 'TEAM'), ('Front of House', 'TEAM')],
+        'tables': [
+            # (name, min_seats, max_seats, zone, combinable)
+            ('Table 1', 2, 2, 'Main', False),
+            ('Table 2', 2, 2, 'Main', True),
+            ('Table 3', 2, 2, 'Main', True),
+            ('Table 4', 2, 4, 'Window', False),
+            ('Table 5', 2, 4, 'Window', False),
+            ('Table 6', 4, 4, 'Main', False),
+            ('Table 7', 4, 6, 'Main', False),
+            ('Table 8', 4, 6, 'Terrace', False),
+            ('Table 9', 6, 8, 'Terrace', False),
+            ('Private Dining', 8, 14, 'Private', False),
+        ],
+        'service_windows': [
+            # (name, days, open, close, last_booking, turn_mins, max_covers)
+            # Closed Monday (day 0)
+            ('Lunch', [1, 2, 3, 4, 5, 6], '12:00', '14:30', '13:30', 90, 40),
+            ('Dinner', [1, 2, 3, 4], '18:00', '22:00', '20:30', 105, 50),
+            ('Dinner', [5, 6], '18:00', '22:30', '21:00', 105, 60),
+        ],
     },
     'health-club-x': {
         'business_type': 'gym',
@@ -284,6 +304,8 @@ class Command(BaseCommand):
             modules = cfg['enabled_modules']
             if 'bookings' in modules:
                 self._seed_bookings(cfg, customer)
+            if cfg.get('tables') or cfg.get('service_windows'):
+                self._seed_restaurant(cfg)
             if 'staff' in modules:
                 if cfg.get('staff_users'):
                     self._seed_staff_custom(cfg)
@@ -333,6 +355,14 @@ class Command(BaseCommand):
                     ('Client', Client.objects.filter(tenant=tenant)),
                     ('BookingStaff', BookingStaff.objects.filter(tenant=tenant)),
                     ('Service', Service.objects.filter(tenant=tenant)),
+                ]
+            except Exception:
+                pass
+            try:
+                from bookings.models_restaurant import Table, ServiceWindow
+                models_to_clear += [
+                    ('Table', Table.objects.filter(tenant=tenant)),
+                    ('ServiceWindow', ServiceWindow.objects.filter(tenant=tenant)),
                 ]
             except Exception:
                 pass
@@ -605,6 +635,43 @@ class Command(BaseCommand):
             Booking.objects.bulk_create(bookings_to_create, ignore_conflicts=True)
         bk_count = Booking.objects.filter(tenant=self.tenant).count()
         self.stdout.write(f'  Bookings: {bk_count} ({len(bookings_to_create)} generated)')
+
+    def _seed_restaurant(self, cfg):
+        from bookings.models_restaurant import Table, ServiceWindow
+        from datetime import time as dt_time
+
+        # --- Tables ---
+        for entry in cfg.get('tables', []):
+            name, min_s, max_s, zone, combinable = entry
+            Table.objects.get_or_create(
+                tenant=self.tenant, name=name,
+                defaults={
+                    'min_seats': min_s, 'max_seats': max_s,
+                    'zone': zone, 'combinable': combinable,
+                }
+            )
+        t_count = Table.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Tables: {t_count}')
+
+        # --- Service Windows ---
+        for entry in cfg.get('service_windows', []):
+            w_name, days, open_str, close_str, last_str, turn, covers = entry
+            h_o, m_o = map(int, open_str.split(':'))
+            h_c, m_c = map(int, close_str.split(':'))
+            h_l, m_l = map(int, last_str.split(':'))
+            for day in days:
+                ServiceWindow.objects.get_or_create(
+                    tenant=self.tenant, name=w_name, day_of_week=day,
+                    defaults={
+                        'open_time': dt_time(h_o, m_o),
+                        'close_time': dt_time(h_c, m_c),
+                        'last_booking_time': dt_time(h_l, m_l),
+                        'turn_time_minutes': turn,
+                        'max_covers': covers,
+                    }
+                )
+        sw_count = ServiceWindow.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Service windows: {sw_count}')
 
     def _seed_staff(self, cfg, owner, manager, staff1, staff2):
         from staff.models import StaffProfile, Shift, LeaveRequest, TrainingRecord, WorkingHours, ProjectCode, TimesheetEntry
