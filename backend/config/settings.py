@@ -212,6 +212,10 @@ _cors_defaults = ','.join([
     'https://nbne-business-nbne.vercel.app',
     'https://nbne-business-restaurant-x.vercel.app',
     'https://nbne-business-health-club-x.vercel.app',
+    'https://salon-x2.vercel.app',
+    'https://fithub-lake.vercel.app',
+    'https://tavola-gray.vercel.app',
+    'https://app.nbnesigns.co.uk',
 ])
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default=_cors_defaults).split(',')
 

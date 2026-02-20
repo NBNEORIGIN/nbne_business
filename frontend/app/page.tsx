@@ -23,7 +23,7 @@ const DEMOS = [
     subtitle: 'Hair & Beauty',
     description: 'A stunning salon website with online booking, Stripe payments, staff profiles, and a full gallery. Everything a modern salon needs.',
     img: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&q=80&auto=format',
-    href: '/salon',
+    href: 'https://salon-x2.vercel.app',
     accent: '#8B6F47',
     features: ['Online Booking', 'Stripe Deposits', 'Staff Profiles', 'Service Menu'],
     status: 'live',
