@@ -4,31 +4,6 @@ async function proxyRequest(req: NextRequest) {
   const API_BASE = process.env.DJANGO_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://nbneplatform-production.up.railway.app'
   const url = new URL(req.url)
   const path = url.pathname.replace(/^\/api\/django/, '')
-
-  // Debug: return config info when path is /_debug
-  if (path === '/_debug' || path === '/_debug/') {
-    // Also test the actual branding fetch
-    const testTenant = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
-    const testTarget = `${API_BASE}/api/tenant/branding/${testTenant ? '?tenant=' + testTenant : ''}`
-    let testResult = '(not tested)'
-    let testStatus = 0
-    try {
-      const testRes = await fetch(testTarget, { headers: testTenant ? { 'X-Tenant-Slug': testTenant } : {} })
-      testStatus = testRes.status
-      testResult = await testRes.text()
-    } catch (e: any) {
-      testResult = `FETCH ERROR: ${e.message}`
-    }
-    return NextResponse.json({
-      API_BASE,
-      DJANGO_BACKEND_URL: process.env.DJANGO_BACKEND_URL || '(not set)',
-      NEXT_PUBLIC_TENANT_SLUG: process.env.NEXT_PUBLIC_TENANT_SLUG || '(not set)',
-      testTarget,
-      testStatus,
-      testResult: testResult.substring(0, 500),
-    })
-  }
-
   // Client header overrides env var so demo pages can switch tenant
   const tenantSlug = req.headers.get('x-tenant-slug') || process.env.NEXT_PUBLIC_TENANT_SLUG || ''
 
@@ -61,7 +36,6 @@ async function proxyRequest(req: NextRequest) {
       }
     }
 
-    console.log('[PROXY]', req.method, target)
     const res = await fetch(target, init)
     const body = await res.arrayBuffer()
 
@@ -69,7 +43,6 @@ async function proxyRequest(req: NextRequest) {
       status: res.status,
       headers: {
         'Content-Type': res.headers.get('content-type') || 'application/json',
-        'X-Proxy-Target': target,
       },
     })
   } catch (err: any) {
