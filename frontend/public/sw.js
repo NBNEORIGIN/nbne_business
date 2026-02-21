@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nbne-v1'
+const CACHE_NAME = 'nbne-v2'
 const PRECACHE_URLS = ['/login', '/app', '/admin']
 
 self.addEventListener('install', (event) => {
