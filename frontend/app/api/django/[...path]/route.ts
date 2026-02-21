@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const API_BASE = process.env.DJANGO_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://nbneplatform-production.up.railway.app'
-
 async function proxyRequest(req: NextRequest) {
+  const API_BASE = process.env.DJANGO_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://nbneplatform-production.up.railway.app'
   const url = new URL(req.url)
   const path = url.pathname.replace(/^\/api\/django/, '')
+
+  // Debug: return config info when path is /_debug
+  if (path === '/_debug' || path === '/_debug/') {
+    return NextResponse.json({
+      API_BASE,
+      DJANGO_BACKEND_URL: process.env.DJANGO_BACKEND_URL || '(not set)',
+      NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || '(not set)',
+      NEXT_PUBLIC_TENANT_SLUG: process.env.NEXT_PUBLIC_TENANT_SLUG || '(not set)',
+    })
+  }
+
   // Client header overrides env var so demo pages can switch tenant
   const tenantSlug = req.headers.get('x-tenant-slug') || process.env.NEXT_PUBLIC_TENANT_SLUG || ''
 
