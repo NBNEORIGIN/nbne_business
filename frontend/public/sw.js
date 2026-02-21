@@ -1,36 +1,12 @@
-const CACHE_NAME = 'nbne-v2'
-const PRECACHE_URLS = ['/login', '/app', '/admin']
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
-  )
-  self.skipWaiting()
-})
-
+// Self-destructing service worker: clears all caches and unregisters itself.
+// This ensures stale cached content from previous deployments is purged.
+self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((names) =>
-      Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
-    )
-  )
-  self.clients.claim()
-})
-
-self.addEventListener('fetch', (event) => {
-  // Network-first strategy for API calls
-  if (event.request.url.includes('/api/')) return
-
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Cache successful GET responses
-        if (event.request.method === 'GET' && response.status === 200) {
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
-        }
-        return response
+    caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n))))
+      .then(() => self.registration.unregister())
+      .then(() => self.clients.matchAll()).then((clients) => {
+        clients.forEach((client) => client.navigate(client.url))
       })
-      .catch(() => caches.match(event.request))
   )
 })
