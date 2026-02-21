@@ -7,7 +7,10 @@ from .serializers import TenantSettingsSerializer, TenantSettingsCSSVarsSerializ
 
 
 def _get_tenant(request):
-    """Resolve tenant from ?tenant=slug query param, or return first."""
+    """Resolve tenant from middleware, query param, or return first."""
+    # Prefer middleware-resolved tenant (handles header + query param + user fallback)
+    if hasattr(request, 'tenant') and request.tenant:
+        return request.tenant
     slug = request.query_params.get('tenant')
     return TenantSettings.load(slug=slug)
 

@@ -12,6 +12,7 @@ async function proxyRequest(req: NextRequest) {
       DJANGO_BACKEND_URL: process.env.DJANGO_BACKEND_URL || '(not set)',
       NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || '(not set)',
       NEXT_PUBLIC_TENANT_SLUG: process.env.NEXT_PUBLIC_TENANT_SLUG || '(not set)',
+      _raw_env_keys: Object.keys(process.env).filter(k => k.includes('TENANT') || k.includes('DJANGO') || k.includes('API_BASE')),
     })
   }
 
