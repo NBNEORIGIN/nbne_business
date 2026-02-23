@@ -51,7 +51,7 @@ const FAQS = [
   { q: 'Do I need to be technical?', a: 'Not at all. We set everything up for you. You just run your business.' },
   { q: 'Can I use my own domain?', a: 'Yes. We\'ll set up your website on your domain at no extra cost.' },
   { q: 'What if I have more than one location?', a: 'Each location is £30/month with its own setup. Same deal, same features.' },
-  { q: 'Where is my data stored?', a: 'UK-hosted servers. Your data stays in Britain.' },
+  { q: 'Where is my data stored?', a: 'Your data is securely hosted on encrypted, enterprise-grade cloud infrastructure. We take backups daily and follow GDPR best practices.' },
   { q: 'What support do I get?', a: 'Real support from real people. Email, chat, or phone. We actually pick up.' },
   { q: 'Can I try before I buy?', a: 'Yes. Our live demos are fully functional — click through, make bookings, explore the admin panel. No signup required.' },
 ]
