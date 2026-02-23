@@ -23,8 +23,13 @@ export default function AdminBookingsPage() {
 
   useEffect(() => {
     Promise.all([getBookings(), getStaffList()]).then(([bRes, sRes]) => {
+      console.log('[ADMIN] getBookings response:', bRes.status, bRes.error, 'count:', bRes.data?.length ?? 'null')
+      console.log('[ADMIN] getStaffList response:', sRes.status, sRes.error, 'count:', sRes.data?.length ?? 'null')
       setAllBookings(bRes.data || [])
       setStaffList(sRes.data || [])
+      setLoading(false)
+    }).catch(err => {
+      console.error('[ADMIN] Promise.all failed:', err)
       setLoading(false)
     })
   }, [])
