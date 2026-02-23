@@ -46,8 +46,6 @@ def api_index(request):
         routes['endpoints']['documents'] = '/api/documents/'
     if settings.CRM_MODULE_ENABLED:
         routes['endpoints']['crm'] = '/api/crm/'
-    if settings.ANALYTICS_MODULE_ENABLED:
-        routes['endpoints']['analytics'] = '/api/analytics/'
     return JsonResponse(routes)
 
 
@@ -202,8 +200,6 @@ if settings.DOCUMENTS_MODULE_ENABLED:
     urlpatterns.append(path('api/documents/', include('documents.urls')))
 if settings.CRM_MODULE_ENABLED:
     urlpatterns.append(path('api/crm/', include('crm.urls')))
-if settings.ANALYTICS_MODULE_ENABLED:
-    urlpatterns.append(path('api/analytics/', include('analytics.urls')))
 
 
 # --- Media file serving ---

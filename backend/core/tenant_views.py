@@ -34,7 +34,6 @@ def tenant_branding_view(request):
         'compliance': True,
         'documents': True,
         'comms': True,
-        'analytics': True,
         'crm': True,
     }
     for mod, default in module_map.items():

@@ -82,7 +82,7 @@ export default function AdminSettingsPage() {
         <div className="card" style={{ padding: '1.5rem' }}>
           <h2 style={{ marginBottom: '1rem' }}>Module Status</h2>
           <div style={{ display: 'grid', gap: '0.5rem' }}>
-            {['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm', 'analytics'].map(mod => {
+            {['bookings', 'payments', 'staff', 'comms', 'compliance', 'documents', 'crm'].map(mod => {
               const enabled = tenant.enabled_modules.length === 0 || tenant.enabled_modules.includes(mod)
               return (
                 <div key={mod} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--color-border)' }}>

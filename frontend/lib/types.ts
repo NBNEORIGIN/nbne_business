@@ -143,11 +143,6 @@ export interface ScheduleDay {
   slot_duration_minutes: number
 }
 
-// --- Analytics ---
-export interface DashboardMetric {
-  label: string; value: string | number; change?: number; trend?: 'up' | 'down' | 'flat'
-}
-
 // --- Audit ---
 export interface AuditEntry {
   id: number; user_name: string; user_role: UserRole

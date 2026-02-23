@@ -1017,15 +1017,6 @@ export async function parseAssistantCommand(text: string) {
   return apiFetch<any>('/assistant/parse/', { method: 'POST', body: JSON.stringify({ text }) })
 }
 
-// --- Analytics ---
-export async function getAnalyticsDashboard() {
-  return apiFetch<any>('/analytics/dashboard/')
-}
-
-export async function getRecommendations() {
-  return apiFetch<any[]>('/analytics/recommendations/')
-}
-
 // --- Audit ---
 export async function getAuditLog(params?: { limit?: number; action?: string }) {
   const qs = new URLSearchParams()
