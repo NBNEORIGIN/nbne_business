@@ -205,6 +205,12 @@ function NBNELandingPage() {
               textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem',
               borderRadius: 6, transition: 'transform 0.2s',
             }}>View Live Demos</a>
+            <a href="/login?redirect=/admin" className="nbne-admin-cta" style={{
+              background: ACCENT, color: '#fff', padding: '0.9rem 2.25rem',
+              textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem',
+              borderRadius: 6, transition: 'transform 0.2s, box-shadow 0.2s',
+              boxShadow: `0 4px 20px ${ACCENT}66`,
+            }}>Try the Admin Panel &rarr;</a>
             <a href="/pricing" style={{
               background: 'transparent', color: '#fff', padding: '0.9rem 2.25rem',
               textDecoration: 'none', fontWeight: 500, fontSize: '0.9rem',
@@ -212,6 +218,9 @@ function NBNELandingPage() {
               transition: 'border-color 0.2s',
             }}>See Pricing</a>
           </div>
+          <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginTop: '1.25rem' }}>
+            Demo login: <strong>owner</strong> / <strong>admin123</strong> &mdash; no signup required
+          </p>
         </div>
         {/* Scroll indicator */}
         <div style={{
@@ -430,16 +439,17 @@ function NBNELandingPage() {
             No sales calls. No commitment. Just click and explore.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/salon" style={{
-              background: '#fff', color: DARK, padding: '0.9rem 2.25rem',
-              textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem',
-              borderRadius: 6,
-            }}>Explore Salon Demo</a>
-            <a href="/login?redirect=/admin" style={{
-              background: 'transparent', color: '#fff', padding: '0.9rem 2.25rem',
+            <a href="/login?redirect=/admin" className="nbne-admin-cta" style={{
+              background: ACCENT, color: '#fff', padding: '1rem 2.75rem',
+              textDecoration: 'none', fontWeight: 700, fontSize: '1rem',
+              borderRadius: 6, transition: 'transform 0.2s, box-shadow 0.2s',
+              boxShadow: `0 4px 24px ${ACCENT}66`,
+            }}>Try the Admin Panel &rarr;</a>
+            <a href="#demos" style={{
+              background: 'transparent', color: '#fff', padding: '1rem 2.25rem',
               textDecoration: 'none', fontWeight: 500, fontSize: '0.9rem',
               border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6,
-            }}>Try Admin Panel</a>
+            }}>Explore Demos</a>
           </div>
           <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)', marginTop: '1.5rem' }}>
             Demo login: <strong>owner@{process.env.NEXT_PUBLIC_TENANT_SLUG || 'demo'}.demo</strong> / <strong>admin123</strong> &mdash; data resets nightly
@@ -485,6 +495,7 @@ function NBNELandingPage() {
         html { scroll-behavior: smooth; }
         img { display: block; }
         * { box-sizing: border-box; margin: 0; }
+        .nbne-admin-cta:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 28px ${ACCENT}88 !important; }
       `}</style>
     </div>
   )
