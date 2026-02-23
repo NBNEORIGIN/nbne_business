@@ -115,6 +115,10 @@ export default function GymBookingFlow() {
 
     const res = await createBooking(bookingData)
     setSubmitting(false)
+    if (res.data?.checkout_url) {
+      window.location.href = res.data.checkout_url
+      return
+    }
     if (res.error) {
       setError(res.error)
     } else {
@@ -148,6 +152,15 @@ export default function GymBookingFlow() {
             <p style={{ color: MUTED, fontSize: '0.85rem', marginTop: '0.5rem' }}>
               A confirmation will be sent to {email}
             </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1.25rem' }}>
+              <button onClick={() => { setStep(1); setSelectedSession(null); setName(''); setEmail(''); setPhone(''); setNotes(''); setConfirmed(null) }}
+                style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: accent, color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', fontFamily: SANS }}>
+                Book Another Class
+              </button>
+              <a href="/" style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: '#f3f4f6', color: DARK, textDecoration: 'none', fontWeight: 500, fontSize: '0.85rem', fontFamily: SANS, display: 'inline-flex', alignItems: 'center' }}>
+                Back to Website
+              </a>
+            </div>
           </div>
         ) : step === 2 && selectedSession ? (
           /* Step 2: Your Details */

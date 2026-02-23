@@ -352,7 +352,10 @@ function BookPageInner() {
               </div>
             </div>
           )}
-          <div><button onClick={resetBooking} style={{ background: 'none', border: 'none', color: ACCENT, fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600, marginTop: '0.5rem', letterSpacing: '0.03em' }}>Book Another Appointment</button></div>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '0.5rem' }}>
+            <button onClick={resetBooking} style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: ACCENT, color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', letterSpacing: '0.03em' }}>Book Another Appointment</button>
+            <a href="/" style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: '#f3f4f6', color: DARK, textDecoration: 'none', fontWeight: 500, fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center' }}>Back to Website</a>
+          </div>
         </div>
       </div>
     )

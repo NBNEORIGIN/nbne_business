@@ -351,6 +351,15 @@ class BookingViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
+            # --- Check if Stripe payment is needed ---
+            from django.conf import settings as django_settings
+            import stripe as stripe_lib
+            stripe_key = getattr(django_settings, 'STRIPE_SECRET_KEY', '')
+            full_pence = service.price_pence
+            deposit_pence = service.effective_deposit_pence if hasattr(service, 'effective_deposit_pence') else 0
+            amount_pence = deposit_pence if deposit_pence > 0 else full_pence
+            needs_payment = bool(stripe_key and amount_pence > 0)
+
             # --- Create booking ---
             booking = Booking.objects.create(
                 tenant=tenant,
@@ -359,11 +368,77 @@ class BookingViewSet(viewsets.ModelViewSet):
                 service=service,
                 start_time=start_datetime,
                 end_time=end_datetime,
-                status='confirmed',
+                status='pending' if needs_payment else 'confirmed',
+                payment_status='pending' if needs_payment else ('paid' if full_pence == 0 else 'pending'),
                 notes=notes,
                 party_size=party_size,
             )
-            
+
+            # --- Stripe Checkout if payment needed ---
+            if needs_payment:
+                stripe_lib.api_key = stripe_key
+                origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER', '')
+                if origin:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(origin)
+                    frontend_url = f'{parsed.scheme}://{parsed.netloc}'
+                else:
+                    frontend_url = getattr(django_settings, 'FRONTEND_URL', 'http://localhost:3000')
+
+                if deposit_pence > 0 and deposit_pence < full_pence:
+                    pct = int(deposit_pence * 100 / full_pence) if full_pence else 0
+                    payment_label = f'{service.name} — Deposit ({pct}%)'
+                else:
+                    payment_label = service.name
+
+                try:
+                    checkout_session = stripe_lib.checkout.Session.create(
+                        payment_method_types=['card'],
+                        line_items=[{
+                            'price_data': {
+                                'currency': 'gbp',
+                                'product_data': {
+                                    'name': payment_label,
+                                    'description': f'{service.duration_minutes} min on {date_str} at {time_str}',
+                                },
+                                'unit_amount': amount_pence,
+                            },
+                            'quantity': 1,
+                        }],
+                        mode='payment',
+                        customer_email=client_email,
+                        success_url=f'{frontend_url}/book?payment=success&booking_id={booking.id}',
+                        cancel_url=f'{frontend_url}/book?payment=cancelled&booking_id={booking.id}',
+                        metadata={'booking_id': str(booking.id)},
+                    )
+                    booking.payment_id = checkout_session.id
+                    booking.payment_amount = service.price
+                    booking.save()
+
+                    try:
+                        from .models_payment import PaymentTransaction
+                        PaymentTransaction.objects.create(
+                            client=client, transaction_type='single', status='pending',
+                            payment_system_id=checkout_session.id,
+                            amount=service.price, currency='GBP',
+                            payment_metadata={'booking_id': booking.id, 'service': service.name},
+                        )
+                    except Exception:
+                        pass
+
+                    return Response({
+                        'checkout_url': checkout_session.url,
+                        'session_id': checkout_session.id,
+                        'booking_id': booking.id,
+                    }, status=status.HTTP_201_CREATED)
+                except Exception as e:
+                    # Stripe failed — fall back to free booking
+                    booking.status = 'confirmed'
+                    booking.payment_status = 'pending'
+                    booking.save()
+                    import logging
+                    logging.getLogger(__name__).warning(f'[STRIPE] Checkout failed for booking {booking.id}: {e}')
+
             # Smart Booking Engine — run full pipeline
             try:
                 from .smart_engine import process_booking
@@ -397,13 +472,12 @@ class BookingViewSet(viewsets.ModelViewSet):
             
             # Send confirmation email asynchronously (don't block response)
             try:
-                from django.conf import settings
                 import threading
                 
                 def send_email_async():
                     try:
                         print(f"[EMAIL] Starting email send to {client.email}")
-                        resend_api_key = getattr(settings, 'RESEND_API_KEY', None)
+                        resend_api_key = getattr(django_settings, 'RESEND_API_KEY', None)
                         use_resend = resend_api_key and resend_api_key.strip()
                         
                         subject = f'Booking Confirmation - {service.name}'
@@ -424,14 +498,14 @@ Reference: #{booking.id}
 If you need to cancel or reschedule, please contact us.
 
 Thank you,
-{getattr(settings, 'EMAIL_BRAND_NAME', 'NBNE Business Platform')}"""
+{getattr(django_settings, 'EMAIL_BRAND_NAME', 'NBNE Business Platform')}"""
                         
                         if use_resend:
                             import resend
                             resend.api_key = resend_api_key
-                            from_email = getattr(settings, 'RESEND_FROM_EMAIL', 'onboarding@resend.dev')
+                            from_email = getattr(django_settings, 'RESEND_FROM_EMAIL', 'onboarding@resend.dev')
                             params = {
-                                "from": f"{getattr(settings, 'EMAIL_BRAND_NAME', 'NBNE Business Platform')} <{from_email}>",
+                                "from": f"{getattr(django_settings, 'EMAIL_BRAND_NAME', 'NBNE Business Platform')} <{from_email}>",
                                 "to": [client.email],
                                 "subject": subject,
                                 "text": message
@@ -443,7 +517,7 @@ Thank you,
                             send_mail(
                                 subject=subject,
                                 message=message,
-                                from_email=settings.DEFAULT_FROM_EMAIL,
+                                from_email=django_settings.DEFAULT_FROM_EMAIL,
                                 recipient_list=[client.email],
                                 fail_silently=False,
                             )

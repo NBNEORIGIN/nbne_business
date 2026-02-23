@@ -644,8 +644,8 @@ class Command(BaseCommand):
             demo_clients.append(cl)
         self.stdout.write(f'  Clients: {len(demo_clients)}')
 
-        # --- Historic + Future Bookings (90 days back, 14 days forward) ---
-        if Booking.objects.filter(tenant=self.tenant).count() >= 50:
+        # --- Historic + Future Bookings (14 days back, 14 days forward) ---
+        if Booking.objects.filter(tenant=self.tenant).count() >= 20:
             bk_count = Booking.objects.filter(tenant=self.tenant).count()
             self.stdout.write(f'  Bookings: {bk_count} (already seeded)')
             return
@@ -665,17 +665,17 @@ class Command(BaseCommand):
         bookings_to_create = []
         HOURS = [9, 10, 11, 13, 14, 15, 16, 17, 18, 19]  # bookable hours
 
-        for day_offset in range(-90, 15):
+        for day_offset in range(-14, 15):
             day = today_start + timedelta(days=day_offset)
             if day.weekday() == 6:  # skip Sundays
                 continue
-            # Vary bookings per day: weekdays busier, weekends moderate
+            # Fewer bookings per day for a clean demo view
             if day.weekday() == 5:  # Saturday
-                n_bookings = rng.randint(3, 6)
+                n_bookings = rng.randint(1, 3)
             elif day.weekday() == 4:  # Friday
-                n_bookings = rng.randint(4, 8)
+                n_bookings = rng.randint(2, 3)
             else:
-                n_bookings = rng.randint(2, 6)
+                n_bookings = rng.randint(1, 2)
 
             for _ in range(n_bookings):
                 staff_member = rng.choice(booking_staff)
