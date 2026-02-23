@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import DemoBanner, { DEMO_BANNER_HEIGHT } from '@/components/DemoBanner'
 
 /* ── Design tokens ── */
 const SERIF = "'Playfair Display', Georgia, serif"
@@ -66,9 +67,11 @@ export default function TavolaPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#fff', fontFamily: SANS, color: DARK }}>
 
+      <DemoBanner />
+
       {/* ── Navigation ── */}
       <nav style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        position: 'fixed', top: DEMO_BANNER_HEIGHT, left: 0, right: 0, zIndex: 100,
         padding: scrolled ? '0.75rem 2rem' : '1.25rem 2rem',
         background: scrolled ? 'rgba(255,255,255,0.97)' : 'transparent',
         backdropFilter: scrolled ? 'blur(12px)' : 'none',
