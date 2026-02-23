@@ -1,0 +1,232 @@
+HEALTH AND SAFETY POLICY
+========================
+
+Version 1.0 | Effective Date: January 2026
+
+POLICY STATEMENT
+----------------
+This company is committed to ensuring the health, safety, and welfare of
+all employees, clients, visitors, and contractors so far as is reasonably
+practicable, in accordance with the Health and Safety at Work etc. Act 1974
+and all associated regulations.
+
+Management will ensure that:
+- Adequate resources are provided to implement this policy
+- Risk assessments are conducted and reviewed regularly
+- Safe systems of work are established and maintained
+- Staff receive appropriate health and safety training
+- The workplace is maintained in a safe condition
+- This policy is reviewed annually and updated as necessary
+
+
+RESPONSIBILITIES
+----------------
+
+Employer / Owner:
+- Overall responsibility for health and safety
+- Ensure adequate funding for safety measures
+- Appoint competent persons to assist with H&S duties
+- Review this policy annually
+
+Managers:
+- Implement this policy within their areas of responsibility
+- Ensure risk assessments are completed and acted upon
+- Report and investigate all accidents and incidents
+- Ensure staff are trained and competent
+- Conduct regular workplace inspections
+
+All Staff:
+- Take reasonable care of their own health and safety
+- Take reasonable care not to endanger others
+- Cooperate with management on health and safety matters
+- Report hazards, accidents, and near-misses immediately
+- Use equipment and substances in accordance with training
+- Not interfere with or misuse safety equipment
+
+
+RISK ASSESSMENT
+---------------
+Risk assessments will be carried out:
+- For all work activities and processes
+- When new equipment, substances, or procedures are introduced
+- Following any accident or incident
+- At regular intervals (minimum annually)
+
+Risk assessments will identify:
+1. Hazards present in the workplace
+2. Who might be harmed and how
+3. Existing control measures
+4. Additional measures required
+5. Review dates
+
+All risk assessments are documented and accessible to relevant staff.
+
+
+FIRE SAFETY
+-----------
+- Fire risk assessments are conducted annually
+- Fire detection and alarm systems are tested weekly
+- Fire extinguishers are inspected annually by a competent person
+- Emergency evacuation drills are conducted every 6 months
+- Fire exits and escape routes must remain clear at all times
+- All staff must know the location of fire exits and assembly points
+- Fire wardens are appointed and trained
+
+In the event of fire:
+1. Activate the nearest fire alarm
+2. Call 999
+3. Evacuate via the nearest safe exit
+4. Assemble at the designated assembly point
+5. Do not re-enter the building until authorised
+
+
+FIRST AID
+---------
+- Adequate first aid equipment is provided and maintained
+- Appointed first aiders are trained and certificates kept current
+- First aid kits are checked monthly and restocked as needed
+- All accidents and first aid treatment must be recorded in the
+  accident book
+- The accident book is kept in a secure, accessible location
+
+First Aiders:
+- Names and locations are displayed on the H&S noticeboard
+- At least one trained first aider is present during operating hours
+
+
+MANUAL HANDLING
+---------------
+- Manual handling risk assessments are completed for relevant tasks
+- Staff are trained in safe lifting techniques
+- Mechanical aids must be used where available
+- Avoid manual handling where reasonably practicable
+- Report any injuries from manual handling immediately
+
+
+DISPLAY SCREEN EQUIPMENT (DSE)
+------------------------------
+- DSE assessments are carried out for regular users
+- Workstations are set up ergonomically
+- Regular breaks from screen work are encouraged
+- Eye tests are available for DSE users upon request
+
+
+CONTROL OF SUBSTANCES HAZARDOUS TO HEALTH (COSHH)
+--------------------------------------------------
+- COSHH assessments are completed for all hazardous substances
+- Safety Data Sheets (SDS) are maintained and accessible
+- Hazardous substances are stored securely and labelled correctly
+- Appropriate PPE is provided and must be worn
+- Staff are trained in the safe use of all substances they handle
+- Spill procedures are in place and staff are trained accordingly
+
+
+PERSONAL PROTECTIVE EQUIPMENT (PPE)
+------------------------------------
+- PPE is provided free of charge where required
+- Staff must use PPE as instructed
+- Damaged or worn PPE must be reported and replaced immediately
+- PPE must be stored correctly when not in use
+- Training is provided on the correct use of all PPE
+
+
+ELECTRICAL SAFETY
+-----------------
+- All portable electrical equipment is PAT tested annually
+- Fixed electrical installations are inspected every 5 years
+- Staff must not use damaged electrical equipment
+- Only qualified electricians may carry out electrical work
+- Extension leads must not be daisy-chained
+
+
+WORKPLACE HYGIENE
+-----------------
+- Work areas must be kept clean and tidy
+- Adequate welfare facilities are provided (toilets, washing, rest areas)
+- Cleaning schedules are maintained and documented
+- Food preparation areas comply with food hygiene regulations
+- Waste is disposed of safely and regularly
+
+
+ACCIDENT REPORTING
+------------------
+All accidents, incidents, and near-misses must be reported:
+
+1. Provide immediate first aid if required
+2. Report to your manager as soon as possible
+3. Complete an entry in the accident book
+4. Manager investigates and completes incident report
+5. RIDDOR-reportable incidents are reported to the HSE
+
+RIDDOR (Reporting of Injuries, Diseases and Dangerous Occurrences
+Regulations 2013) reportable incidents include:
+- Deaths
+- Specified injuries (fractures, amputations, loss of sight, etc.)
+- Over-7-day incapacitation
+- Occupational diseases
+- Dangerous occurrences
+
+
+LONE WORKING
+------------
+- Lone working risk assessments are completed
+- Communication procedures are in place for lone workers
+- Check-in protocols must be followed
+- Emergency procedures are understood by all lone workers
+- Lone workers must have access to a charged mobile phone
+
+
+STRESS AND MENTAL HEALTH
+-------------------------
+- The company recognises workplace stress as a health and safety issue
+- Risk assessments include psychosocial hazards
+- Support is available through line managers
+- Confidential support services are signposted
+- Workloads are monitored and managed
+
+
+TRAINING
+--------
+All staff receive:
+- Health and safety induction on their first day
+- Role-specific safety training before commencing duties
+- Refresher training at appropriate intervals
+- Additional training when procedures or equipment change
+
+Training records are maintained and reviewed regularly.
+Mandatory training must be completed within specified timeframes.
+
+
+CONSULTATION
+------------
+Staff are consulted on health and safety matters through:
+- Team meetings
+- Direct communication with managers
+- Health and safety noticeboard
+- Suggestion/concern reporting mechanisms
+
+
+MONITORING AND REVIEW
+---------------------
+This policy is monitored through:
+- Regular workplace inspections
+- Accident and incident analysis
+- Staff feedback
+- External audits where appropriate
+
+This policy will be reviewed annually or sooner if:
+- There is a significant change in operations
+- Following a serious accident or incident
+- New legislation or guidance is published
+
+
+SIGNED
+------
+[Business Owner Name]
+Date: January 2026
+
+
+Document Reference: HSP-2026-001
+Regulatory Reference: Health and Safety at Work etc. Act 1974
+Last Updated: January 2026
+Next Review: January 2027

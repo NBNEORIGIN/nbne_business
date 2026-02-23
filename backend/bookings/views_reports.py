@@ -40,15 +40,13 @@ def _base_qs(request):
     date_from = _parse_date(request.query_params.get('date_from'), (now - timedelta(days=30)).date())
     date_to = _parse_date(request.query_params.get('date_to'), now.date())
 
+    tenant = getattr(request, 'tenant', None)
     qs = Booking.objects.filter(
         start_time__date__gte=date_from,
         start_time__date__lte=date_to,
     ).select_related('client', 'service', 'staff')
-
-    # Exclude demo data unless explicitly requested
-    include_demo = request.query_params.get('include_demo', '').lower() in ('1', 'true')
-    if not include_demo:
-        qs = qs.filter(data_origin='REAL')
+    if tenant:
+        qs = qs.filter(tenant=tenant)
 
     staff_id = request.query_params.get('staff_id')
     if staff_id:

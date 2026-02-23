@@ -381,12 +381,12 @@ export async function assignStaffToBooking(bookingId: number, staffId: number | 
 
 export async function getBookingReports(params?: { report?: string; date_from?: string; date_to?: string; staff_id?: number }) {
   const qs = new URLSearchParams()
-  if (params?.report) qs.set('report', params.report)
   if (params?.date_from) qs.set('date_from', params.date_from)
   if (params?.date_to) qs.set('date_to', params.date_to)
   if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  const tab = params?.report || 'overview'
   const q = qs.toString()
-  return apiFetch<any>(`/bookings/reports/${q ? '?' + q : ''}`)
+  return apiFetch<any>(`/reports/${tab}/${q ? '?' + q : ''}`)
 }
 
 // --- Staff ---

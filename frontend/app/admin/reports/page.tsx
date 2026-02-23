@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getBookingReports, getStaffList } from '@/lib/api'
 
-function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
+function formatPrice(pounds: number) { return '£' + pounds.toFixed(2) }
 
 function todayStr() { return new Date().toISOString().slice(0, 10) }
 function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
@@ -82,7 +82,7 @@ export default function AdminReportsPage() {
         <div className="empty-state">No data available</div>
       ) : (
         <>
-          {tab === 'overview' && <OverviewReport data={data} />}
+          {tab === 'overview' && <OverviewReport data={data.kpi ? data : { ...data, kpi: data }} />}
           {tab === 'daily' && <DailyReport data={data} />}
           {tab === 'monthly' && <MonthlyReport data={data} />}
           {tab === 'staff' && <StaffReport data={data} />}
@@ -93,23 +93,24 @@ export default function AdminReportsPage() {
 }
 
 function OverviewReport({ data }: { data: any }) {
+  const kpi = data.kpi || data
   return (
     <div>
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-number">{formatPrice(data.revenue_pence || 0)}</div>
+          <div className="stat-number">{formatPrice(kpi.revenue || 0)}</div>
           <div className="stat-label">Total Revenue</div>
         </div>
         <div className="stat-card">
-          <div className="stat-number">{formatPrice(data.deposits_pence || 0)}</div>
+          <div className="stat-number">{formatPrice(kpi.deposits || 0)}</div>
           <div className="stat-label">Deposits Collected</div>
         </div>
         <div className="stat-card">
-          <div className="stat-number">{data.total_bookings || 0}</div>
+          <div className="stat-number">{kpi.total_bookings || 0}</div>
           <div className="stat-label">Total Bookings</div>
         </div>
         <div className="stat-card">
-          <div className="stat-number">{data.completed || 0}</div>
+          <div className="stat-number">{kpi.completed || 0}</div>
           <div className="stat-label">Completed</div>
         </div>
       </div>
@@ -121,10 +122,10 @@ function OverviewReport({ data }: { data: any }) {
             <table>
               <thead><tr><th>Metric</th><th>Count</th></tr></thead>
               <tbody>
-                <tr><td>Completed / Confirmed</td><td style={{ fontWeight: 600 }}>{data.completed || 0}</td></tr>
-                <tr><td><span style={{ color: 'var(--color-danger)' }}>No Shows</span></td><td style={{ fontWeight: 600, color: 'var(--color-danger)' }}>{data.no_shows || 0}</td></tr>
-                <tr><td>Cancelled</td><td style={{ fontWeight: 600 }}>{data.cancelled || 0}</td></tr>
-                <tr><td>Total</td><td style={{ fontWeight: 600 }}>{data.total_bookings || 0}</td></tr>
+                <tr><td>Completed / Confirmed</td><td style={{ fontWeight: 600 }}>{kpi.completed || 0}</td></tr>
+                <tr><td><span style={{ color: 'var(--color-danger)' }}>No Shows</span></td><td style={{ fontWeight: 600, color: 'var(--color-danger)' }}>{kpi.no_shows || 0}</td></tr>
+                <tr><td>Cancelled</td><td style={{ fontWeight: 600 }}>{kpi.cancelled || 0}</td></tr>
+                <tr><td>Total</td><td style={{ fontWeight: 600 }}>{kpi.total_bookings || 0}</td></tr>
               </tbody>
             </table>
           </div>
@@ -135,10 +136,10 @@ function OverviewReport({ data }: { data: any }) {
             <table>
               <thead><tr><th>Metric</th><th>Value</th></tr></thead>
               <tbody>
-                <tr><td>No-Show Rate</td><td style={{ fontWeight: 600, color: (data.no_show_rate || 0) > 10 ? 'var(--color-danger)' : 'var(--color-success)' }}>{data.no_show_rate || 0}%</td></tr>
-                <tr><td>Avg Deposit %</td><td style={{ fontWeight: 600 }}>{data.avg_deposit_percentage || 0}%</td></tr>
-                <tr><td>Revenue</td><td style={{ fontWeight: 600 }}>{formatPrice(data.revenue_pence || 0)}</td></tr>
-                <tr><td>Deposits</td><td style={{ fontWeight: 600 }}>{formatPrice(data.deposits_pence || 0)}</td></tr>
+                <tr><td>No-Show Rate</td><td style={{ fontWeight: 600, color: (kpi.no_show_rate || 0) > 10 ? 'var(--color-danger)' : 'var(--color-success)' }}>{kpi.no_show_rate || 0}%</td></tr>
+                <tr><td>Repeat Clients</td><td style={{ fontWeight: 600 }}>{kpi.repeat_client_pct || 0}%</td></tr>
+                <tr><td>Revenue at Risk</td><td style={{ fontWeight: 600, color: 'var(--color-danger)' }}>{formatPrice(kpi.revenue_at_risk || 0)}</td></tr>
+                <tr><td>Unique Clients</td><td style={{ fontWeight: 600 }}>{kpi.unique_clients || 0}</td></tr>
               </tbody>
             </table>
           </div>
@@ -150,7 +151,7 @@ function OverviewReport({ data }: { data: any }) {
 
 function DailyReport({ data }: { data: any }) {
   const rows = data.rows || []
-  const totalRevenue = rows.reduce((s: number, r: any) => s + (r.revenue_pence || 0), 0)
+  const totalRevenue = rows.reduce((s: number, r: any) => s + (r.revenue || 0), 0)
   const totalBookings = rows.reduce((s: number, r: any) => s + (r.bookings || 0), 0)
   const totalNoShows = rows.reduce((s: number, r: any) => s + (r.no_shows || 0), 0)
 
@@ -200,7 +201,7 @@ function DailyReport({ data }: { data: any }) {
 
 function MonthlyReport({ data }: { data: any }) {
   const rows = data.rows || []
-  const totalRevenue = rows.reduce((s: number, r: any) => s + (r.revenue_pence || 0), 0)
+  const totalRevenue = rows.reduce((s: number, r: any) => s + (r.revenue || 0), 0)
   const totalBookings = rows.reduce((s: number, r: any) => s + (r.bookings || 0), 0)
 
   return (
@@ -223,8 +224,8 @@ function MonthlyReport({ data }: { data: any }) {
             ) : rows.map((r: any) => (
               <tr key={r.month}>
                 <td>{r.month}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(r.revenue_pence)}</td>
-                <td style={{ textAlign: 'right' }}>{formatPrice(r.deposits_pence)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(r.revenue || 0)}</td>
+                <td style={{ textAlign: 'right' }}>{formatPrice(r.deposits || 0)}</td>
                 <td style={{ textAlign: 'right' }}>{r.bookings}</td>
                 <td style={{ textAlign: 'right', color: r.no_shows > 0 ? 'var(--color-danger)' : undefined }}>{r.no_shows}</td>
               </tr>
@@ -235,7 +236,7 @@ function MonthlyReport({ data }: { data: any }) {
               <tr style={{ fontWeight: 700, borderTop: '2px solid var(--color-border)' }}>
                 <td>Total</td>
                 <td style={{ textAlign: 'right' }}>{formatPrice(totalRevenue)}</td>
-                <td style={{ textAlign: 'right' }}>{formatPrice(rows.reduce((s: number, r: any) => s + (r.deposits_pence || 0), 0))}</td>
+                <td style={{ textAlign: 'right' }}>{formatPrice(rows.reduce((s: number, r: any) => s + (r.deposits || 0), 0))}</td>
                 <td style={{ textAlign: 'right' }}>{totalBookings}</td>
                 <td style={{ textAlign: 'right' }}>{rows.reduce((s: number, r: any) => s + (r.no_shows || 0), 0)}</td>
               </tr>
@@ -249,7 +250,7 @@ function MonthlyReport({ data }: { data: any }) {
 
 function StaffReport({ data }: { data: any }) {
   const rows = data.rows || []
-  const totalRevenue = rows.reduce((s: number, r: any) => s + (r.revenue_pence || 0), 0)
+  const totalRevenue = rows.reduce((s: number, r: any) => s + (r.revenue || 0), 0)
   const totalBookings = rows.reduce((s: number, r: any) => s + (r.bookings || 0), 0)
 
   return (
@@ -275,8 +276,8 @@ function StaffReport({ data }: { data: any }) {
               return (
                 <tr key={r.staff_id}>
                   <td style={{ fontWeight: 600 }}>{r.staff_name || 'Unassigned'}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(r.revenue_pence)}</td>
-                  <td style={{ textAlign: 'right' }}>{formatPrice(r.deposits_pence)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(r.revenue || 0)}</td>
+                  <td style={{ textAlign: 'right' }}>{formatPrice(r.deposits || 0)}</td>
                   <td style={{ textAlign: 'right' }}>{r.bookings}</td>
                   <td style={{ textAlign: 'right', color: r.no_shows > 0 ? 'var(--color-danger)' : undefined }}>{r.no_shows || 0}</td>
                   <td style={{ textAlign: 'right', color: nsRate > 10 ? 'var(--color-danger)' : undefined }}>{nsRate}%</td>
@@ -289,7 +290,7 @@ function StaffReport({ data }: { data: any }) {
               <tr style={{ fontWeight: 700, borderTop: '2px solid var(--color-border)' }}>
                 <td>Total</td>
                 <td style={{ textAlign: 'right' }}>{formatPrice(totalRevenue)}</td>
-                <td style={{ textAlign: 'right' }}>{formatPrice(rows.reduce((s: number, r: any) => s + (r.deposits_pence || 0), 0))}</td>
+                <td style={{ textAlign: 'right' }}>{formatPrice(rows.reduce((s: number, r: any) => s + (r.deposits || 0), 0))}</td>
                 <td style={{ textAlign: 'right' }}>{totalBookings}</td>
                 <td style={{ textAlign: 'right' }}>{rows.reduce((s: number, r: any) => s + (r.no_shows || 0), 0)}</td>
                 <td></td>
