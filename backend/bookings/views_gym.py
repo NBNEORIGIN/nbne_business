@@ -17,6 +17,11 @@ class ClassTypeViewSet(viewsets.ModelViewSet):
     serializer_class = ClassTypeSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [AllowAny()]
+        return super().get_permissions()
+
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)
         if not tenant:
@@ -31,6 +36,11 @@ class ClassTypeViewSet(viewsets.ModelViewSet):
 class ClassSessionViewSet(viewsets.ModelViewSet):
     serializer_class = ClassSessionSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [AllowAny()]
+        return super().get_permissions()
 
     def get_queryset(self):
         tenant = getattr(self.request, 'tenant', None)
