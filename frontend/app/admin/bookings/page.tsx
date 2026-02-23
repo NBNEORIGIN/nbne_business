@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getBookings, getStaffList, assignStaffToBooking, confirmBooking, completeBooking, markNoShow, deleteBooking } from '@/lib/api'
+import { getBookings, getBookableStaff, assignStaffToBooking, confirmBooking, completeBooking, markNoShow, deleteBooking } from '@/lib/api'
 
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
 
@@ -26,7 +26,7 @@ export default function AdminBookingsPage() {
       setAllBookings(bRes.data || [])
       setLoading(false)
     }).catch(() => setLoading(false))
-    getStaffList().then(sRes => {
+    getBookableStaff().then(sRes => {
       setStaffList(sRes.data || [])
     }).catch(() => {})
   }, [])
@@ -37,9 +37,10 @@ export default function AdminBookingsPage() {
     setAllBookings(prev => prev.map(b => b.id === updated.id ? updated : b))
   }
 
-  async function handleAssignStaff(bookingId: number, staffUserId: number | null) {
-    const res = await assignStaffToBooking(bookingId, staffUserId)
+  async function handleAssignStaff(bookingId: number, staffId: number | null) {
+    const res = await assignStaffToBooking(bookingId, staffId)
     if (res.data) updateBooking(res.data)
+    if (res.error) alert(res.error)
   }
 
   async function handleConfirm(bookingId: number) {
@@ -104,7 +105,7 @@ export default function AdminBookingsPage() {
                   >
                     <option value="">Unassigned</option>
                     {staffList.map((s: any) => (
-                      <option key={s.id} value={s.user_id || s.id}>{s.display_name}</option>
+                      <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
                 </td>

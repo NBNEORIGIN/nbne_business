@@ -611,13 +611,29 @@ Thank you,
         if staff_id:
             try:
                 new_staff = Staff.objects.get(id=staff_id, tenant=booking.tenant)
-                booking.staff = new_staff
-                booking.save(update_fields=['staff', 'updated_at'])
             except Staff.DoesNotExist:
                 return Response({'error': 'Staff not found'}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            booking.staff = None
+
+            # Double-booking check: ensure staff has no overlapping active bookings
+            if booking.start_time and booking.end_time:
+                overlapping = Booking.objects.filter(
+                    staff=new_staff,
+                    status__in=['pending', 'confirmed'],
+                    start_time__lt=booking.end_time,
+                    end_time__gt=booking.start_time,
+                ).exclude(id=booking.id)
+                if overlapping.exists():
+                    clash = overlapping.first()
+                    return Response({
+                        'error': f'{new_staff.name} already has a booking at that time '
+                                 f'({clash.start_time.strftime("%H:%M")}–{clash.end_time.strftime("%H:%M")} '
+                                 f'with {clash.client.name}).'
+                    }, status=status.HTTP_409_CONFLICT)
+
+            booking.staff = new_staff
             booking.save(update_fields=['staff', 'updated_at'])
+        else:
+            return Response({'error': 'A staff member must be assigned to every booking.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(BookingSerializer(booking).data)
 
     @action(detail=True, methods=['delete'])
