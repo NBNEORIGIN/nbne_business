@@ -39,11 +39,15 @@ async function proxyRequest(req: NextRequest) {
     const res = await fetch(target, init)
     const body = await res.arrayBuffer()
 
+    const respHeaders: Record<string, string> = {
+      'Content-Type': res.headers.get('content-type') || 'application/json',
+    }
+    const disposition = res.headers.get('content-disposition')
+    if (disposition) respHeaders['Content-Disposition'] = disposition
+
     return new NextResponse(Buffer.from(body), {
       status: res.status,
-      headers: {
-        'Content-Type': res.headers.get('content-type') || 'application/json',
-      },
+      headers: respHeaders,
     })
   } catch (err: any) {
     console.error('[PROXY ERROR]', target, err.message)

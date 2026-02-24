@@ -174,7 +174,7 @@ def document_detail(request, doc_id):
 @permission_classes([IsAuthenticated])
 def document_download(request, doc_id):
     """Download a document file. Serves the file through the API so it works via the frontend proxy."""
-    from django.http import FileResponse, Http404
+    from django.http import FileResponse
     try:
         tenant = getattr(request, 'tenant', None)
         doc = Document.objects.filter(tenant=tenant).get(id=doc_id)
@@ -187,10 +187,12 @@ def document_download(request, doc_id):
     try:
         response = FileResponse(doc.file.open('rb'), content_type=doc.content_type or 'application/octet-stream')
         filename = doc.filename or doc.file.name.split('/')[-1]
-        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
-    except Exception:
-        raise Http404('File not found on storage')
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f'Document download failed for doc {doc_id}: {e}')
+        return Response({'error': f'File not found on storage: {e}'}, status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['GET'])

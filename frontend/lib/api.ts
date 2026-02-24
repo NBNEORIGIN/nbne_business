@@ -889,6 +889,7 @@ export async function downloadDocument(id: number, filename?: string) {
   const token = getAccessToken()
   const headers: Record<string, string> = {}
   if (token) headers['Authorization'] = `Bearer ${token}`
+  if (_demoTenantSlug) headers['x-tenant-slug'] = _demoTenantSlug
   const res = await fetch(`${API_BASE}/documents/${id}/download/`, { headers })
   if (!res.ok) return
   const blob = await res.blob()
