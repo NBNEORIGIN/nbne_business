@@ -1080,12 +1080,74 @@ class Command(BaseCommand):
         self.stdout.write(f'  Incidents: {inc_count}')
 
     def _seed_documents(self, owner, manager):
-        from documents.models import DocumentTag
+        import os
+        from django.core.files.base import ContentFile
+        from documents.models import Document, DocumentTag
 
         for tag_name in ['Policy', 'HSE', 'Training', 'HR']:
             DocumentTag.objects.get_or_create(tenant=self.tenant, name=tag_name)
         tag_count = DocumentTag.objects.filter(tenant=self.tenant).count()
         self.stdout.write(f'  Document tags: {tag_count}')
+
+        # --- Sample documents with real files ---
+        sample_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'documents', 'sample_docs')
+        sample_dir = os.path.normpath(sample_dir)
+        biz = self.tenant.business_name
+
+        SAMPLE_DOCS = [
+            {
+                'title': 'Staff Handbook / Employee Handbook',
+                'category': 'HR',
+                'description': 'Covers employment policies, procedures, code of conduct, disciplinary process, etc.',
+                'regulatory_ref': 'Employment Rights Act 1996',
+                'access_level': 'staff',
+                'sample_file': 'staff_handbook.txt',
+                'tags': ['HR', 'Policy'],
+            },
+            {
+                'title': 'Health & Safety Policy',
+                'category': 'POLICY',
+                'description': 'Written H&S policy required if you employ 5 or more people. Should cover general policy, organisation, and arrangements.',
+                'regulatory_ref': 'Health and Safety at Work etc. Act 1974, Section 2(3)',
+                'access_level': 'staff',
+                'sample_file': 'health_and_safety_policy.txt',
+                'tags': ['HSE', 'Policy'],
+            },
+        ]
+
+        for sd in SAMPLE_DOCS:
+            doc, created = Document.objects.get_or_create(
+                tenant=self.tenant, title=sd['title'],
+                defaults={
+                    'category': sd['category'],
+                    'description': sd['description'],
+                    'regulatory_ref': sd.get('regulatory_ref', ''),
+                    'access_level': sd.get('access_level', 'staff'),
+                    'uploaded_by': owner,
+                    'is_placeholder': False,
+                }
+            )
+            # Attach file if missing
+            sample_path = os.path.join(sample_dir, sd['sample_file'])
+            if (created or not doc.file) and os.path.isfile(sample_path):
+                with open(sample_path, 'r', encoding='utf-8') as f:
+                    content = f.read().replace('[Business Name]', biz).replace('[Owner/Manager Name]', owner.get_full_name() or biz)
+                fname = sd['sample_file'].replace('.txt', f'_{self.tenant.slug}.txt')
+                doc.file.save(fname, ContentFile(content.encode('utf-8')), save=False)
+                doc.filename = fname
+                doc.content_type = 'text/plain'
+                doc.size_bytes = len(content.encode('utf-8'))
+                doc.is_placeholder = False
+                doc.save()
+                self.stdout.write(f'    Attached sample: {fname}')
+            # Assign tags
+            for tag_name in sd.get('tags', []):
+                tag = DocumentTag.objects.filter(tenant=self.tenant, name=tag_name).first()
+                if tag:
+                    doc.tags.add(tag)
+
+        doc_count = Document.objects.filter(tenant=self.tenant).count()
+        self.stdout.write(f'  Documents: {doc_count}')
 
     def _seed_crm(self, owner, manager):
         from crm.models import Lead, LeadNote, LeadHistory

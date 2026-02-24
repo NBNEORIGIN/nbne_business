@@ -1,0 +1,343 @@
+================================================================================
+                    HEALTH & SAFETY POLICY
+                      [Business Name] Ltd
+================================================================================
+
+Version: 1.0
+Last Updated: January 2026
+Review Date: January 2027
+Responsible Person: [Owner/Manager Name]
+
+This policy is prepared in accordance with the Health and Safety at Work
+etc. Act 1974 and the Management of Health and Safety at Work Regulations
+1999.
+
+================================================================================
+PART 1: GENERAL STATEMENT OF POLICY
+================================================================================
+
+[Business Name] Ltd is committed to ensuring, so far as is reasonably
+practicable, the health, safety, and welfare of all employees, clients,
+contractors, and visitors to our premises.
+
+We recognise our legal duties under the Health and Safety at Work etc. Act
+1974 and will take all reasonably practicable steps to meet them.
+
+We will:
+
+- Provide and maintain a safe working environment
+- Provide adequate welfare facilities
+- Ensure safe handling, storage, and use of substances
+- Provide information, instruction, training, and supervision
+- Maintain all equipment and systems of work in a safe condition
+- Ensure safe access to and from the workplace
+- Conduct and regularly review risk assessments
+- Consult with employees on matters of health and safety
+- Record and investigate accidents and incidents
+- Review this policy at least annually
+
+This policy applies to all employees, contractors, and anyone affected
+by our activities.
+
+Signed: ___________________________________
+
+Name:   ___________________________________
+        (Owner / Managing Director)
+
+Date:   ___________________________________
+
+================================================================================
+PART 2: ORGANISATION — ROLES & RESPONSIBILITIES
+================================================================================
+
+2.1 BUSINESS OWNER / DIRECTOR
+
+    Overall responsibility for health and safety rests with the business
+    owner/director. They will:
+
+    - Ensure adequate resources are provided for health and safety
+    - Appoint competent persons to assist with health and safety duties
+    - Set health and safety objectives and monitor performance
+    - Review this policy annually or after any significant change
+    - Lead by example in promoting a positive safety culture
+
+2.2 MANAGERS / SUPERVISORS
+
+    Managers and supervisors are responsible for:
+
+    - Implementing this policy in their areas of responsibility
+    - Ensuring employees follow safe working procedures
+    - Conducting risk assessments for tasks and activities
+    - Reporting hazards, accidents, and near-misses
+    - Ensuring new employees receive safety inductions
+    - Maintaining records of training, inspections, and incidents
+    - Ensuring first aid provisions are adequate and accessible
+
+2.3 ALL EMPLOYEES
+
+    Every employee has a legal duty to:
+
+    - Take reasonable care of their own health and safety and that of
+      others who may be affected by their actions
+    - Co-operate with management on health and safety matters
+    - Use equipment and substances in accordance with training
+    - Report any hazards, defects, accidents, or near-misses immediately
+    - Not interfere with or misuse anything provided for health and safety
+    - Attend all required health and safety training
+    - Follow all safe working procedures and use PPE as required
+
+2.4 CONTRACTORS & VISITORS
+
+    All contractors must comply with our health and safety requirements
+    and provide evidence of their own insurance and risk assessments
+    where applicable. Visitors must be signed in, briefed on emergency
+    procedures, and accompanied where necessary.
+
+================================================================================
+PART 3: ARRANGEMENTS
+================================================================================
+
+3.1 RISK ASSESSMENTS
+
+    We will conduct risk assessments for all significant hazards. Risk
+    assessments will be:
+
+    - Carried out by a competent person
+    - Recorded in writing
+    - Communicated to relevant employees
+    - Reviewed at least annually or when circumstances change
+    - Available for inspection by employees and enforcing authorities
+
+    Key risk assessments include:
+    - General workplace risk assessment
+    - Fire risk assessment
+    - COSHH assessments (substances hazardous to health)
+    - Manual handling assessments
+    - Display screen equipment (DSE) assessments
+    - Young persons risk assessments (if applicable)
+    - New and expectant mothers risk assessments (if applicable)
+
+3.2 FIRE SAFETY
+
+    In accordance with the Regulatory Reform (Fire Safety) Order 2005:
+
+    - A fire risk assessment has been carried out and is reviewed annually
+    - Fire detection and alarm systems are tested weekly
+    - Emergency lighting is tested monthly
+    - Fire extinguishers are inspected annually by a competent person
+    - Fire evacuation drills are conducted at least twice per year
+    - Fire exits and escape routes are kept clear at all times
+    - All employees receive fire safety training on induction and annually
+
+    FIRE EVACUATION PROCEDURE:
+    1. On hearing the fire alarm, stop work immediately
+    2. Leave the building by the nearest safe exit
+    3. Do NOT stop to collect personal belongings
+    4. Do NOT use lifts
+    5. Go to the designated assembly point: [LOCATION]
+    6. Report to the fire warden / person in charge
+    7. Do NOT re-enter the building until authorised to do so
+
+    Fire Warden(s): [Name(s)]
+    Assembly Point:  [Location]
+
+3.3 FIRST AID
+
+    In accordance with the Health and Safety (First-Aid) Regulations 1981:
+
+    - A first aid needs assessment has been carried out
+    - First aid boxes are located at: [LOCATION(S)]
+    - First aid boxes are checked and restocked regularly
+    - Appointed First Aider(s): [Name(s)] — Certificate expires: [Date]
+
+    In case of serious injury or illness:
+    1. Call 999 immediately
+    2. Administer first aid if trained and safe to do so
+    3. Do NOT move the casualty unless in immediate danger
+    4. Record the incident in the Accident Book
+
+3.4 ACCIDENT & INCIDENT REPORTING
+
+    ALL accidents, injuries, incidents, and near-misses must be reported
+    immediately to a manager and recorded in the Accident Book.
+
+    RIDDOR (Reporting of Injuries, Diseases and Dangerous Occurrences
+    Regulations 2013) — The following must be reported to the HSE:
+
+    - Deaths
+    - Specified injuries (fractures, amputations, loss of sight, etc.)
+    - Over-7-day incapacitation
+    - Non-fatal injuries to non-workers requiring hospital treatment
+    - Dangerous occurrences
+    - Certain occupational diseases
+
+    RIDDOR reports are made online at: www.hse.gov.uk/riddor
+
+3.5 SUBSTANCES HAZARDOUS TO HEALTH (COSHH)
+
+    In accordance with the COSHH Regulations 2002:
+
+    - COSHH assessments are carried out for all hazardous substances used
+    - Safety Data Sheets (SDS) are obtained and filed for all products
+    - Employees are trained in the safe use of substances
+    - Suitable PPE is provided and used
+    - Substances are stored safely and labelled correctly
+    - Spill procedures are in place
+
+    Products used at [Business Name] include:
+    [List key chemicals/products, e.g. cleaning products, hair dyes,
+    sanitisers, etc.]
+
+3.6 MANUAL HANDLING
+
+    In accordance with the Manual Handling Operations Regulations 1992:
+
+    - Manual handling operations are avoided where reasonably practicable
+    - Risk assessments are carried out for unavoidable manual handling
+    - Employees are trained in safe manual handling techniques
+    - Mechanical aids are provided where appropriate
+
+3.7 EQUIPMENT & MAINTENANCE
+
+    - All equipment is maintained in safe working order
+    - Electrical equipment is PAT tested regularly
+    - Fixed electrical installations are inspected (EICR) every 5 years
+    - Gas appliances are serviced annually (Gas Safe registered engineer)
+    - Equipment defects must be reported immediately and the item taken
+      out of service until repaired or replaced
+
+3.8 WORKPLACE ENVIRONMENT
+
+    We will maintain:
+
+    - Adequate temperature (minimum 16°C for sedentary work, 13°C for
+      physical work)
+    - Adequate ventilation and lighting
+    - Clean and tidy work areas
+    - Suitable toilet and washing facilities
+    - Access to drinking water
+    - Adequate rest areas and break facilities
+    - Safe floors, walkways, and work surfaces
+    - Good housekeeping standards
+
+3.9 PERSONAL PROTECTIVE EQUIPMENT (PPE)
+
+    Where risk assessments identify the need for PPE:
+
+    - Suitable PPE will be provided free of charge
+    - Training will be given in its correct use
+    - PPE must be worn as instructed
+    - Damaged or worn PPE must be reported and replaced
+    - PPE is stored correctly when not in use
+
+3.10 TRAINING
+
+    We will provide:
+
+    - Health and safety induction for all new employees
+    - Fire safety training for all employees (annually)
+    - First aid training for designated first aiders
+    - COSHH training for employees using hazardous substances
+    - Manual handling training where required
+    - Role-specific safety training as needed
+    - Refresher training at appropriate intervals
+
+    All training will be recorded and records maintained.
+
+3.11 CONSULTATION WITH EMPLOYEES
+
+    We will consult with employees on health and safety matters including:
+
+    - Changes that may affect their health and safety
+    - Arrangements for competent health and safety assistance
+    - Information on risks and preventive measures
+    - Planning and organisation of health and safety training
+    - Health and safety consequences of introducing new technology
+
+3.12 LONE WORKING
+
+    Where employees work alone, a lone working risk assessment will be
+    carried out. Lone workers must:
+
+    - Have a means of communication
+    - Follow agreed check-in procedures
+    - Not undertake high-risk tasks alone
+    - Know how to summon help in an emergency
+
+3.13 STRESS & WELLBEING
+
+    We recognise that workplace stress can affect health and will:
+
+    - Monitor workload and working hours
+    - Provide support for employees experiencing stress
+    - Encourage open communication about wellbeing
+    - Signpost to external support services where appropriate
+
+================================================================================
+PART 4: MONITORING & REVIEW
+================================================================================
+
+This policy will be monitored and reviewed through:
+
+- Regular workplace inspections
+- Accident and incident investigation
+- Employee feedback and consultation
+- Annual policy review
+- Response to changes in legislation or guidance
+
+Any revisions will be communicated to all employees.
+
+================================================================================
+PART 5: EMERGENCY CONTACTS
+================================================================================
+
+Emergency Services:              999 / 112
+HSE (Health & Safety Executive): 0300 003 1747
+Gas Emergency:                   0800 111 999
+Electricity Emergency:           105
+Environment Agency:              0800 807 060
+NHS (non-emergency):             111
+Nearest Hospital A&E:            [Hospital Name & Address]
+
+================================================================================
+PART 6: KEY DOCUMENTS & RECORDS
+================================================================================
+
+The following documents support this policy and are maintained separately:
+
+[ ] General Risk Assessment
+[ ] Fire Risk Assessment
+[ ] COSHH Assessments
+[ ] Employers' Liability Insurance Certificate (displayed)
+[ ] Public Liability Insurance Certificate
+[ ] Fire Safety Log Book
+[ ] Accident Book (B1510)
+[ ] PAT Testing Records
+[ ] Gas Safety Certificate (CP12)
+[ ] Electrical Installation Condition Report (EICR)
+[ ] First Aid Needs Assessment
+[ ] Training Records
+[ ] Equipment Maintenance Records
+[ ] Lone Working Procedures
+[ ] DSE Assessments
+
+================================================================================
+
+ACKNOWLEDGEMENT
+
+I confirm that I have read, understood, and will comply with this
+Health & Safety Policy.
+
+
+Employee Name:    ___________________________________
+
+Signature:        ___________________________________
+
+Date:             ___________________________________
+
+================================================================================
+    This document is the property of [Business Name] Ltd.
+    It must be reviewed at least annually by the responsible person.
+    Ref: Health and Safety at Work etc. Act 1974
+         Management of Health and Safety at Work Regulations 1999
+================================================================================
