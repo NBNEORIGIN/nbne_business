@@ -1048,3 +1048,8 @@ export async function getUsers(params?: { role?: string }) {
   const q = qs.toString()
   return apiFetch<any[]>(`/auth/users/${q ? '?' + q : ''}`)
 }
+
+// --- Feedback ---
+export async function sendFeedback(data: { type: string; message: string; page: string; user_agent?: string }) {
+  return apiFetch<any>('/feedback/', { method: 'POST', body: JSON.stringify(data) })
+}

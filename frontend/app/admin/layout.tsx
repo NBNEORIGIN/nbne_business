@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useTenant, hasModule, TENANT_SLUG } from '@/lib/tenant'
 import AIChatPanel, { AIChatTrigger } from '@/components/AIChatPanel'
+import FeedbackWidget from '@/components/FeedbackWidget'
 import '../app/staff.css'
 
 const NAV_ITEMS = [
@@ -116,6 +117,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className="main-content" style={{ marginRight: (aiEnabled && chatOpen) ? '420px' : 0, transition: 'margin-right 0.25s ease' }}>{children}</main>
       {aiEnabled && <AIChatPanel isOpen={chatOpen} onToggle={() => setChatOpen(false)} />}
       {aiEnabled && !chatOpen && <AIChatTrigger onClick={() => setChatOpen(true)} />}
+      <FeedbackWidget />
     </div>
   )
 }

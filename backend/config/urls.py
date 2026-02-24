@@ -19,6 +19,8 @@ from core.views_events import log_event, today_resolved, decline_cover
 from core.views_assistant import parse_command
 from core.command_router import execute_command, command_suggestions
 from core.views_contact import contact_form
+from core.views_beta import beta_signup
+from core.views_feedback import feedback_submit
 from core.views_ai_assistant import ai_chat
 
 
@@ -87,6 +89,10 @@ urlpatterns = [
     path('api/assistant/chat/', ai_chat, name='ai-chat'),
     # Public contact form (no auth required)
     path('api/contact/', contact_form, name='contact-form'),
+    # Public beta signup form (no auth required)
+    path('api/beta-signup/', beta_signup, name='beta-signup'),
+    # Authenticated feedback from admin panel
+    path('api/feedback/', feedback_submit, name='feedback-submit'),
     # Core catch-all (health check etc.)
     path('', include('core.urls')),
 ]

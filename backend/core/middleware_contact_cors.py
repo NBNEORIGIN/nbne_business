@@ -1,5 +1,6 @@
 """
-Tiny middleware that handles CORS for the public /api/contact/ endpoint.
+Tiny middleware that handles CORS for public endpoints that accept
+cross-origin POST requests from the NBNE landing page.
 
 Placed BEFORE django-cors-headers in the middleware stack so it intercepts
 the OPTIONS preflight before corsheaders can return a response without
@@ -13,14 +14,16 @@ ALLOWED_ORIGINS = {
     'http://localhost:3000',
 }
 
+CORS_PATHS = {'/api/contact', '/api/beta-signup', '/api/feedback'}
+
 
 class ContactCorsMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        # Only intercept /api/contact/
-        if request.path.rstrip('/') != '/api/contact':
+        # Only intercept known public endpoints
+        if request.path.rstrip('/') not in CORS_PATHS:
             return self.get_response(request)
 
         origin = request.META.get('HTTP_ORIGIN', '')

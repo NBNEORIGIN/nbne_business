@@ -82,9 +82,14 @@ export default function HomePage() {
   return <NBNELandingPage />
 }
 
+const API_BASE = 'https://nbneplatform-production.up.railway.app'
+
 function NBNELandingPage() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenu, setMobileMenu] = useState(false)
+  const [betaForm, setBetaForm] = useState({ business_name: '', contact_name: '', email: '', phone: '', business_type: '', message: '' })
+  const [betaSubmitting, setBetaSubmitting] = useState(false)
+  const [betaResult, setBetaResult] = useState<{ ok?: boolean; message?: string } | null>(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
@@ -119,6 +124,7 @@ function NBNELandingPage() {
             { label: 'Demos', href: '#demos' },
             { label: 'Platform', href: '#platform' },
             { label: 'Pricing', href: '/pricing' },
+            { label: 'Beta', href: '#beta' },
           ].map(link => (
             <a key={link.label} href={link.href} style={{
               color: scrolled ? MUTED : 'rgba(255,255,255,0.85)',
@@ -153,6 +159,7 @@ function NBNELandingPage() {
             { label: 'Demos', href: '#demos' },
             { label: 'Platform', href: '#platform' },
             { label: 'Pricing', href: '/pricing' },
+            { label: 'Beta', href: '#beta' },
           ].map(link => (
             <a key={link.label} href={link.href} onClick={() => setMobileMenu(false)} style={{
               color: DARK, textDecoration: 'none', fontSize: '1.25rem', fontWeight: 600,
@@ -416,6 +423,161 @@ function NBNELandingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── Beta Programme ── */}
+      <section id="beta" style={{ padding: '6rem 2rem', background: '#f8fafc' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <div style={{
+              display: 'inline-block', background: '#dcfce7', color: '#166534',
+              padding: '0.35rem 1rem', borderRadius: 20, marginBottom: '1rem',
+              fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+            }}>Limited Places</div>
+            <h2 style={{
+              fontFamily: SERIF, fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)',
+              fontWeight: 600, color: DARK, marginBottom: '1rem',
+            }}>Join the Beta Programme</h2>
+            <p style={{ fontSize: '1rem', color: MUTED, lineHeight: 1.7, maxWidth: 520, margin: '0 auto' }}>
+              We&apos;re looking for 3&ndash;5 UK businesses to use the full platform free for 3 months
+              in exchange for honest feedback. No commitment, no card required.
+            </p>
+          </div>
+
+          {betaResult?.ok ? (
+            <div style={{
+              background: '#dcfce7', border: '1px solid #86efac', borderRadius: 10,
+              padding: '2rem', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>&#10003;</div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#166534', marginBottom: '0.5rem' }}>You&apos;re on the list!</h3>
+              <p style={{ fontSize: '0.95rem', color: '#15803d' }}>{betaResult.message}</p>
+            </div>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault()
+                setBetaSubmitting(true)
+                setBetaResult(null)
+                try {
+                  const res = await fetch(`${API_BASE}/api/beta-signup/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(betaForm),
+                  })
+                  const data = await res.json()
+                  if (res.ok) {
+                    setBetaResult({ ok: true, message: data.message })
+                  } else {
+                    setBetaResult({ ok: false, message: data.error || 'Something went wrong.' })
+                  }
+                } catch {
+                  setBetaResult({ ok: false, message: 'Network error. Please try again.' })
+                }
+                setBetaSubmitting(false)
+              }}
+              style={{
+                background: '#fff', borderRadius: 12, padding: '2rem',
+                border: '1px solid #e2e8f0', boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
+              }}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>Business Name *</label>
+                  <input
+                    required value={betaForm.business_name}
+                    onChange={e => setBetaForm({ ...betaForm, business_name: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.9rem', outline: 'none' }}
+                    placeholder="e.g. The Hair Lounge"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>Your Name *</label>
+                  <input
+                    required value={betaForm.contact_name}
+                    onChange={e => setBetaForm({ ...betaForm, contact_name: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.9rem', outline: 'none' }}
+                    placeholder="e.g. Sarah Thompson"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>Email *</label>
+                  <input
+                    required type="email" value={betaForm.email}
+                    onChange={e => setBetaForm({ ...betaForm, email: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.9rem', outline: 'none' }}
+                    placeholder="sarah@thehairlounge.co.uk"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>Phone</label>
+                  <input
+                    value={betaForm.phone}
+                    onChange={e => setBetaForm({ ...betaForm, phone: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.9rem', outline: 'none' }}
+                    placeholder="07700 123456"
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>Business Type</label>
+                <select
+                  value={betaForm.business_type}
+                  onChange={e => setBetaForm({ ...betaForm, business_type: e.target.value })}
+                  style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.9rem', background: '#fff', outline: 'none' }}
+                >
+                  <option value="">Select your industry...</option>
+                  <option value="salon">Hair / Beauty Salon</option>
+                  <option value="barber">Barber Shop</option>
+                  <option value="restaurant">Restaurant / Caf\u00e9</option>
+                  <option value="gym">Gym / Fitness Studio</option>
+                  <option value="spa">Spa / Wellness</option>
+                  <option value="clinic">Clinic / Healthcare</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div style={{ marginTop: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>Anything else?</label>
+                <textarea
+                  value={betaForm.message}
+                  onChange={e => setBetaForm({ ...betaForm, message: e.target.value })}
+                  rows={3}
+                  style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.9rem', resize: 'vertical', outline: 'none', fontFamily: 'inherit' }}
+                  placeholder="Tell us about your business, how many staff, what you're currently using..."
+                />
+              </div>
+
+              {betaResult && !betaResult.ok && (
+                <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.75rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: '0.85rem', color: '#b91c1c' }}>
+                  {betaResult.message}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={betaSubmitting}
+                style={{
+                  marginTop: '1.5rem', width: '100%', padding: '0.85rem',
+                  background: betaSubmitting ? '#93c5fd' : ACCENT, color: '#fff',
+                  border: 'none', borderRadius: 6, fontSize: '0.95rem', fontWeight: 700,
+                  cursor: betaSubmitting ? 'not-allowed' : 'pointer',
+                  transition: 'background 0.2s',
+                }}
+              >
+                {betaSubmitting ? 'Submitting...' : 'Apply for Free Beta Access'}
+              </button>
+
+              <p style={{ textAlign: 'center', fontSize: '0.78rem', color: '#9ca3af', marginTop: '0.75rem' }}>
+                No credit card. No commitment. We&apos;ll be in touch within 48 hours.
+              </p>
+            </form>
+          )}
         </div>
       </section>
 
