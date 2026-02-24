@@ -223,7 +223,11 @@ CORS_ALLOW_HEADERS = ['*']
 CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 
 # CSRF trusted origins for admin
-_csrf_default = 'https://nbneplatform-production.up.railway.app'
+_csrf_default = ','.join([
+    'https://nbneplatform-production.up.railway.app',
+    'https://business.nbne.uk',
+    'https://nbne-landing.vercel.app',
+])
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default=_csrf_default).split(',')
 
 # Email configuration

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getBookings, getBookableStaff, assignStaffToBooking, confirmBooking, completeBooking, markNoShow, deleteBooking } from '@/lib/api'
+import BookingsCalendar from '@/components/BookingsCalendar'
 
 function formatPrice(pence: number) { return '£' + (pence / 100).toFixed(2) }
 
@@ -20,6 +21,7 @@ export default function AdminBookingsPage() {
   const [filter, setFilter] = useState('ALL')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar')
 
   useEffect(() => {
     getBookings().then(bRes => {
@@ -72,8 +74,46 @@ export default function AdminBookingsPage() {
 
   return (
     <div>
-      <div className="page-header"><h1>Bookings</h1><span className="badge badge-danger">Tier 3</span></div>
-      <div className="filter-bar">
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h1 style={{ margin: 0 }}>Bookings</h1>
+          <span className="badge badge-danger">Tier 3</span>
+        </div>
+        <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+          <button
+            onClick={() => setViewMode('calendar')}
+            style={{
+              padding: '0.4rem 0.85rem', border: 'none', fontSize: '0.8rem', fontWeight: 600,
+              fontFamily: 'inherit', cursor: 'pointer',
+              background: viewMode === 'calendar' ? '#2563eb' : '#fff',
+              color: viewMode === 'calendar' ? '#fff' : '#334155',
+            }}
+          >📅 Calendar</button>
+          <button
+            onClick={() => setViewMode('list')}
+            style={{
+              padding: '0.4rem 0.85rem', border: 'none', borderLeft: '1px solid #e2e8f0', fontSize: '0.8rem', fontWeight: 600,
+              fontFamily: 'inherit', cursor: 'pointer',
+              background: viewMode === 'list' ? '#2563eb' : '#fff',
+              color: viewMode === 'list' ? '#fff' : '#334155',
+            }}
+          >☰ List</button>
+        </div>
+      </div>
+
+      {viewMode === 'calendar' ? (
+        <BookingsCalendar
+          bookings={filtered}
+          staffList={staffList}
+          onConfirm={handleConfirm}
+          onComplete={handleComplete}
+          onNoShow={handleNoShow}
+          onDelete={handleDelete}
+          onAssignStaff={handleAssignStaff}
+        />
+      ) : null}
+
+      {viewMode === 'list' && <div className="filter-bar">
         <input placeholder="Search customer or service..." value={search} onChange={e => setSearch(e.target.value)} />
         <select value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="ALL">All Status</option>
@@ -85,7 +125,8 @@ export default function AdminBookingsPage() {
           <option value="CANCELLED">Cancelled</option>
         </select>
       </div>
-      <div className="table-wrap">
+      }
+      {viewMode === 'list' && <div className="table-wrap">
         <table>
           <thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date / Time</th><th>Price</th><th>Deposit</th><th>Staff</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
@@ -121,7 +162,7 @@ export default function AdminBookingsPage() {
             {filtered.length === 0 && <tr><td colSpan={9} className="empty-state">No bookings found</td></tr>}
           </tbody>
         </table>
-      </div>
+      </div>}
     </div>
   )
 }
