@@ -7,6 +7,8 @@ from .config_loader import config as client_config
 
 def health_check(request):
     """Health check endpoint"""
+    import os
+    from django.conf import settings as _settings
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
@@ -16,12 +18,20 @@ def health_check(request):
     
     # Include client info in health check
     client_info = client_config.get_client_info()
+
+    # AI assistant status
+    key_from_settings = getattr(_settings, 'OPENAI_API_KEY', '')
+    key_from_env = os.environ.get('OPENAI_API_KEY', '')
+    ai_status = 'configured' if (key_from_settings or key_from_env) else 'not_configured'
     
     return JsonResponse({
         'status': 'healthy' if db_status == 'connected' else 'unhealthy',
         'database': db_status,
         'client': client_info.get('name', 'Unknown'),
         'mode': client_config.get_booking_mode(),
+        'ai_assistant': ai_status,
+        'ai_key_source': 'settings' if key_from_settings else ('environ' if key_from_env else 'none'),
+        'ai_key_prefix': (key_from_settings or key_from_env)[:8] + '...' if (key_from_settings or key_from_env) else '',
     })
 
 
