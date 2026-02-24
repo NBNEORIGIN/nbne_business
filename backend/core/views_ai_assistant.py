@@ -300,19 +300,44 @@ def _resolve_booking_staff(tenant, name):
 def tool_mark_staff_sick(tenant, args):
     staff_name = args.get('staff_name', '')
     staff = _resolve_staff(tenant, staff_name)
-    if not staff:
-        return {"success": False, "message": f"Could not find active staff member '{staff_name}'. Check the name and try again."}
-
-    from staff.models import AbsenceRecord
     today = date.today()
-    _, created = AbsenceRecord.objects.get_or_create(
-        staff=staff, date=today, record_type='ABSENCE',
-        defaults={'reason': 'Sick — logged via AI assistant', 'is_authorised': True}
-    )
+    display = staff_name
+    created = False
 
-    display = staff.display_name or f"{staff.user.first_name} {staff.user.last_name}".strip()
+    if staff:
+        # StaffProfile found — create AbsenceRecord
+        from staff.models import AbsenceRecord
+        _, created = AbsenceRecord.objects.get_or_create(
+            staff=staff, date=today, record_type='ABSENCE',
+            defaults={'reason': 'Sick — logged via AI assistant', 'is_authorised': True}
+        )
+        display = staff.display_name or f"{staff.user.first_name} {staff.user.last_name}".strip()
+    else:
+        # Fall back to booking staff
+        booking_staff = _resolve_booking_staff(tenant, staff_name)
+        if not booking_staff:
+            return {"success": False, "message": f"Could not find active staff member '{staff_name}'. Check the name and try again."}
+        display = booking_staff.name
+        # Try to find or create a linked StaffProfile for absence tracking
+        try:
+            from staff.models import StaffProfile, AbsenceRecord
+            from accounts.models import User
+            user = User.objects.filter(email=booking_staff.email).first() if booking_staff.email else None
+            if user:
+                sp, _ = StaffProfile.objects.get_or_create(
+                    user=user, defaults={'tenant': tenant, 'display_name': display}
+                )
+                _, created = AbsenceRecord.objects.get_or_create(
+                    staff=sp, date=today, record_type='ABSENCE',
+                    defaults={'reason': 'Sick — logged via AI assistant', 'is_authorised': True}
+                )
+            else:
+                created = True  # No user account, just report success
+        except Exception as e:
+            logger.warning(f"[AI] Error creating absence for booking staff: {e}")
+            created = True
+
     result = {"success": True, "staff_name": display}
-
     if created:
         result["message"] = f"{display} has been marked as sick for today."
     else:
@@ -320,7 +345,7 @@ def tool_mark_staff_sick(tenant, args):
 
     # Check affected bookings
     try:
-        from bookings.models import Booking, Staff as BookingStaff
+        from bookings.models import Booking
         booking_staff = _resolve_booking_staff(tenant, staff_name)
         if booking_staff:
             today_bookings = Booking.objects.filter(
@@ -365,6 +390,7 @@ def tool_get_who_is_off(tenant, args):
 
 def tool_get_staff_list(tenant, args):
     staff_list = []
+    seen_names = set()
     try:
         from staff.models import StaffProfile
         for p in StaffProfile.objects.filter(tenant=tenant, is_active=True).select_related('user'):
@@ -373,9 +399,25 @@ def tool_get_staff_list(tenant, args):
                 "name": name,
                 "role": p.role,
                 "email": p.user.email,
+                "source": "staff_profile",
             })
+            seen_names.add(name.lower())
     except Exception as e:
-        logger.warning(f"[AI] Error getting staff list: {e}")
+        logger.warning(f"[AI] Error getting staff profiles: {e}")
+    # Also include booking staff not already listed
+    try:
+        from bookings.models import Staff as BookingStaff
+        for bs in BookingStaff.objects.filter(tenant=tenant, active=True):
+            if bs.name.lower() not in seen_names:
+                staff_list.append({
+                    "name": bs.name,
+                    "role": bs.role or 'staff',
+                    "email": bs.email or '',
+                    "source": "booking_staff",
+                })
+                seen_names.add(bs.name.lower())
+    except Exception as e:
+        logger.warning(f"[AI] Error getting booking staff: {e}")
     return {"staff": staff_list, "count": len(staff_list)}
 
 
@@ -604,12 +646,24 @@ def tool_get_available_staff(tenant, args):
         ).values_list('staff_id', flat=True))
         off_ids = sick_ids | leave_ids
 
+        seen_names = set()
         for p in StaffProfile.objects.filter(tenant=tenant, is_active=True).select_related('user'):
             if p.id not in off_ids:
                 name = p.display_name or f"{p.user.first_name} {p.user.last_name}".strip()
                 available.append({"name": name, "role": p.role})
+                seen_names.add(name.lower())
     except Exception as e:
         logger.warning(f"[AI] Error getting available staff: {e}")
+        seen_names = set()
+    # Also include booking staff not already listed
+    try:
+        from bookings.models import Staff as BookingStaff
+        for bs in BookingStaff.objects.filter(tenant=tenant, active=True):
+            if bs.name.lower() not in seen_names:
+                available.append({"name": bs.name, "role": bs.role or 'staff'})
+                seen_names.add(bs.name.lower())
+    except Exception:
+        pass
     return {"available_staff": available, "count": len(available)}
 
 
