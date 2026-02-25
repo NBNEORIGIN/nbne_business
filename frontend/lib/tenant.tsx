@@ -72,42 +72,22 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const cb = `_t=${Date.now()}`
     const qs = TENANT_SLUG ? `tenant=${TENANT_SLUG}&${cb}` : cb
-    // Go directly to the Railway backend to bypass any Vercel proxy/cache issues
-    const directUrl = `https://nbneplatform-production.up.railway.app/api/tenant/branding/?${qs}`
-    const proxyUrl = `/api/django/tenant/branding/?${qs}`
+    // Use Vercel proxy — direct Railway calls have CORS header issues
+    const url = `/api/django/tenant/branding/?${qs}`
 
-    function applyBranding(data: any) {
-      if (data && data.slug) {
-        if (TENANT_SLUG && data.slug !== TENANT_SLUG) {
-          console.warn(`[TenantProvider] Expected "${TENANT_SLUG}" but got "${data.slug}" — skipping`)
-          return false
-        }
-        setConfig({ ...DEFAULT_CONFIG, ...data })
-        return true
-      }
-      return false
-    }
-
-    // Try direct backend first (avoids proxy issues), fall back to proxy
-    fetch(directUrl, { cache: 'no-store' })
+    fetch(url, { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
-        if (!applyBranding(data)) {
-          // Direct fetch returned wrong tenant — try proxy
-          return fetch(proxyUrl, { cache: 'no-store' })
-            .then(r => r.json())
-            .then(d => { applyBranding(d); setReady(true) })
-            .catch(() => setReady(true))
+        if (data && data.slug) {
+          if (TENANT_SLUG && data.slug !== TENANT_SLUG) {
+            console.warn(`[TenantProvider] Expected "${TENANT_SLUG}" but got "${data.slug}" — skipping`)
+          } else {
+            setConfig({ ...DEFAULT_CONFIG, ...data })
+          }
         }
         setReady(true)
       })
-      .catch(() => {
-        // Direct fetch failed (CORS etc) — fall back to proxy
-        fetch(proxyUrl, { cache: 'no-store' })
-          .then(r => r.json())
-          .then(data => { applyBranding(data); setReady(true) })
-          .catch(() => setReady(true))
-      })
+      .catch(() => setReady(true))
   }, [])
 
   useEffect(() => {

@@ -3,10 +3,9 @@
 // Typed fetch helpers with JWT auth for Django backend
 // ============================================================
 
-// Go directly to Railway backend to bypass Vercel's proxy data cache
-// which can serve stale cross-tenant responses. Demo pages override via _demoTenantSlug.
-const DIRECT_API = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.DJANGO_BACKEND_URL || 'https://nbneplatform-production.up.railway.app'
-const API_BASE = typeof window !== 'undefined' ? `${DIRECT_API}/api` : '/api/django'
+// Always use Vercel proxy — direct Railway calls fail because Chrome CORS
+// strips X-Tenant-Slug header (Allow-Headers:* ignored with Allow-Credentials:true)
+const API_BASE = '/api/django'
 
 // --- Demo tenant override (for /salon, /gym, /restaurant demo pages) ---
 let _demoTenantSlug: string | null = null
