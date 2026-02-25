@@ -124,8 +124,10 @@ async function apiFetch<T = any>(
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
-  if (_demoTenantSlug) {
-    headers['x-tenant-slug'] = _demoTenantSlug
+  // Always send tenant slug — demo override wins, then build-time env var
+  const tenantSlug = _demoTenantSlug || process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+  if (tenantSlug) {
+    headers['x-tenant-slug'] = tenantSlug
   }
 
   try {
