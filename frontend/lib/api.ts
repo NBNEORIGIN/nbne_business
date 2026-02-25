@@ -143,6 +143,7 @@ async function apiFetch<T = any>(
     const res = await fetch(url, {
       ...options,
       headers,
+      cache: 'no-store',
     })
 
     // Token expired — try refresh

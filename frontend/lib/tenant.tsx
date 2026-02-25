@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { getTenantBranding } from './api'
 
 export interface TenantConfig {
   slug: string
@@ -71,12 +70,18 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    getTenantBranding({ tenant: TENANT_SLUG }).then(r => {
-      if (r.data) {
-        setConfig({ ...DEFAULT_CONFIG, ...r.data })
-      }
-      setReady(true)
-    }).catch(() => setReady(true))
+    // Cache-bust to prevent Chrome from serving stale tenant branding
+    const cb = `&_t=${Date.now()}`
+    const qs = TENANT_SLUG ? `?tenant=${TENANT_SLUG}${cb}` : `?${cb.slice(1)}`
+    fetch(`/api/django/tenant/branding/${qs}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.slug) {
+          setConfig({ ...DEFAULT_CONFIG, ...data })
+        }
+        setReady(true)
+      })
+      .catch(() => setReady(true))
   }, [])
 
   useEffect(() => {
