@@ -41,7 +41,7 @@ export default function FeedbackWidget() {
           onClick={() => setOpen(true)}
           title="Send feedback"
           style={{
-            position: 'fixed', bottom: 20, left: 20, zIndex: 1000,
+            position: 'fixed', bottom: 80, left: 20, zIndex: 1000,
             width: 44, height: 44, borderRadius: '50%',
             background: '#6366f1', color: '#fff', border: 'none',
             cursor: 'pointer', fontSize: '1.2rem',
@@ -59,7 +59,7 @@ export default function FeedbackWidget() {
       {/* Feedback panel */}
       {open && (
         <div style={{
-          position: 'fixed', bottom: 20, left: 20, zIndex: 1001,
+          position: 'fixed', bottom: 80, left: 20, zIndex: 1001,
           width: 340, background: '#fff', borderRadius: 12,
           boxShadow: '0 8px 40px rgba(0,0,0,0.15)',
           border: '1px solid #e5e7eb',

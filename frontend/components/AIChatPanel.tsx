@@ -470,7 +470,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   trigger: {
     position: 'fixed' as const,
-    bottom: '1.5rem',
+    bottom: '5rem',
     right: '1.5rem',
     width: '56px',
     height: '56px',
