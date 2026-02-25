@@ -11,7 +11,9 @@ const PROTECTED_ROUTES: { prefix: string; minRole: UserRole }[] = [
 ]
 
 // Decode JWT payload without verification (cookie is httpOnly, Django enforces real auth)
-function decodeJwtPayload(token: string): { sub?: string; user_id?: number; role?: string; name?: string; email?: string; exp?: number } | null {
+const EXPECTED_TENANT = process.env.NEXT_PUBLIC_TENANT_SLUG || ''
+
+function decodeJwtPayload(token: string): { sub?: string; user_id?: number; role?: string; name?: string; email?: string; exp?: number; tenant_slug?: string } | null {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
@@ -58,6 +60,15 @@ export async function middleware(request: NextRequest) {
 
   // Check expiry
   if (payload.exp && payload.exp * 1000 < Date.now()) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirect', pathname)
+    const response = NextResponse.redirect(loginUrl)
+    response.cookies.delete(COOKIE_NAME)
+    return withNoCacheHeaders(response)
+  }
+
+  // Reject cross-tenant sessions (e.g. stale Mind Department cookie on NBNE app)
+  if (EXPECTED_TENANT && payload.tenant_slug && payload.tenant_slug !== EXPECTED_TENANT) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     const response = NextResponse.redirect(loginUrl)
