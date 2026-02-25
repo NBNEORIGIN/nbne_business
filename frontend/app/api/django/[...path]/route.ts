@@ -41,6 +41,8 @@ async function proxyRequest(req: NextRequest) {
 
     const respHeaders: Record<string, string> = {
       'Content-Type': res.headers.get('content-type') || 'application/json',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
     }
     const disposition = res.headers.get('content-disposition')
     if (disposition) respHeaders['Content-Disposition'] = disposition
