@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Force dynamic — prevent Next.js from caching ANY proxy responses
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+
 async function proxyRequest(req: NextRequest) {
   const API_BASE = process.env.DJANGO_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://nbneplatform-production.up.railway.app'
   const url = new URL(req.url)
