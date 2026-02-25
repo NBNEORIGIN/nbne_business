@@ -50,7 +50,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 var sep = url.indexOf('?') !== -1 ? '&' : '?';
                 var busted = url + sep + '_cb=' + Date.now();
                 init = Object.assign({}, init || {}, { cache: 'no-store' });
-                return _origFetch.call(this, busted, init);
+                console.log('[FETCH-PATCH]', busted.substring(0, 150));
+                return _origFetch.call(this, busted, init).then(function(resp) {
+                  if (url.indexOf('staff') !== -1) {
+                    resp.clone().text().then(function(t) {
+                      console.log('[STAFF-RESP]', t.substring(0, 200));
+                    });
+                  }
+                  return resp;
+                });
               }
               return _origFetch.call(this, input, init);
             };
