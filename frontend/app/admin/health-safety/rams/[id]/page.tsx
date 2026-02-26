@@ -82,6 +82,7 @@ export default function RamsEditorPage() {
   const [ramsStatus, setRamsStatus] = useState('DRAFT')
   const [showPreview, setShowPreview] = useState(true)
   const [reviewHistory, setReviewHistory] = useState<any[]>([])
+  const [appliedFlash, setAppliedFlash] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -198,22 +199,23 @@ export default function RamsEditorPage() {
 
   // Apply AI suggested content to a section
   function applySuggestion(section: string, content: string) {
+    const append = (prev: string, next: string) => prev ? `${prev}\n\n${next}` : next
     switch (section) {
       case 'job_details':
-        setJobDetails((p: any) => ({ ...p, job_description: p.job_description ? `${p.job_description}\n\n${content}` : content }))
+        setJobDetails((p: any) => ({ ...p, job_description: append(p.job_description || '', content) }))
         break
       case 'personnel':
         setPersonnel(prev => {
           const first = prev[0]
-          if (first && !first.name && !first.role) return [{ ...first, responsibilities: content }, ...prev.slice(1)]
-          return [...prev, { ...emptyPerson(), responsibilities: content }]
+          if (first && !first.name && !first.role) return [{ ...first, name: content.split(',')[0]?.trim() || content, responsibilities: content }, ...prev.slice(1)]
+          return [...prev, { ...emptyPerson(), name: 'AI Suggestion', responsibilities: content }]
         })
         break
       case 'equipment':
         setEquipment(prev => {
           const first = prev[0]
-          if (first && !first.name) return [{ ...first, notes: content }, ...prev.slice(1)]
-          return [...prev, { ...emptyEquipment(), notes: content }]
+          if (first && !first.name) return [{ ...first, name: 'See notes', notes: content }, ...prev.slice(1)]
+          return [...prev, { ...emptyEquipment(), name: 'See notes', notes: content }]
         })
         break
       case 'hazards':
@@ -231,10 +233,10 @@ export default function RamsEditorPage() {
         })
         break
       case 'emergency_procedures':
-        setEmergencyProcedures((p: any) => ({ ...p, evacuation_procedure: p.evacuation_procedure ? `${p.evacuation_procedure}\n\n${content}` : content }))
+        setEmergencyProcedures((p: any) => ({ ...p, evacuation_procedure: append(p.evacuation_procedure || '', content) }))
         break
       case 'environmental':
-        setEnvironmental((p: any) => ({ ...p, waste_disposal: p.waste_disposal ? `${p.waste_disposal}\n\n${content}` : content }))
+        setEnvironmental((p: any) => ({ ...p, waste_disposal: append(p.waste_disposal || '', content) }))
         break
       case 'permits':
         setPermits(prev => {
@@ -244,10 +246,14 @@ export default function RamsEditorPage() {
         })
         break
       case 'monitoring':
-        setMonitoring((p: any) => ({ ...p, review_schedule: p.review_schedule ? `${p.review_schedule}\n\n${content}` : content }))
+        setMonitoring((p: any) => ({ ...p, review_schedule: append(p.review_schedule || '', content) }))
         break
     }
     scrollToSection(section)
+    // Flash confirmation
+    const label = ALL_SECTIONS.find(s => s.key === section)?.label || section
+    setAppliedFlash(`Applied to ${label}`)
+    setTimeout(() => setAppliedFlash(null), 2000)
   }
 
   // Section completion check
@@ -291,6 +297,7 @@ export default function RamsEditorPage() {
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{completedCount}/{totalApplicable} sections</span>
           {saved && <span style={{ fontSize: '0.78rem', color: '#22c55e', fontWeight: 600 }}>✓ Saved</span>}
+          {appliedFlash && <span style={{ fontSize: '0.78rem', color: '#6366f1', fontWeight: 600 }}>✨ {appliedFlash}</span>}
           <button className="btn btn-outline btn-sm" onClick={() => setShowPreview(p => !p)}>
             {showPreview ? '📝 Hide Preview' : '📄 Show Preview'}
           </button>
@@ -365,9 +372,10 @@ export default function RamsEditorPage() {
                     </span>
                     <span>{sm?.icon} {sm?.label || f.section}</span>
                     {f.suggested_content && (
-                      <button className="btn btn-primary btn-sm" style={{ fontSize: '0.62rem', padding: '0.1rem 0.35rem', marginLeft: 2 }}
-                        onClick={(e) => { e.stopPropagation(); applySuggestion(f.section, f.suggested_content) }}>
-                        Apply
+                      <button className="btn btn-primary btn-sm" style={{ fontSize: '0.68rem', padding: '0.15rem 0.5rem', marginLeft: 4, fontWeight: 700 }}
+                        onClick={(e) => { e.stopPropagation(); applySuggestion(f.section, f.suggested_content) }}
+                        title={`Apply suggestion: ${f.suggested_content.slice(0, 80)}…`}>
+                        ✨ Apply
                       </button>
                     )}
                     <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.7rem', color: 'var(--color-text-muted)', padding: 0 }}
@@ -601,10 +609,10 @@ export default function RamsEditorPage() {
         {/* ── RIGHT: Live Document Preview ── */}
         {showPreview && (
           <div style={{ flex: '0 0 43%', position: 'sticky', top: 80, maxHeight: 'calc(100vh - 100px)', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <div style={{ padding: '1.25rem', fontFamily: 'Georgia, serif' }}>
+            <div style={{ padding: '1.25rem', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
               {/* Document header */}
               <div style={{ textAlign: 'center', borderBottom: '2px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
-                <h1 style={{ fontSize: '1.1rem', margin: '0 0 0.2rem', fontFamily: 'inherit' }}>Risk Assessment &amp; Method Statement</h1>
+                <h1 style={{ fontSize: '1.1rem', margin: '0 0 0.2rem', fontFamily: 'inherit', fontWeight: 800 }}>Risk Assessment &amp; Method Statement</h1>
                 <h2 style={{ fontSize: '0.95rem', margin: 0, color: '#475569', fontFamily: 'inherit', fontWeight: 400 }}>{title || 'Untitled Document'}</h2>
                 {refNumber && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4 }}>Reference: {refNumber}</div>}
                 <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>Status: {ramsStatus} | Generated: {new Date().toLocaleDateString('en-GB')}</div>
@@ -718,6 +726,13 @@ export default function RamsEditorPage() {
                 </PreviewSection>
               )}
 
+              {/* 5×5 Risk Matrix */}
+              {hazards.some(h => h.description) && (
+                <PreviewSection title="Risk Matrix (5×5)">
+                  <RiskMatrix5x5 hazards={hazards} />
+                </PreviewSection>
+              )}
+
               {/* Empty state */}
               {!sectionHasContent('job_details') && !sectionHasContent('hazards') && (
                 <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#94a3b8', fontSize: '0.85rem' }}>
@@ -737,8 +752,102 @@ export default function RamsEditorPage() {
 function PreviewSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '0.85rem' }}>
-      <h3 style={{ fontSize: '0.82rem', fontWeight: 700, margin: '0 0 0.35rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.2rem', fontFamily: 'Georgia, serif' }}>{title}</h3>
+      <h3 style={{ fontSize: '0.82rem', fontWeight: 700, margin: '0 0 0.35rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.2rem', fontFamily: 'inherit' }}>{title}</h3>
       {children}
+    </div>
+  )
+}
+
+const LIKELIHOOD_LABELS: Record<number, string> = { 1: 'Rare', 2: 'Unlikely', 3: 'Possible', 4: 'Likely', 5: 'Almost Certain' }
+const SEVERITY_LABELS: Record<number, string> = { 1: 'Minor', 2: 'Low', 3: 'Moderate', 4: 'Major', 5: 'Catastrophic' }
+
+function matrixBandColour(score: number): string {
+  if (score <= 5) return '#22c55e'  // green — Low
+  if (score <= 10) return '#eab308' // yellow — Moderate
+  if (score <= 16) return '#f97316' // orange — High
+  return '#ef4444'                  // red — Very High
+}
+function RiskMatrix5x5({ hazards }: { hazards: any[] }) {
+  // Build set of hazard risk scores to highlight on matrix
+  const initialScores = new Set<number>()
+  const residualScores = new Set<number>()
+  hazards.filter(h => h.description).forEach(h => {
+    initialScores.add(h.initial_likelihood * h.initial_severity)
+    residualScores.add(h.residual_likelihood * h.residual_severity)
+  })
+
+  const cellSize = 36
+  const headerW = 62
+  const mc: React.CSSProperties = {
+    width: cellSize, height: cellSize, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontWeight: 700, fontSize: '0.72rem', color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
+    position: 'relative',
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: '0.4rem' }}>Risk Rating = Likelihood × Severity</div>
+      <div style={{ display: 'flex' }}>
+        {/* Y-axis label */}
+        <div style={{ width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: '0.62rem', fontWeight: 700, color: '#475569', letterSpacing: 1 }}>LIKELIHOOD</span>
+        </div>
+        <div>
+          {/* Header row */}
+          <div style={{ display: 'flex', marginLeft: headerW }}>
+            {[1,2,3,4,5].map(s => (
+              <div key={s} style={{ width: cellSize, textAlign: 'center', fontSize: '0.58rem', fontWeight: 600, color: '#475569', lineHeight: 1.2, padding: '0 1px' }}>
+                {s}<br/><span style={{ fontWeight: 400 }}>{SEVERITY_LABELS[s]}</span>
+              </div>
+            ))}
+          </div>
+          {/* Matrix rows: likelihood 5 down to 1 */}
+          {[5,4,3,2,1].map(l => (
+            <div key={l} style={{ display: 'flex' }}>
+              <div style={{ width: headerW, display: 'flex', alignItems: 'center', fontSize: '0.58rem', fontWeight: 600, color: '#475569', paddingRight: 4, justifyContent: 'flex-end', lineHeight: 1.2 }}>
+                <span>{l} {LIKELIHOOD_LABELS[l]}</span>
+              </div>
+              {[1,2,3,4,5].map(s => {
+                const score = l * s
+                const bg = matrixBandColour(score)
+                const isInitial = initialScores.has(score)
+                const isResidual = residualScores.has(score)
+                return (
+                  <div key={s} style={{ ...mc, background: bg }}>
+                    {score}
+                    {isInitial && <span style={{ position: 'absolute', top: 1, right: 2, fontSize: '0.5rem', color: '#fff', fontWeight: 800 }}>●</span>}
+                    {isResidual && <span style={{ position: 'absolute', bottom: 1, left: 2, fontSize: '0.5rem', color: '#fff', fontWeight: 800 }}>○</span>}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+          {/* X-axis label */}
+          <div style={{ textAlign: 'center', marginLeft: headerW, fontSize: '0.62rem', fontWeight: 700, color: '#475569', marginTop: 2, letterSpacing: 1 }}>SEVERITY</div>
+        </div>
+      </div>
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.5rem', flexWrap: 'wrap', fontSize: '0.65rem' }}>
+        {[
+          { label: 'Low (1–5)', color: '#22c55e' },
+          { label: 'Moderate (6–10)', color: '#eab308' },
+          { label: 'High (12–16)', color: '#f97316' },
+          { label: 'Very High (20–25)', color: '#ef4444' },
+        ].map(b => (
+          <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: b.color }} />
+            <span style={{ color: '#475569' }}>{b.label}</span>
+          </div>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ fontWeight: 800, color: '#475569' }}>●</span>
+          <span style={{ color: '#475569' }}>Initial</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ fontWeight: 800, color: '#475569' }}>○</span>
+          <span style={{ color: '#475569' }}>Residual</span>
+        </div>
+      </div>
     </div>
   )
 }
