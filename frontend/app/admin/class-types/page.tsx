@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { getClassTypes, createClassType, updateClassType, deleteClassType } from '@/lib/api'
 
 const DIFFICULTIES = ['all', 'beginner', 'intermediate', 'advanced']
-const CATEGORIES = ['Cardio', 'Strength', 'Mind & Body', 'Flexibility', 'Dance', 'Aqua', '']
+const DEFAULT_CATEGORIES = ['Cardio', 'Strength', 'Mind & Body', 'Flexibility', 'Dance', 'Aqua']
 
 export default function ClassTypesAdmin() {
   const [classTypes, setClassTypes] = useState<any[]>([])
@@ -90,10 +90,11 @@ export default function ClassTypesAdmin() {
             </div>
             <div>
               <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '0.25rem' }}>Category</label>
-              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
-                style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.9rem' }}>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c || '(none)'}</option>)}
-              </select>
+              <input list="category-options" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="e.g. Cardio, Strength, or type your own"
+                style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.9rem' }} />
+              <datalist id="category-options">
+                {DEFAULT_CATEGORIES.concat(classTypes.map((ct: any) => ct.category).filter(Boolean)).filter((c, i, arr) => arr.indexOf(c) === i).map(c => <option key={c} value={c} />)}
+              </datalist>
             </div>
             <div>
               <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '0.25rem' }}>Difficulty</label>
