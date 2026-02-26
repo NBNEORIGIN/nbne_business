@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getPublicProducts, createShopCheckout } from '@/lib/api'
+import { getPublicProducts, createShopCheckout, getMediaUrl } from '@/lib/api'
 import { useTenant } from '@/lib/tenant'
 
 /* ── Design tokens ── */
@@ -149,7 +149,7 @@ export default function ShopPage() {
             gap: '1.25rem',
           }}>
             {filtered.map(p => {
-              const img = p.primary_image_url || ''
+              const img = getMediaUrl(p.primary_image_url || '')
               const hasDiscount = p.compare_at_price && Number(p.compare_at_price) > Number(p.price)
               const outOfStock = p.track_stock && !p.in_stock
               return (
@@ -230,7 +230,7 @@ export default function ShopPage() {
                 <div style={{ borderRadius: 10, overflow: 'hidden', aspectRatio: '1/1' }}>
                   {(() => {
                     const imgs = selectedProduct.images || []
-                    const activeImg = imgs[selectedImageIdx]?.url || selectedProduct.primary_image_url || ''
+                    const activeImg = getMediaUrl(imgs[selectedImageIdx]?.url || selectedProduct.primary_image_url || '')
                     return activeImg ? <img src={activeImg} alt={selectedProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> :
                       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '4rem' }}>📦</div>
                   })()}
@@ -238,7 +238,7 @@ export default function ShopPage() {
                 {selectedProduct.images && selectedProduct.images.length > 1 && (
                   <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto' }}>
                     {selectedProduct.images.map((img, i) => (
-                      <img key={img.id} src={img.url} alt="" onClick={() => setSelectedImageIdx(i)}
+                      <img key={img.id} src={getMediaUrl(img.url)} alt="" onClick={() => setSelectedImageIdx(i)}
                         style={{
                           width: 56, height: 56, objectFit: 'cover', borderRadius: 6, cursor: 'pointer',
                           border: i === selectedImageIdx ? `2px solid ${accent}` : '2px solid transparent',
@@ -323,8 +323,8 @@ export default function ShopPage() {
                   borderBottom: '1px solid #f3f4f6',
                 }}>
                   <div style={{ width: 56, height: 56, borderRadius: 8, background: '#f3f4f6', flexShrink: 0, overflow: 'hidden' }}>
-                    {item.product.primary_image_url ?
-                      <img src={item.product.primary_image_url} alt="" style={{ width: 56, height: 56, objectFit: 'cover' }} /> :
+                    {getMediaUrl(item.product.primary_image_url) ?
+                      <img src={getMediaUrl(item.product.primary_image_url)} alt="" style={{ width: 56, height: 56, objectFit: 'cover' }} /> :
                       <div style={{ width: 56, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>📦</div>}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>

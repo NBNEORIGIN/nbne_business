@@ -629,15 +629,17 @@ export async function downloadTimesheetCsv(params: { date_from: string; date_to:
 }
 
 // --- Media URL helper ---
-const BACKEND_BASE = typeof window !== 'undefined'
-  ? (process.env.NEXT_PUBLIC_API_BASE_URL || '').trim()
-  : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000').trim()
+const MEDIA_BACKEND = (
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.DJANGO_BACKEND_URL ||
+  'https://nbneplatform-production.up.railway.app'
+).trim()
 
 export function getMediaUrl(path: string | null | undefined): string {
   if (!path) return ''
   if (path.startsWith('http://') || path.startsWith('https://')) return path
-  // Relative path from backend — prepend backend base
-  return `${BACKEND_BASE}${path.startsWith('/') ? '' : '/'}${path}`
+  // Relative path from backend — prepend Railway backend base
+  return `${MEDIA_BACKEND}${path.startsWith('/') ? '' : '/'}${path}`
 }
 
 export function isImageFile(filename: string): boolean {

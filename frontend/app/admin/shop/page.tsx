@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   getProducts, createProduct, updateProduct, deleteProduct,
   uploadProductImages, deleteProductImage, reorderProductImages,
-  getOrders, updateOrder,
+  getOrders, updateOrder, getMediaUrl,
 } from '@/lib/api'
 
 /* ── Types ── */
@@ -273,7 +273,7 @@ export default function ShopPage() {
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                     {editing.images.map(img => (
                       <div key={img.id} style={{ position: 'relative', width: 80, height: 80 }}>
-                        <img src={img.url} alt={img.alt_text} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                        <img src={getMediaUrl(img.url)} alt={img.alt_text} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0' }} />
                         <button onClick={() => editing.id && handleDeleteImage(editing.id, img.id)} style={{
                           position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%',
                           background: '#ef4444', color: '#fff', border: 'none', fontSize: '0.7rem', cursor: 'pointer',
@@ -377,7 +377,7 @@ export default function ShopPage() {
             </thead>
             <tbody>
               {products.map(p => {
-                const thumb = p.primary_image_url || p.image_url || ''
+                const thumb = getMediaUrl(p.primary_image_url || p.image_url || '')
                 return (
                   <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.1s' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
