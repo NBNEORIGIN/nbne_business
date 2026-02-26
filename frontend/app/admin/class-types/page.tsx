@@ -12,6 +12,7 @@ export default function ClassTypesAdmin() {
   const [editing, setEditing] = useState<any>(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', category: '', duration_minutes: 45, difficulty: 'all', max_capacity: 20, colour: '#ef4444', price_pence: 0 })
+  const [priceInput, setPriceInput] = useState('0')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -27,6 +28,7 @@ export default function ClassTypesAdmin() {
   function openNew() {
     setEditing(null)
     setForm({ name: '', description: '', category: '', duration_minutes: 45, difficulty: 'all', max_capacity: 20, colour: '#ef4444', price_pence: 0 })
+    setPriceInput('0')
     setShowForm(true)
     setError('')
   }
@@ -39,6 +41,7 @@ export default function ClassTypesAdmin() {
       max_capacity: ct.max_capacity, colour: ct.colour || '#ef4444',
       price_pence: ct.price_pence || 0,
     })
+    setPriceInput(((ct.price_pence || 0) / 100).toFixed(2))
     setShowForm(true)
     setError('')
   }
@@ -47,9 +50,10 @@ export default function ClassTypesAdmin() {
     if (!form.name.trim()) { setError('Name is required'); return }
     setSaving(true)
     setError('')
+    const payload = { ...form, price_pence: Math.round(parseFloat(priceInput || '0') * 100) }
     const res = editing
-      ? await updateClassType(editing.id, form)
-      : await createClassType(form)
+      ? await updateClassType(editing.id, payload)
+      : await createClassType(payload)
     setSaving(false)
     if (res.error) { setError(res.error); return }
     setShowForm(false)
@@ -109,8 +113,8 @@ export default function ClassTypesAdmin() {
                 style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.9rem' }} />
             </div>
             <div>
-              <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '0.25rem' }}>Price (pence, 0 = included)</label>
-              <input type="number" min={0} value={form.price_pence} onChange={e => setForm({ ...form, price_pence: +e.target.value })}
+              <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '0.25rem' }}>Price (£, 0 = included)</label>
+              <input type="number" min={0} step="0.01" value={priceInput} onChange={e => setPriceInput(e.target.value)} placeholder="0.00"
                 style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.9rem' }} />
             </div>
             <div>
