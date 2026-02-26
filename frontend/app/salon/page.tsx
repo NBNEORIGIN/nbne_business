@@ -93,6 +93,7 @@ export default function SalonPage() {
             { label: 'Services', href: '#services' },
             { label: 'About', href: '#about' },
             { label: 'Gallery', href: '#gallery' },
+            { label: 'Shop', href: '/shop' },
             { label: 'Contact', href: '#contact' },
           ].map(link => (
             <a key={link.label} href={link.href} style={{
@@ -134,6 +135,7 @@ export default function SalonPage() {
             { label: 'Services', href: '#services' },
             { label: 'About', href: '#about' },
             { label: 'Gallery', href: '#gallery' },
+            { label: 'Shop', href: '/shop' },
             { label: 'Contact', href: '#contact' },
             { label: 'Book Now', href: '/book' },
           ].map(link => (

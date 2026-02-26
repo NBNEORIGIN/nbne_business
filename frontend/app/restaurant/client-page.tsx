@@ -125,6 +125,7 @@ export default function TavolaPage() {
             { label: 'Menu', href: '#menu' },
             { label: 'About', href: '#about' },
             { label: 'Gallery', href: '#gallery' },
+            { label: 'Shop', href: '/shop' },
             { label: 'Contact', href: '#contact' },
           ].map(link => (
             <a key={link.label} href={link.href} style={{
@@ -166,6 +167,7 @@ export default function TavolaPage() {
             { label: 'Menu', href: '#menu' },
             { label: 'About', href: '#about' },
             { label: 'Gallery', href: '#gallery' },
+            { label: 'Shop', href: '/shop' },
             { label: 'Contact', href: '#contact' },
             { label: 'Reserve a Table', href: '/book' },
           ].map(link => (

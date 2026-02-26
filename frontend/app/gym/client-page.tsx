@@ -103,6 +103,7 @@ export default function FitHubPage() {
             { label: 'Classes', href: '#classes' },
             { label: 'Pricing', href: '#pricing' },
             { label: 'Trainers', href: '#trainers' },
+            { label: 'Shop', href: '/shop' },
             { label: 'Contact', href: '#contact' },
           ].map(link => (
             <a key={link.label} href={link.href} style={{
@@ -144,6 +145,7 @@ export default function FitHubPage() {
             { label: 'Classes', href: '#classes' },
             { label: 'Pricing', href: '#pricing' },
             { label: 'Trainers', href: '#trainers' },
+            { label: 'Shop', href: '/shop' },
             { label: 'Contact', href: '#contact' },
             { label: 'Join Now', href: '/book' },
           ].map(link => (
