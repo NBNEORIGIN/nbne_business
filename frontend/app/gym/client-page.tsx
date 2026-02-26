@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import DemoBanner, { DEMO_BANNER_HEIGHT } from '@/components/DemoBanner'
+import { getPublicProducts, getMediaUrl } from '@/lib/api'
 
 /* ── Design tokens ── */
 const SERIF = "'Playfair Display', Georgia, serif"
@@ -31,7 +32,7 @@ const TEAM = [
   { name: 'Lisa Nguyen', role: 'Sports Therapist', img: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&q=80&auto=format', bio: 'BSc Sports Therapy. Expert in injury rehab, sports massage, and physiotherapy.' },
 ]
 
-const SERVICES = [
+const FALLBACK_SERVICES = [
   { category: 'Memberships', items: [{ name: 'Monthly Membership', price: '£49.99/mo' }, { name: '6-Month Membership', price: '£269.99' }, { name: 'Annual Membership', price: '£479.99' }, { name: 'Student Monthly', price: '£29.99/mo' }] },
   { category: 'Personal Training', items: [{ name: '1:1 Personal Training', price: '£50' }, { name: 'PT Block (5 Sessions)', price: '£225' }, { name: 'PT Block (10 Sessions)', price: '£400' }, { name: 'Couples PT Session', price: '£75' }] },
   { category: 'Classes', items: [{ name: 'HIIT Class', price: '£12' }, { name: 'Yoga Flow', price: '£12' }, { name: 'Spin Class', price: '£12' }, { name: 'Boxing Fitness', price: '£14' }, { name: 'Pilates', price: '£12' }, { name: 'CrossFit WOD', price: '£15' }] },
@@ -67,12 +68,32 @@ export default function FitHubPage() {
   const bizName = 'FitHub'
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenu, setMobileMenu] = useState(false)
+  const [shopProducts, setShopProducts] = useState<any[]>([])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  useEffect(() => {
+    getPublicProducts().then(res => {
+      const list = Array.isArray(res.data) ? res.data : (res.data as any)?.results || []
+      setShopProducts(list.filter((p: any) => p.active))
+    }).catch(() => {})
+  }, [])
+
+  // Group shop products by category for the pricing section
+  const shopCategories = shopProducts.length > 0
+    ? Object.entries(
+        shopProducts.reduce((acc: Record<string, any[]>, p: any) => {
+          const cat = p.category || 'Other'
+          if (!acc[cat]) acc[cat] = []
+          acc[cat].push(p)
+          return acc
+        }, {})
+      ).map(([category, items]) => ({ category, items }))
+    : null
 
   return (
     <div style={{ minHeight: '100vh', background: '#fff', fontFamily: SANS, color: DARK }}>
@@ -316,41 +337,77 @@ export default function FitHubPage() {
             }}>Memberships &amp; Pricing</h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '2rem' }}>
-            {SERVICES.map(cat => (
-              <div key={cat.category} style={{
-                background: '#fff', borderRadius: 8, padding: '2rem',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              }}>
-                <h3 style={{
-                  fontWeight: 800, fontSize: '1.1rem',
-                  color: ACCENT, marginBottom: '1.5rem',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                }}>{cat.category}</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {cat.items.map(item => (
-                    <div key={item.name} style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                    }}>
-                      <span style={{ fontSize: '0.9rem', color: DARK }}>{item.name}</span>
-                      <span style={{
-                        fontSize: '0.9rem', fontWeight: 700, color: ACCENT,
-                        flexShrink: 0, marginLeft: '1rem',
-                      }}>{item.price}</span>
-                    </div>
-                  ))}
+          {shopCategories ? (
+            /* ── Live products from shop ── */
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '2rem' }}>
+              {shopCategories.map(cat => (
+                <div key={cat.category} style={{
+                  background: '#fff', borderRadius: 8, padding: '2rem',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                }}>
+                  <h3 style={{
+                    fontWeight: 800, fontSize: '1.1rem',
+                    color: ACCENT, marginBottom: '1.5rem',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                  }}>{cat.category}</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {cat.items.map((p: any) => (
+                      <div key={p.id} style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      }}>
+                        <span style={{ fontSize: '0.9rem', color: DARK }}>{p.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0, marginLeft: '1rem' }}>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: ACCENT }}>£{parseFloat(p.price).toFixed(2)}</span>
+                          <a href={`/shop?highlight=${p.id}`} style={{
+                            fontSize: '0.72rem', fontWeight: 700, color: '#fff', background: ACCENT,
+                            padding: '0.3rem 0.65rem', borderRadius: 4, textDecoration: 'none',
+                            textTransform: 'uppercase', letterSpacing: '0.05em',
+                          }}>Buy</a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            /* ── Fallback: hardcoded pricing ── */
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '2rem' }}>
+              {FALLBACK_SERVICES.map(cat => (
+                <div key={cat.category} style={{
+                  background: '#fff', borderRadius: 8, padding: '2rem',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                }}>
+                  <h3 style={{
+                    fontWeight: 800, fontSize: '1.1rem',
+                    color: ACCENT, marginBottom: '1.5rem',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                  }}>{cat.category}</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {cat.items.map(item => (
+                      <div key={item.name} style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                      }}>
+                        <span style={{ fontSize: '0.9rem', color: DARK }}>{item.name}</span>
+                        <span style={{
+                          fontSize: '0.9rem', fontWeight: 700, color: ACCENT,
+                          flexShrink: 0, marginLeft: '1rem',
+                        }}>{item.price}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div style={{ textAlign: 'center', marginTop: '3rem' }}>
-            <a href="/book" style={{
+            <a href="/shop" style={{
               display: 'inline-block', background: DARK, color: '#fff',
               padding: '0.85rem 2.5rem', textDecoration: 'none',
               fontWeight: 700, fontSize: '0.85rem', letterSpacing: '0.1em',
               textTransform: 'uppercase', borderRadius: 4,
-            }}>Sign Up Now</a>
+            }}>Browse Shop</a>
           </div>
         </div>
       </section>
