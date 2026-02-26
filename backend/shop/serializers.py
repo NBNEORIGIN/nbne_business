@@ -14,7 +14,8 @@ class ProductImageSerializer(serializers.ModelSerializer):
         if obj.image:
             request = self.context.get('request')
             if request:
-                return request.build_absolute_uri(obj.image.url)
+                url = request.build_absolute_uri(obj.image.url)
+                return url.replace('http://', 'https://', 1) if url.startswith('http://') else url
             return obj.image.url
         return ''
 
@@ -22,7 +23,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     price_pence = serializers.IntegerField(read_only=True)
     in_stock = serializers.BooleanField(read_only=True)
-    primary_image_url = serializers.CharField(read_only=True)
+    primary_image_url = serializers.SerializerMethodField()
     images = ProductImageSerializer(many=True, read_only=True)
 
     class Meta:
@@ -35,6 +36,16 @@ class ProductSerializer(serializers.ModelSerializer):
             'sort_order', 'active', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_primary_image_url(self, obj):
+        first = obj.images.order_by('sort_order', 'id').first()
+        if first and first.image:
+            request = self.context.get('request')
+            if request:
+                url = request.build_absolute_uri(first.image.url)
+                return url.replace('http://', 'https://', 1) if url.startswith('http://') else url
+            return first.image.url
+        return obj.image_url or ''
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
