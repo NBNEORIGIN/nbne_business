@@ -39,6 +39,45 @@ def _serialize_lead(lead):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+def debug_tenant(request):
+    """Temporary debug endpoint — shows resolved tenant + lead count."""
+    tenant = getattr(request, 'tenant', None)
+    from tenants.models import TenantSettings
+    all_tenants = list(TenantSettings.objects.values_list('id', 'slug'))
+    return Response({
+        'resolved_tenant_id': tenant.id if tenant else None,
+        'resolved_tenant_slug': tenant.slug if tenant else None,
+        'header_slug': request.META.get('HTTP_X_TENANT_SLUG', ''),
+        'query_slug': request.GET.get('tenant', ''),
+        'lead_count': Lead.objects.filter(tenant=tenant).count() if tenant else 0,
+        'all_tenants': all_tenants,
+        'all_leads_by_tenant': {
+            t.slug: Lead.objects.filter(tenant=t).count()
+            for t in TenantSettings.objects.all()
+        },
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def cleanup_nbne_demo(request):
+    """One-time cleanup — delete demo leads from NBNE tenant. Remove after use."""
+    from tenants.models import TenantSettings
+    try:
+        t = TenantSettings.objects.get(slug='nbne')
+    except TenantSettings.DoesNotExist:
+        return Response({'error': 'nbne tenant not found'})
+    demo_names = ['Noah Taylor', 'Charlotte Hughes', 'Liam Brown', 'James Anderson',
+                  'Sophia Davis', 'Emma Wilson', 'Olivia Jones', 'Harry Clarke']
+    qs = Lead.objects.filter(tenant=t, name__in=demo_names)
+    count = qs.count()
+    result = qs.delete()
+    remaining = Lead.objects.filter(tenant=t).count()
+    return Response({'deleted_count': count, 'delete_result': str(result), 'remaining': remaining})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def list_leads(request):
     tenant = getattr(request, 'tenant', None)
     qs = Lead.objects.filter(tenant=tenant)
