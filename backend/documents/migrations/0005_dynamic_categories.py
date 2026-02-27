@@ -1,0 +1,16 @@
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('documents', '0004_backfill_tenant_nonnull'),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name='document',
+            name='category',
+            field=models.CharField(blank=True, db_index=True, default='General', max_length=100),
+        ),
+    ]

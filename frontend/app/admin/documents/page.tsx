@@ -4,20 +4,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { getDocuments, getDocumentSummary, createDocument, updateDocument, deleteDocument, downloadDocument } from '@/lib/api'
-
-const CATEGORIES = [
-  { key: '', label: 'All' },
-  { key: 'LEGAL', label: 'Legal' },
-  { key: 'INSURANCE', label: 'Insurance' },
-  { key: 'POLICY', label: 'Policies' },
-  { key: 'HEALTH_SAFETY', label: 'Health & Safety' },
-  { key: 'COMPLIANCE', label: 'Compliance' },
-  { key: 'TRAINING', label: 'Training' },
-  { key: 'HR', label: 'HR' },
-  { key: 'CONTRACT', label: 'Contracts' },
-  { key: 'GENERAL', label: 'General' },
-]
+import { getDocuments, getDocumentSummary, getDocumentCategories, createDocument, updateDocument, deleteDocument, downloadDocument } from '@/lib/api'
 
 const STATUS_BADGE: Record<string, string> = {
   VALID: 'badge-success', EXPIRING: 'badge-warning', EXPIRED: 'badge-danger', MISSING: 'badge-neutral',
@@ -33,6 +20,7 @@ export default function AdminDocumentsPage() {
   const [docs, setDocs] = useState<any[]>([])
   const [summary, setSummary] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [categories, setCategories] = useState<string[]>([])
   const [activeCategory, setActiveCategory] = useState('')
   const [search, setSearch] = useState('')
   const [showUpload, setShowUpload] = useState(false)
@@ -48,9 +36,10 @@ export default function AdminDocumentsPage() {
     const params: any = {}
     if (activeCategory) params.category = activeCategory
     if (search) params.search = search
-    const [docsRes, sumRes] = await Promise.all([getDocuments(params), getDocumentSummary()])
+    const [docsRes, sumRes, catRes] = await Promise.all([getDocuments(params), getDocumentSummary(), getDocumentCategories()])
     setDocs(docsRes.data || [])
     setSummary(sumRes.data || null)
+    if (catRes.data) setCategories(catRes.data)
     setLoading(false)
   }, [activeCategory, search])
 
@@ -106,12 +95,11 @@ export default function AdminDocumentsPage() {
 
   function getGroupedDocs() {
     const groups: Record<string, any[]> = {}
-    for (const cat of CATEGORIES) {
-      if (!cat.key) continue
-      groups[cat.key] = []
+    for (const cat of categories) {
+      groups[cat] = []
     }
     for (const doc of docs) {
-      const key = doc.category || 'GENERAL'
+      const key = doc.category || 'General'
       if (!groups[key]) groups[key] = []
       groups[key].push(doc)
     }
@@ -153,9 +141,10 @@ export default function AdminDocumentsPage() {
       <div className="tab-subheader">
         <div className="tab-subheader-left" style={{ gap: 8, flexWrap: 'wrap' }}>
           <div className="filter-pills">
-            {CATEGORIES.map(cat => (
-              <button key={cat.key} className={`filter-pill ${activeCategory === cat.key ? 'active' : ''}`} onClick={() => setActiveCategory(cat.key)}>
-                {cat.label}
+            <button className={`filter-pill ${activeCategory === '' ? 'active' : ''}`} onClick={() => setActiveCategory('')}>All</button>
+            {categories.map(cat => (
+              <button key={cat} className={`filter-pill ${activeCategory === cat ? 'active' : ''}`} onClick={() => setActiveCategory(cat)}>
+                {cat}
               </button>
             ))}
           </div>
@@ -188,20 +177,22 @@ export default function AdminDocumentsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(() => {
             const grouped = getGroupedDocs()
-            return CATEGORIES.filter(c => c.key).map(cat => {
-              const catDocs = grouped[cat.key] || []
-              if (activeCategory && activeCategory !== cat.key) return null
+            // Build display list: all known categories + any extra from grouped docs
+            const allCats = Array.from(new Set([...categories, ...Object.keys(grouped)]))
+            return allCats.map(cat => {
+              const catDocs = grouped[cat] || []
+              if (activeCategory && activeCategory !== cat) return null
               if (catDocs.length === 0 && activeCategory) return null
-              const isCollapsed = collapsedFolders.has(cat.key)
+              const isCollapsed = collapsedFolders.has(cat)
               return (
-                <div key={cat.key} style={{ background: 'var(--color-bg-card, #fff)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                <div key={cat} style={{ background: 'var(--color-bg-card, #fff)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
                   {/* Folder header */}
-                  <button onClick={() => toggleFolder(cat.key)} style={{
+                  <button onClick={() => toggleFolder(cat)} style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '0.65rem 1rem',
                     background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', textAlign: 'left',
                   }}>
                     <span style={{ fontSize: '0.85rem', transition: 'transform 0.2s', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
-                    <span style={{ fontWeight: 700, fontSize: '0.88rem', flex: 1 }}>{cat.label}</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.88rem', flex: 1 }}>{cat}</span>
                     <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>{catDocs.length} {catDocs.length === 1 ? 'doc' : 'docs'}</span>
                   </button>
                   {/* Folder contents */}
@@ -338,11 +329,10 @@ export default function AdminDocumentsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label className="form-label">Category</label>
-                  <select className="form-input" name="category" defaultValue={editDoc?.category || 'GENERAL'}>
-                    {CATEGORIES.filter(c => c.key).map(c => (
-                      <option key={c.key} value={c.key}>{c.label}</option>
-                    ))}
-                  </select>
+                  <input className="form-input" name="category" list="doc-cat-list" defaultValue={editDoc?.category || 'General'} placeholder="Select or type a category" />
+                  <datalist id="doc-cat-list">
+                    {categories.map(c => <option key={c} value={c} />)}
+                  </datalist>
                 </div>
                 <div>
                   <label className="form-label">Access Level</label>

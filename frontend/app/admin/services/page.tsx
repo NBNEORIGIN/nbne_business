@@ -44,6 +44,7 @@ export default function AdminServicesPage() {
 
   const activeServices = services.filter(s => s.is_active)
   const inactiveServices = services.filter(s => !s.is_active)
+  const serviceCategories = Array.from(new Set(services.map((s: any) => s.category).filter(Boolean)))
   const filteredServices = filter === 'active' ? activeServices : filter === 'inactive' ? inactiveServices : services
 
   function openAdd() {
@@ -222,7 +223,8 @@ export default function AdminServicesPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label className="form-label">Category</label>
-                  <input className="form-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="e.g. Cuts, Colour, Wellness" />
+                  <input className="form-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="e.g. Cuts, Colour, Wellness" list="svc-cat-list" />
+                  <datalist id="svc-cat-list">{serviceCategories.map((c: string) => <option key={c} value={c} />)}</datalist>
                 </div>
                 <div>
                   <label className="form-label">Duration (minutes) *</label>

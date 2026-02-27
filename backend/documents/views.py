@@ -106,6 +106,22 @@ def document_list(request):
     return Response(DocumentSerializer(docs[:200], many=True).data)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def document_categories(request):
+    """Return merged list of default + tenant-custom categories for the dropdown."""
+    tenant = getattr(request, 'tenant', None)
+    # Start with defaults
+    cats = set(Document.DEFAULT_CATEGORIES)
+    # Add any custom categories already used by this tenant
+    if tenant:
+        existing = Document.objects.filter(tenant=tenant).exclude(
+            category__isnull=True
+        ).exclude(category='').values_list('category', flat=True).distinct()
+        cats.update(existing)
+    return Response(sorted(cats))
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])

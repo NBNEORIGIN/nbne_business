@@ -17,16 +17,10 @@ class DocumentTag(models.Model):
 
 class Document(models.Model):
     """A securely stored document with optional expiry and category."""
-    CATEGORY_CHOICES = [
-        ('LEGAL', 'Legal Requirement'),
-        ('POLICY', 'Policy'),
-        ('INSURANCE', 'Insurance'),
-        ('COMPLIANCE', 'Compliance'),
-        ('TRAINING', 'Training Certificate'),
-        ('HEALTH_SAFETY', 'Health & Safety'),
-        ('HR', 'HR'),
-        ('CONTRACT', 'Contract'),
-        ('GENERAL', 'General'),
+    # Default categories provided as suggestions — tenants can add their own
+    DEFAULT_CATEGORIES = [
+        'Legal', 'Policy', 'Insurance', 'Compliance',
+        'Training', 'Health & Safety', 'HR', 'Contract', 'General',
     ]
     ACCESS_CHOICES = [
         ('owner', 'Owner Only'),
@@ -37,7 +31,7 @@ class Document(models.Model):
     tenant = models.ForeignKey('tenants.TenantSettings', on_delete=models.CASCADE, related_name='documents')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='GENERAL', db_index=True)
+    category = models.CharField(max_length=100, blank=True, default='General', db_index=True)
     file = models.FileField(upload_to='vault/%Y/%m/', null=True, blank=True)
     filename = models.CharField(max_length=255, blank=True, default='')
     content_type = models.CharField(max_length=100, blank=True, default='')

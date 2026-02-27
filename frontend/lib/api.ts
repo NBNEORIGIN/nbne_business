@@ -888,6 +888,10 @@ export async function getDocumentSummary() {
   return apiFetch<any>('/documents/summary/')
 }
 
+export async function getDocumentCategories() {
+  return apiFetch<string[]>('/documents/categories/')
+}
+
 export async function createDocument(formData: FormData) {
   const token = getAccessToken()
   const res = await fetch(`/api/django/documents/create/`, {
