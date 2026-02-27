@@ -19,8 +19,6 @@ urlpatterns = [
     path('leads/<int:lead_id>/parse-email/', views.parse_email, name='crm-lead-parse-email'),
     path('leads/parse-email/', views.parse_email_create, name='crm-parse-email-create'),
     path('leads/extract-email/', views.parse_email_extract, name='crm-extract-email'),
-    path('debug-tenant/', views.debug_tenant, name='crm-debug-tenant'),
-    path('cleanup-nbne/', views.cleanup_nbne_demo, name='crm-cleanup-nbne'),
     path('revenue/', views.revenue_stats, name='crm-revenue'),
     path('sync/', views.sync_from_bookings, name='crm-sync'),
 ]
